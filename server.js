@@ -27,6 +27,13 @@ const io = new Server(server, {
   }
 });
 
+app.use((req, res, next) => {
+  // Koyeb adds this header - we need to honor it
+  const originalHost = req.headers['x-forwarded-host'] || req.headers.host;
+  req.headers.host = originalHost;
+  next();
+});
+
 app.get('/health', (req, res) => {
   res.status(200).type('text').send('OK');
 });
