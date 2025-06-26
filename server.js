@@ -45,6 +45,18 @@ app.get('/', (req, res) => {
   res.send('Quiz Backend is Running');
 });
 
+app.get('/debug', (req, res) => {
+  res.json({
+    status: 'running',
+    timestamp: Date.now(),
+    environment: process.env.NODE_ENV || 'development',
+    port: process.env.PORT,
+    memory: process.memoryUsage(),
+    uptime: process.uptime(),
+    koyeb: process.env.KOYEB_APP || 'not set'
+  });
+});
+
 const rooms = {};
 
 io.on('connection', (socket) => {
