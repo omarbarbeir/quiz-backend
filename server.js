@@ -51,6 +51,11 @@ app.get('/debug', (req, res) => {
   });
 });
 
+app.get('/health', (req, res) => {
+  console.log('Health check accessed - Headers:', req.headers);
+  res.status(200).type('text').send('OK');
+});
+
 const server = http.createServer(app);
 
 // FIX 2: Correct CORS origin for local development
