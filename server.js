@@ -13,36 +13,23 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
-// 3. Express setup
+// Express setup
 const app = express();
-app.use(cors());
 
-
-app.use(cors());
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: ["http://localhost:3001", "https://omarbarbeir.github.io"],
-    methods: ["GET", "POST"]
-  }
-});
-
+// FIX 1: Move host header middleware to TOP
 app.use((req, res, next) => {
-  // Koyeb adds this header - we need to honor it
-  const originalHost = req.headers['x-forwarded-host'] || req.headers.host;
-  req.headers.host = originalHost;
+  // Koyeb adds these headers - we need to honor them
+  req.headers.host = req.headers['x-forwarded-host'] || req.headers.host;
+  req.protocol = req.headers['x-forwarded-proto'] || req.protocol;
   next();
 });
 
+app.use(cors());  // Only need one CORS middleware
+
+// Health endpoints
 app.get('/health', (req, res) => {
   res.status(200).type('text').send('OK');
 });
-
-// Health check endpoint - add console log for verification
-// app.get('/health', (req, res) => {
-//   console.log('Health check accessed');
-//   res.status(200).type('text').send('OK');
-// });
 
 app.get('/api/test', (req, res) => {
   res.json({ status: 'working', time: new Date() });
@@ -64,6 +51,20 @@ app.get('/debug', (req, res) => {
   });
 });
 
+const server = http.createServer(app);
+
+// FIX 2: Correct CORS origin for local development
+const io = new Server(server, {
+  cors: {
+    origin: [
+      "http://localhost:3000",  // Frontend dev server
+      "https://omarbarbeir.github.io"  // Production frontend
+    ],
+    methods: ["GET", "POST"]
+  }
+});
+
+// Socket.IO Logic
 const rooms = {};
 
 io.on('connection', (socket) => {
@@ -102,7 +103,7 @@ io.on('connection', (socket) => {
       rooms[roomCode].activePlayer = playerId;
       rooms[roomCode].buzzerLocked = true;
       
-      // Pause audio instead of stopping
+      // Pause audio
       io.to(roomCode).emit('pause_audio');
       
       // Notify clients about the buzz
@@ -112,12 +113,11 @@ io.on('connection', (socket) => {
     }
   });
   
-  // FIXED: Update player score
+  // Update player score
   socket.on('update_score', ({ roomCode, playerId, change }) => {
     if (rooms[roomCode]) {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       if (player) {
-        // Apply the score change
         player.score = (player.score || 0) + change;
         io.to(roomCode).emit('update_score', player);
         console.log(`Updated score for player ${playerId} in room ${roomCode} to ${player.score}`);
@@ -179,7 +179,7 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('player_left', playerId);
       console.log(`Player ${playerId} left room ${roomCode}`);
       
-      // If last player leaves, close room
+      // Close room if last player leaves
       if (rooms[roomCode].players.length === 0) {
         delete rooms[roomCode];
         console.log(`Room ${roomCode} closed`);
