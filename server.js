@@ -1,22 +1,49 @@
+// 1. Error handling (NEW)
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ UNHANDLED REJECTION:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('🚨 UNCAUGHT EXCEPTION:', err);
+  process.exit(1);
+});
+
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
+const { Server } = require('socket.io');
 const cors = require('cors');
 
+// 3. Express setup
 const app = express();
 app.use(cors());
-const server = require('http').createServer(app);
-const io = require('socket.io')(server, {
+
+
+app.use(cors());
+const server = http.createServer(app);
+const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
+    origin: ["http://localhost:3001", "https://omarbarbeir.github.io"],
     methods: ["GET", "POST"]
   }
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).send('OK');
+  res.status(200).type('text').send('OK');
 });
 
+// Health check endpoint - add console log for verification
+// app.get('/health', (req, res) => {
+//   console.log('Health check accessed');
+//   res.status(200).type('text').send('OK');
+// });
+
+app.get('/api/test', (req, res) => {
+  res.json({ status: 'working', time: new Date() });
+});
+
+app.get('/', (req, res) => {
+  res.send('Quiz Backend is Running');
+});
 
 const rooms = {};
 
@@ -156,6 +183,8 @@ function generateRoomCode() {
 }
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
+  console.log(`🩺 Health check: http://0.0.0.0:${PORT}/health`);
+  console.log('Environment:', process.env.NODE_ENV || 'development');
 });
