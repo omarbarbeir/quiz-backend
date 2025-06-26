@@ -5,13 +5,18 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors());
-const server = http.createServer(app);
-const io = socketIo(server, {
+const server = require('http').createServer(app);
+const io = require('socket.io')(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
     methods: ["GET", "POST"]
   }
 });
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 
 const rooms = {};
 
