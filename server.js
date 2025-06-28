@@ -1,122 +1,68 @@
-// server.js
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
-// ===========================================================================
-// 1. HEALTH CHECK SERVER (Port 3002)
-// ===========================================================================
+// 1. Health Server
 const healthServer = http.createServer((req, res) => {
-  // Handle all health checks
+  console.log(`[Health] ${req.method} ${req.url}`);
+  
   if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
+    console.log('Health check request received');
     res.setHeader('Content-Type', 'text/plain');
     res.statusCode = 200;
     return res.end('HEALTHY');
   }
   
-  // Not found for other routes
   res.statusCode = 404;
   res.end('Not Found');
 });
 
-// Start health server
-const HEALTH_PORT = 3002;
-healthServer.listen(HEALTH_PORT, '0.0.0.0', () => {
-  console.log(`🩺 Health server running on port ${HEALTH_PORT}`);
+healthServer.listen(3002, '0.0.0.0', () => {
+  console.log(`🩺 Health server running on port 3002`);
 });
 
-// ===========================================================================
-// 2. MAIN APPLICATION SERVER (Port 3001)
-// ===========================================================================
+// 2. Main Server
 const app = express();
 const mainServer = http.createServer(app);
 
-// CORS configuration - ADD YOUR FRONTEND DOMAINS HERE
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`[Main] ${req.method} ${req.url}`);
+  next();
+});
+
+// CORS configuration
 const allowedOrigins = [
   "http://localhost:3000",
   "https://omarbarbeir.github.io",
-  "https://minimal-alison-omarelbarbeir-0fc063fa.koyeb.app" // Your Koyeb service
+  "https://minimal-alison-omarelbarbeir-0fc063fa.koyeb.app"
 ];
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
-}));
+app.use(cors({ origin: allowedOrigins }));
 
 // Root endpoint
 app.get('/', (req, res) => {
+  console.log('Handling root request');
   res.send('BACKEND_OPERATIONAL');
 });
 
 // Socket.IO setup
 const io = new Server(mainServer, {
-  cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+  cors: { origin: allowedOrigins }
 });
 
-// ===========================================================================
-// 3. GAME LOGIC - ADD YOUR EXISTING GAME CODE HERE
-// ===========================================================================
-const rooms = {};
+// Game logic (your existing code)
+// ...
 
-io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
-  
-  socket.on('joinRoom', (roomCode, username) => {
-    if (!rooms[roomCode]) {
-      rooms[roomCode] = { players: [], state: 'waiting' };
-    }
-    
-    rooms[roomCode].players.push({
-      id: socket.id,
-      username,
-      score: 0
-    });
-    
-    socket.join(roomCode);
-    io.to(roomCode).emit('playerJoined', username, rooms[roomCode].players);
-  });
-
-  socket.on('buzz', (roomCode, username) => {
-    if (rooms[roomCode] && rooms[roomCode].state === 'question') {
-      rooms[roomCode].state = 'buzzed';
-      io.to(roomCode).emit('buzz', username);
-    }
-  });
-
-  socket.on('startGame', (roomCode) => {
-    if (rooms[roomCode]) {
-      rooms[roomCode].state = 'question';
-      io.to(roomCode).emit('gameStarted');
-    }
-  });
-
-  socket.on('nextQuestion', (roomCode) => {
-    if (rooms[roomCode]) {
-      rooms[roomCode].state = 'question';
-      io.to(roomCode).emit('nextQuestion');
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-    // Add logic to remove player from rooms
-  });
+// Start main server with error handling
+mainServer.listen(3001, '0.0.0.0', () => {
+  console.log(`✅ Main server running on port 3001`);
+}).on('error', (err) => {
+  console.error('❌ Server error:', err);
 });
 
-// Start main server
-const PORT = 3001;
-mainServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Main server running on port ${PORT}`);
-});
-
-// ===========================================================================
-// 4. ERROR HANDLING
-// ===========================================================================
+// Error handling
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️ UNHANDLED REJECTION:', reason);
 });
