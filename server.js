@@ -3,12 +3,14 @@ const express = require('express');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
-// 1. Health Server
+// ===========================================================================
+// 1. HEALTH CHECK SERVER (Port 3002) - FOR KOYEB
+// ===========================================================================
 const healthServer = http.createServer((req, res) => {
   console.log(`[Health] ${req.method} ${req.url}`);
   
   if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
-    console.log('Health check request received');
+    console.log('✅ Health check received');
     res.setHeader('Content-Type', 'text/plain');
     res.statusCode = 200;
     return res.end('HEALTHY');
@@ -22,14 +24,23 @@ healthServer.listen(3002, '0.0.0.0', () => {
   console.log(`🩺 Health server running on port 3002`);
 });
 
-// 2. Main Server
+// ===========================================================================
+// 2. MAIN APPLICATION SERVER (Port 3001) - FOR YOUR APP
+// ===========================================================================
 const app = express();
 const mainServer = http.createServer(app);
 
-// Add request logging middleware
-app.use((req, res, next) => {
-  console.log(`[Main] ${req.method} ${req.url}`);
-  next();
+// TEMPORARY HEALTH ENDPOINT (Remove after configuration fix)
+app.get('/health', (req, res) => {
+  console.log('⚠️ Temporary health check on main server');
+  res.setHeader('Content-Type', 'text/plain');
+  res.status(200).send('TEMPORARY_HEALTHY');
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  console.log('✅ Handling root request');
+  res.send('BACKEND_OPERATIONAL');
 });
 
 // CORS configuration
@@ -41,25 +52,27 @@ const allowedOrigins = [
 
 app.use(cors({ origin: allowedOrigins }));
 
-// Root endpoint
-app.get('/', (req, res) => {
-  console.log('Handling root request');
-  res.send('BACKEND_OPERATIONAL');
-});
-
 // Socket.IO setup
 const io = new Server(mainServer, {
   cors: { origin: allowedOrigins }
 });
 
-// Game logic (your existing code)
-// ...
+// Game logic
+const rooms = {};
 
-// Start main server with error handling
+io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+  
+  // Your game event handlers
+  socket.on('joinRoom', (roomCode, username) => {
+    console.log(`Player ${username} joining room ${roomCode}`);
+    // Your implementation
+  });
+});
+
+// Start main server
 mainServer.listen(3001, '0.0.0.0', () => {
   console.log(`✅ Main server running on port 3001`);
-}).on('error', (err) => {
-  console.error('❌ Server error:', err);
 });
 
 // Error handling
