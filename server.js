@@ -16,23 +16,29 @@ const cors = require('cors');
 // Create app
 const app = express();
 
-// Critical Koyeb fix - must be first
+// Critical Koyeb fixes
+app.set('trust proxy', true);  // Trust Koyeb's reverse proxy
+
+// 1. HEALTH CHECK - MUST BE FIRST MIDDLEWARE
+app.get('/health', (req, res) => {
+  // Explicitly set plain text content type
+  res.setHeader('Content-Type', 'text/plain');
+  res.status(200).send('OK');
+});
+
+// 2. Handle Koyeb health checks with special header
 app.use((req, res, next) => {
-  // Capture original URL for debugging
-  console.log(`Incoming: ${req.method} ${req.url}`);
+  // Intercept Koyeb health checks
+  if (req.headers['x-koyeb-healthcheck'] === 'true') {
+    return res.set('Content-Type', 'text/plain').status(200).send('OK');
+  }
   next();
 });
 
-// Health endpoint - MUST BE BEFORE CORS
-// app.get('/health', (req, res) => {
-//   console.log('Health check executed');
-//   res.status(200).set('Content-Type', 'text/plain').send('OK');
-// });
-
-app.get('/health', (req, res) => {
-  // Set content-type explicitly
-  res.setHeader('Content-Type', 'text/plain');
-  res.status(200).send('OK');
+// 3. Request logging (now safe to add after health checks)
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
 });
 
 // Add CORS middleware
@@ -46,11 +52,28 @@ app.get('/', (req, res) => {
 // Create HTTP server
 const server = http.createServer(app);
 
-// Socket.IO setup
+// Socket.IO setup with health check bypass
 const io = new Server(server, {
   cors: {
     origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
     methods: ["GET", "POST"]
+  },
+  // Prevent Socket.IO from handling HTTP requests
+  connectTimeout: 10000,
+  maxHttpBufferSize: 1e6
+});
+
+// Middleware to bypass health checks in Socket.IO
+io.engine.on("initial_headers", (headers, req) => {
+  if (req.url === '/health') {
+    headers["Content-Type"] = "text/plain";
+  }
+});
+
+io.engine.on("request", (req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("OK");
   }
 });
 
@@ -80,4 +103,11 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
   console.log(`🩺 Health check: http://0.0.0.0:${PORT}/health`);
   console.log('Environment:', process.env.NODE_ENV || 'development');
+  
+  // Debug output for Koyeb
+  console.log('Koyeb ENV:', JSON.stringify({
+    PORT: process.env.PORT,
+    NODE_ENV: process.env.NODE_ENV,
+    KOYEB_DEPLOYMENT: process.env.KOYEB_DEPLOYMENT
+  }, null, 2));
 });
