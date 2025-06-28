@@ -4,7 +4,7 @@
   "main": "server.js",
   "description": "Multiplayer game backend server",
 "scripts": {
-  "start": "node server.js",
+  "start": "./koyeb-start.sh",
   "dev": "nodemon --legacy-watch server.js",
   "test": "echo \"Error: no test specified\" && exit 1",
   "debug": "NODE_DEBUG=net,tls,http,https node server.js"

@@ -24,9 +24,15 @@ app.use((req, res, next) => {
 });
 
 // Health endpoint - MUST BE BEFORE CORS
+// app.get('/health', (req, res) => {
+//   console.log('Health check executed');
+//   res.status(200).set('Content-Type', 'text/plain').send('OK');
+// });
+
 app.get('/health', (req, res) => {
-  console.log('Health check executed');
-  res.status(200).set('Content-Type', 'text/plain').send('OK');
+  // Set content-type explicitly
+  res.setHeader('Content-Type', 'text/plain');
+  res.status(200).send('OK');
 });
 
 // Add CORS middleware
