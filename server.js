@@ -1,13 +1,82 @@
-// server.js
-// 1. Configure environment first
-process.env.PORT = process.env.PORT || 3001;
+// server.js - COMPLETE SOLUTION
+const http = require('http');
+const express = require('express');
+const { Server } = require('socket.io');
+const cors = require('cors');
+
+// ===========================================================================
+// 1. HEALTH CHECK SERVER (Runs on port 3002)
+// ===========================================================================
+const healthServer = http.createServer((req, res) => {
+  // Handle all health checks separately
+  if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
+    res.setHeader('Content-Type', 'text/plain');
+    res.statusCode = 200;
+    return res.end('HEALTHY');
+  }
+  
+  res.statusCode = 404;
+  res.end('Not Found');
+});
+
+// Start health server
+const HEALTH_PORT = process.env.HEALTH_PORT || 3002;
+healthServer.listen(HEALTH_PORT, '0.0.0.0', () => {
+  console.log(`🩺 Health server running on port ${HEALTH_PORT}`);
+});
+
+// ===========================================================================
+// 2. MAIN APPLICATION SERVER (Runs on port 3001)
+// ===========================================================================
+const app = express();
+const mainServer = http.createServer(app);
+
+// Environment configuration
+const PORT = process.env.PORT || 3001;
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-// 2. Memory optimization
-const v8 = require('v8');
-v8.setFlagsFromString('--max-old-space-size=256');
+// Minimal middleware
+app.use(cors({
+  origin: ["http://localhost:3000", "https://omarbarbeir.github.io"]
+}));
 
-// 3. Error handling
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send('BACKEND_OPERATIONAL');
+});
+
+// Socket.IO setup
+const io = new Server(mainServer, {
+  cors: {
+    origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
+    methods: ["GET", "POST"]
+  }
+});
+
+// Game Logic - PASTE YOUR EXISTING GAME CODE HERE
+const rooms = {};
+io.on('connection', (socket) => {
+  console.log('New client connected');
+  
+  socket.on('joinRoom', (roomCode, username) => {
+    if (!rooms[roomCode]) rooms[roomCode] = { players: [] };
+    rooms[roomCode].players.push({ id: socket.id, username });
+    socket.join(roomCode);
+    io.to(roomCode).emit('playerJoined', username);
+  });
+  
+  // ADD ALL YOUR OTHER GAME EVENT HANDLERS HERE
+});
+
+// Start main server
+mainServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Main server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+});
+
+// ===========================================================================
+// 3. ERROR HANDLING (Global)
+// ===========================================================================
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️ UNHANDLED REJECTION:', reason);
 });
@@ -15,90 +84,4 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   console.error('🚨 UNCAUGHT EXCEPTION:', err);
   process.exit(1);
-});
-
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
-
-// Server state
-let serverReady = false;
-const app = express();
-
-// 4. Koyeb-specific middleware
-app.set('trust proxy', true);
-app.use((req, res, next) => {
-  res.setHeader('Content-Type', 'text/plain');
-  res.removeHeader('X-Powered-By');
-  next();
-});
-
-// 5. Health checks
-app.get('/health', (req, res) => {
-  if (!serverReady) return res.status(503).send('STARTING');
-  res.status(200).send('OK');
-});
-
-app.use((req, res, next) => {
-  if (req.headers['x-koyeb-healthcheck']) {
-    return res.status(serverReady ? 200 : 503).send('KOYEB_HEALTH');
-  }
-  next();
-});
-
-// 6. Core middleware
-app.use(cors());
-app.use(express.json());
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
-
-// 7. Main endpoint
-app.get('/', (req, res) => {
-  res.send('BACKEND_OPERATIONAL');
-});
-
-// 8. Server setup
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
-    methods: ["GET", "POST"]
-  }
-});
-
-// 9. Socket.IO health bypass
-io.engine.on("request", (req, res) => {
-  if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
-    res.setHeader('Content-Type', 'text/plain');
-    res.statusCode = serverReady ? 200 : 503;
-    return res.end('SOCKETIO_HEALTH');
-  }
-});
-
-// 10. Game logic
-const rooms = {};
-io.on('connection', (socket) => {
-  socket.on('joinRoom', (roomCode, username) => {
-    if (!rooms[roomCode]) rooms[roomCode] = { players: [] };
-    rooms[roomCode].players.push({ id: socket.id, username });
-    socket.join(roomCode);
-    io.to(roomCode).emit('playerJoined', username);
-  });
-});
-
-// 11. Start server
-const PORT = process.env.PORT;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server running on port ${PORT}`);
-  console.log(`🩺 Health: http://0.0.0.0:${PORT}/health`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-  
-  // Mark ready after 2s buffer
-  setTimeout(() => {
-    serverReady = true;
-    console.log('🚀 Server ready for connections');
-  }, 2000);
 });
