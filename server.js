@@ -1,18 +1,13 @@
 // server.js
-
-// Before any other code
+// 1. Configure environment first
 process.env.PORT = process.env.PORT || 3001;
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-// Then add this to your Express app
-app.use((req, res, next) => {
-  // Force plain text and disable Express formatting
-  res.setHeader('Content-Type', 'text/plain');
-  res.removeHeader('X-Powered-By');
-  next();
-});
+// 2. Memory optimization
+const v8 = require('v8');
+v8.setFlagsFromString('--max-old-space-size=256');
 
-// 1. Error handling
+// 3. Error handling
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️ UNHANDLED REJECTION:', reason);
 });
@@ -27,63 +22,46 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
-// Create raw HTTP server
-const server = http.createServer();
-
-// 1. RAW HEALTH CHECK HANDLER - BEFORE ANYTHING ELSE
-server.on('request', (req, res) => {
-  if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
-    console.log('🔥 RAW HEALTH CHECK HANDLED');
-    res.setHeader('Content-Type', 'text/plain');
-    res.statusCode = 200;
-    return res.end('HEALTH_CHECK_OK');
-  }
-});
-
-// Create Express app
+// Server state
+let serverReady = false;
 const app = express();
 
-// 2. Force plain text for all responses
+// 4. Koyeb-specific middleware
+app.set('trust proxy', true);
 app.use((req, res, next) => {
   res.setHeader('Content-Type', 'text/plain');
+  res.removeHeader('X-Powered-By');
   next();
 });
 
-// 3. EXPRESS HEALTH CHECK HANDLER (redundant but safe)
+// 5. Health checks
 app.get('/health', (req, res) => {
-  res.status(200).end('HEALTH_CHECK_OK');
+  if (!serverReady) return res.status(503).send('STARTING');
+  res.status(200).send('OK');
 });
 
-// 4. KOYEB HEADER DETECTION
 app.use((req, res, next) => {
   if (req.headers['x-koyeb-healthcheck']) {
-    return res.status(200).end('HEALTH_CHECK_OK');
+    return res.status(serverReady ? 200 : 503).send('KOYEB_HEALTH');
   }
   next();
 });
 
-// 5. Request logging
+// 6. Core middleware
+app.use(cors());
+app.use(express.json());
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// 6. CORS middleware
-app.use(cors());
-
-// 7. Root endpoint
+// 7. Main endpoint
 app.get('/', (req, res) => {
-  res.send('Quiz Backend is Running');
+  res.send('BACKEND_OPERATIONAL');
 });
 
-// 8. Attach Express to HTTP server for non-health routes
-server.on('request', (req, res) => {
-  if (req.url !== '/health' && !req.headers['x-koyeb-healthcheck']) {
-    app(req, res);
-  }
-});
-
-// 9. Socket.IO setup
+// 8. Server setup
+const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
@@ -91,44 +69,36 @@ const io = new Server(server, {
   }
 });
 
-// 10. Game Logic
+// 9. Socket.IO health bypass
+io.engine.on("request", (req, res) => {
+  if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
+    res.setHeader('Content-Type', 'text/plain');
+    res.statusCode = serverReady ? 200 : 503;
+    return res.end('SOCKETIO_HEALTH');
+  }
+});
+
+// 10. Game logic
 const rooms = {};
 io.on('connection', (socket) => {
-  console.log('New client connected');
-  
-  // Your game event handlers
   socket.on('joinRoom', (roomCode, username) => {
     if (!rooms[roomCode]) rooms[roomCode] = { players: [] };
     rooms[roomCode].players.push({ id: socket.id, username });
     socket.join(roomCode);
     io.to(roomCode).emit('playerJoined', username);
   });
-  
-  // Add your other event handlers here
 });
 
-// 11. Server startup
-const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || '0.0.0.0';
-const ENV = process.env.NODE_ENV || 'development';
-
-server.listen(PORT, HOST, () => {
-  console.log(`✅ Server running on http://${HOST}:${PORT}`);
-  console.log(`🩺 Health check: http://${HOST}:${PORT}/health`);
-  console.log('Environment:', ENV);
+// 11. Start server
+const PORT = process.env.PORT;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🩺 Health: http://0.0.0.0:${PORT}/health`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
   
-  // Debug output
-  console.log('Environment Variables:');
-  console.log(`PORT: ${PORT} (${typeof PORT})`);
-  console.log(`HOST: ${HOST}`);
-  console.log(`NODE_ENV: ${ENV}`);
-  console.log(`KOYEB_SERVICE_NAME: ${process.env.KOYEB_SERVICE_NAME || 'Not set'}`);
-  console.log(`KOYEB_DEPLOYMENT: ${process.env.KOYEB_DEPLOYMENT || 'Not set'}`);
+  // Mark ready after 2s buffer
+  setTimeout(() => {
+    serverReady = true;
+    console.log('🚀 Server ready for connections');
+  }, 2000);
 });
-
-// Koyeb deployment verification
-if (process.env.KOYEB_SERVICE_NAME) {
-  console.log('🚀 Running on Koyeb infrastructure');
-} else {
-  console.log('💻 Running in local development mode');
-}
