@@ -1,104 +1,100 @@
+// server.js - BULLETPROOF KOYEB SOLUTION
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
+// 1. Environment configuration
+const PORT = process.env.PORT || 3001;
+const HOST = '0.0.0.0';
+process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+
+// 2. Create app and server
 const app = express();
 const server = http.createServer(app);
 
-// 1. Environment Configuration
-const PORT = process.env.PORT || 3001;
-process.env.NODE_ENV = process.env.NODE_ENV || 'production';
-
-// 2. Critical Middleware - FIRST
+// 3. CRITICAL KOYEB FIXES - FIRST MIDDLEWARE
 app.use((req, res, next) => {
+  // Force all responses to plain text
+  res.setHeader('Content-Type', 'text/plain');
+  
+  // Override Express methods to prevent HTML formatting
+  res.send = (body) => res.end(body);
+  res.json = (obj) => res.end(JSON.stringify(obj));
+  
   // Handle Koyeb health checks immediately
-  if (req.path === '/health' || req.headers['x-koyeb-healthcheck']) {
-    console.log('✅ Health check received');
-    res.setHeader('Content-Type', 'text/plain');
-    return res.status(200).send('HEALTHY');
+  if (req.headers['x-koyeb-healthcheck'] || req.path === '/health') {
+    console.log('✅ Koyeb health check received');
+    return res.status(200).end('HEALTHY');
   }
   next();
 });
 
-// 3. Request Logging
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
+// 4. Core middleware
+app.use(express.json());
+app.use(cors());
 
-// 4. CORS Configuration
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://omarbarbeir.github.io",
-  "https://minimal-alison-omarelbarbeir-0fc063fa.koyeb.app"
-];
-
-app.use(cors({ origin: allowedOrigins }));
-
-// 5. Root Endpoint
-app.get('/', (req, res) => {
-  res.send('BACKEND_OPERATIONAL');
-});
-
-// 6. Health Endpoint (redundant but safe)
+// 5. Health endpoint (redundant but safe)
 app.get('/health', (req, res) => {
-  res.setHeader('Content-Type', 'text/plain');
-  res.status(200).send('HEALTHY');
+  res.status(200).end('OK');
 });
 
-// 7. Socket.IO Setup
+// 6. Root endpoint
+app.get('/', (req, res) => {
+  res.end('BACKEND_OPERATIONAL');
+});
+
+// 7. Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
     methods: ["GET", "POST"]
   }
 });
 
-// 8. Socket.IO Health Bypass
+// 8. Socket.IO health bypass
 io.engine.on("request", (req, res) => {
   if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
     res.setHeader('Content-Type', 'text/plain');
     res.statusCode = 200;
-    return res.end('HEALTHY');
+    return res.end('BYPASS_HEALTHY');
   }
 });
 
-// 9. Game Logic
+// 9. Game logic - ADD YOUR CUSTOM CODE HERE
 const rooms = {};
-
 io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
+  console.log('Client connected:', socket.id);
   
   socket.on('joinRoom', (roomCode, username) => {
-    if (!rooms[roomCode]) {
-      rooms[roomCode] = { players: [], state: 'waiting' };
-    }
-    
-    rooms[roomCode].players.push({
-      id: socket.id,
-      username,
-      score: 0
-    });
-    
+    if (!rooms[roomCode]) rooms[roomCode] = { players: [] };
+    rooms[roomCode].players.push({ id: socket.id, username });
     socket.join(roomCode);
-    io.to(roomCode).emit('playerJoined', username, rooms[roomCode].players);
+    io.to(roomCode).emit('playerJoined', username);
   });
-
-  // Add your other event handlers
+  
+  // Add your other event handlers:
+  // - buzz
+  // - startGame
+  // - nextQuestion
+  // - scoreUpdate
+  // - disconnect
 });
 
-// 10. Start Server
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server running on port ${PORT}`);
-  console.log(`🩺 Health check: http://0.0.0.0:${PORT}/health`);
+// 10. Start server with error handling
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+  console.log(`🩺 Health check: http://${HOST}:${PORT}/health`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
   
-  // Signal to Koyeb that app is ready
-  console.log('🚀 Application ready');
+  // Koyeb deployment verification
+  console.log('Koyeb deployment ready');
+}).on('error', (err) => {
+  console.error('🔥 Server error:', err);
+  process.exit(1);
 });
 
-// 11. Error Handling
+// 11. Error handling
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️ UNHANDLED REJECTION:', reason);
 });
@@ -108,7 +104,7 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-// 12. Koyeb Deployment Signal
+// 12. Koyeb startup signal
 setTimeout(() => {
-  console.log('❤️ Sending Koyeb ready signal');
-}, 5000);
+  console.log('❤️ Koyeb initialization complete');
+}, 3000);
