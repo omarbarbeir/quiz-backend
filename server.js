@@ -79,6 +79,7 @@ io.on('connection', (socket) => {
   // - nextQuestion
   // - scoreUpdate
   // - disconnect
+  // - add
 });
 
 // 10. Start server with error handling
