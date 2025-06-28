@@ -1,4 +1,3 @@
-// index.js
 // 1. Error handling
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️ UNHANDLED REJECTION:', reason);
@@ -14,29 +13,21 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
-// Create HTTP server FIRST
-const server = http.createServer();
-
-// 1. DIRECT HEALTH CHECK HANDLER (BEFORE ANY FRAMEWORK)
-server.on('request', (req, res) => {
-  // Handle health checks at the raw HTTP level
-  if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
-    console.log('🔥 RAW HEALTH CHECK');
-    res.setHeader('Content-Type', 'text/plain');
-    res.writeHead(200);
-    return res.end('OK');
-  }
-});
-
-// Create Express app AFTER health handler
+// Create Express app
 const app = express();
 
 // Critical Koyeb fixes
 app.set('trust proxy', true);  // Trust Koyeb's reverse proxy
 
+// 1. HEALTH CHECK HANDLER (FIRST MIDDLEWARE)
+app.get('/health', (req, res) => {
+  console.log('✅ Express Health Check');
+  res.setHeader('Content-Type', 'text/plain');
+  res.status(200).send('OK');
+});
+
 // Enhanced Koyeb detection
 app.use((req, res, next) => {
-  // Koyeb-specific health check header
   if (req.headers['x-koyeb-healthcheck']) {
     console.log('🛡️ KOYEB HEALTH CHECK INTERCEPTED');
     return res.set('Content-Type', 'text/plain').status(200).send('OK');
@@ -58,10 +49,10 @@ app.get('/', (req, res) => {
   res.send('Quiz Backend is Running');
 });
 
-// 2. ATTACH EXPRESS TO SERVER
-server.on('request', app);
+// Create HTTP server
+const server = http.createServer(app);
 
-// 3. SOCKET.IO SETUP
+// Socket.IO setup
 const io = new Server(server, {
   cors: {
     origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
@@ -95,8 +86,6 @@ io.on('connection', (socket) => {
     socket.join(roomCode);
     io.to(roomCode).emit('playerJoined', username);
   });
-  
-  // Add your actual event handlers here
 });
 
 function generateRoomCode() {
@@ -114,30 +103,4 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
   console.log(`🩺 Health check: http://0.0.0.0:${PORT}/health`);
   console.log('Environment:', process.env.NODE_ENV || 'development');
-  
-  // Enhanced debug output
-  console.log('Koyeb Environment Analysis:');
-  console.log('PORT:', process.env.PORT);
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('KOYEB_SERVICE_NAME:', process.env.KOYEB_SERVICE_NAME || 'Not set');
-  console.log('KOYEB_DEPLOYMENT:', process.env.KOYEB_DEPLOYMENT || 'Not set');
-  console.log('Current directory:', __dirname);
-  console.log('Files in directory:');
-  // This will list files in Koyeb logs (remove in production)
-  const fs = require('fs');
-  fs.readdir(__dirname, (err, files) => {
-    if (err) {
-      console.error('❌ Error listing files:', err);
-    } else {
-      console.log('📁 Directory contents:', files.join(', '));
-    }
-  });
 });
-
-// Koyeb deployment verification
-if (process.env.KOYEB_SERVICE_NAME) {
-  console.log('🚀 Running on Koyeb infrastructure');
-  setInterval(() => {
-    console.log('❤️ Koyeb Heartbeat:', new Date().toISOString());
-  }, 60000);
-}
