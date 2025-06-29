@@ -1,101 +1,211 @@
-// server.js - BULLETPROOF KOYEB SOLUTION
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
-// 1. Environment configuration
-const PORT = process.env.PORT || 3001;
-const HOST = '0.0.0.0';
-process.env.NODE_ENV = process.env.NODE_ENV || 'production';
-
-// 2. Create app and server
+// Create app and server
 const app = express();
 const server = http.createServer(app);
 
-// 3. CRITICAL KOYEB FIXES - FIRST MIDDLEWARE
+// 1. KOYEB CRITICAL SETUP - MUST BE FIRST
+app.set('trust proxy', true);  // Trust Koyeb's reverse proxy
 app.use((req, res, next) => {
-  // Force all responses to plain text
-  res.setHeader('Content-Type', 'text/plain');
-  
-  // Override Express methods to prevent HTML formatting
-  res.send = (body) => res.end(body);
-  res.json = (obj) => res.end(JSON.stringify(obj));
-  
   // Handle Koyeb health checks immediately
   if (req.headers['x-koyeb-healthcheck'] || req.path === '/health') {
-    console.log('✅ Koyeb health check received');
+    res.setHeader('Content-Type', 'text/plain');
     return res.status(200).end('HEALTHY');
   }
   next();
 });
 
-// 4. Core middleware
-app.use(express.json());
-app.use(cors());
-
-// 5. Health endpoint (redundant but safe)
+// 2. Health endpoint (explicit plain text)
 app.get('/health', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
   res.status(200).end('OK');
 });
 
-// 6. Root endpoint
+// 3. Core middleware
+app.use(cors());
+app.use(express.json());
+
+// 4. Root endpoint
 app.get('/', (req, res) => {
-  res.end('BACKEND_OPERATIONAL');
+  res.send('Quiz Backend Operational');
 });
 
-// 7. Socket.IO setup
+// 5. Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "https://omarbarbeir.github.io"],
+    origin: [
+      "http://localhost:3000", 
+      "https://omarbarbeir.github.io",
+      // Add your new Koyeb domain here after deployment
+    ],
     methods: ["GET", "POST"]
   }
 });
 
-// 8. Socket.IO health bypass
+// 6. Socket.IO health bypass
 io.engine.on("request", (req, res) => {
   if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
     res.setHeader('Content-Type', 'text/plain');
     res.statusCode = 200;
-    return res.end('BYPASS_HEALTHY');
+    return res.end('SOCKETIO_HEALTHY');
   }
 });
 
-// 9. Game logic - ADD YOUR CUSTOM CODE HERE
+// 7. Game Logic (UNCHANGED FROM YOUR ORIGINAL)
 const rooms = {};
+
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  console.log('New client connected');
   
-  socket.on('joinRoom', (roomCode, username) => {
-    if (!rooms[roomCode]) rooms[roomCode] = { players: [] };
-    rooms[roomCode].players.push({ id: socket.id, username });
+  // Create a new room
+  socket.on('create_room', () => {
+    const roomCode = generateRoomCode();
+    rooms[roomCode] = {
+      players: [],
+      activePlayer: null,
+      buzzerLocked: false,
+      currentQuestion: null
+    };
+    socket.emit('room_created', roomCode);
     socket.join(roomCode);
-    io.to(roomCode).emit('playerJoined', username);
+    console.log(`Room created: ${roomCode}`);
   });
   
-  // Add your other event handlers:
-  // - buzz
-  // - startGame
-  // - nextQuestion
-  // - scoreUpdate
-  // - disconnect
-  // - adds
-});
-
-// 10. Start server with error handling
-server.listen(PORT, HOST, () => {
-  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
-  console.log(`🩺 Health check: http://${HOST}:${PORT}/health`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
+  // Join an existing room
+  socket.on('join_room', ({ roomCode, player }) => {
+    if (rooms[roomCode]) {
+      rooms[roomCode].players.push(player);
+      socket.join(roomCode);
+      socket.emit('player_joined', player);
+      io.to(roomCode).emit('player_joined', player);
+      console.log(`Player ${player.name} joined room ${roomCode}`);
+    } else {
+      socket.emit('room_not_found');
+    }
+  });
   
-  // Koyeb deployment verification
-  console.log('Koyeb deployment ready');
-}).on('error', (err) => {
-  console.error('🔥 Server error:', err);
-  process.exit(1);
+  // Player buzzes in
+  socket.on('buzz', ({ roomCode, playerId }) => {
+    if (rooms[roomCode] && !rooms[roomCode].buzzerLocked) {
+      rooms[roomCode].activePlayer = playerId;
+      rooms[roomCode].buzzerLocked = true;
+      
+      // Pause audio instead of stopping
+      io.to(roomCode).emit('pause_audio');
+      
+      // Notify clients about the buzz
+      io.to(roomCode).emit('player_buzzed', playerId);
+      
+      console.log(`Player ${playerId} buzzed in room ${roomCode}`);
+    }
+  });
+  
+  // FIXED: Update player score
+  socket.on('update_score', ({ roomCode, playerId, change }) => {
+    if (rooms[roomCode]) {
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      if (player) {
+        // Apply the score change
+        player.score = (player.score || 0) + change;
+        io.to(roomCode).emit('update_score', player);
+        console.log(`Updated score for player ${playerId} in room ${roomCode} to ${player.score}`);
+      }
+    }
+  });
+  
+  // Reset buzzer
+  socket.on('reset_buzzer', (roomCode) => {
+    if (rooms[roomCode]) {
+      rooms[roomCode].activePlayer = null;
+      rooms[roomCode].buzzerLocked = false;
+      io.to(roomCode).emit('reset_buzzer');
+      console.log(`Buzzer reset in room ${roomCode}`);
+    }
+  });
+  
+  // Change question
+  socket.on('change_question', ({ roomCode, question }) => {
+    if (rooms[roomCode]) {
+      rooms[roomCode].currentQuestion = question;
+      rooms[roomCode].activePlayer = null;
+      rooms[roomCode].buzzerLocked = false;
+      io.to(roomCode).emit('question_changed', question);
+      console.log(`Question changed in room ${roomCode}`);
+    }
+  });
+  
+  // End game
+  socket.on('end_game', (roomCode) => {
+    if (rooms[roomCode]) {
+      io.to(roomCode).emit('game_ended');
+      console.log(`Game ended in room ${roomCode}`);
+    }
+  });
+  
+  // Audio controls
+  socket.on('play_audio', (roomCode) => {
+    io.to(roomCode).emit('play_audio');
+  });
+  
+  socket.on('continue_audio', (roomCode, time) => {
+    io.to(roomCode).emit('continue_audio', time);
+  });
+  
+  socket.on('pause_audio', (roomCode) => {
+    io.to(roomCode).emit('pause_audio');
+  });
+  
+  socket.on('stop_audio', (roomCode) => {
+    io.to(roomCode).emit('stop_audio');
+  });
+  
+  // Player leaves room
+  socket.on('leave_room', ({ roomCode, playerId }) => {
+    if (rooms[roomCode]) {
+      rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
+      socket.leave(roomCode);
+      io.to(roomCode).emit('player_left', playerId);
+      console.log(`Player ${playerId} left room ${roomCode}`);
+      
+      // If last player leaves, close room
+      if (rooms[roomCode].players.length === 0) {
+        delete rooms[roomCode];
+        console.log(`Room ${roomCode} closed`);
+      }
+    }
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
 });
 
-// 11. Error handling
+function generateRoomCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// 8. Server startup with enhanced logging
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🩺 Health check available at: http://0.0.0.0:${PORT}/health`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Koyeb-specific logging
+  if (process.env.KOYEB_SERVICE_NAME) {
+    console.log('🚀 Running on Koyeb infrastructure');
+  }
+});
+
+// 9. Error handling
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️ UNHANDLED REJECTION:', reason);
 });
@@ -104,8 +214,3 @@ process.on('uncaughtException', (err) => {
   console.error('🚨 UNCAUGHT EXCEPTION:', err);
   process.exit(1);
 });
-
-// 12. Koyeb startup signal
-setTimeout(() => {
-  console.log('❤️ Koyeb initialization complete');
-}, 3000);
