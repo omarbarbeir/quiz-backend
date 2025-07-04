@@ -3,14 +3,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
-// Create app and server
 const app = express();
 const server = http.createServer(app);
 
-// 1. KOYEB CRITICAL SETUP - MUST BE FIRST
-app.set('trust proxy', true);  // Trust Koyeb's reverse proxy
+app.set('trust proxy', true);
 app.use((req, res, next) => {
-  // Handle Koyeb health checks immediately
   if (req.headers['x-koyeb-healthcheck'] || req.path === '/health') {
     res.setHeader('Content-Type', 'text/plain');
     return res.status(200).end('HEALTHY');
@@ -18,34 +15,29 @@ app.use((req, res, next) => {
   next();
 });
 
-// 2. Health endpoint (explicit plain text)
 app.get('/health', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
   res.status(200).end('OK');
 });
 
-// 3. Core middleware
 app.use(cors());
 app.use(express.json());
 
-// 4. Root endpoint
 app.get('/', (req, res) => {
   res.send('Quiz Backend Operational');
 });
 
-// 5. Socket.IO setup
 const io = new Server(server, {
   cors: {
     origin: [
       "http://localhost:3000", 
       "https://omarbarbeir.github.io",
-      // Add your new Koyeb domain here after deployment
+      "https://ancient-prawn-omarelbarbeir-9282bb8f.koyeb.app"
     ],
     methods: ["GET", "POST"]
   }
 });
 
-// 6. Socket.IO health bypass
 io.engine.on("request", (req, res) => {
   if (req.url === '/health' || req.headers['x-koyeb-healthcheck']) {
     res.setHeader('Content-Type', 'text/plain');
@@ -54,7 +46,6 @@ io.engine.on("request", (req, res) => {
   }
 });
 
-// 7. Game Logic (UNCHANGED FROM YOUR ORIGINAL)
 const rooms = {};
 
 io.on('connection', (socket) => {
@@ -82,6 +73,12 @@ io.on('connection', (socket) => {
       socket.emit('player_joined', player);
       io.to(roomCode).emit('player_joined', player);
       console.log(`Player ${player.name} joined room ${roomCode}`);
+      
+      // Store roomCode and playerId for disconnect handling
+      socket.data = {
+        roomCode,
+        playerId: player.id
+      };
     } else {
       socket.emit('room_not_found');
     }
@@ -92,23 +89,17 @@ io.on('connection', (socket) => {
     if (rooms[roomCode] && !rooms[roomCode].buzzerLocked) {
       rooms[roomCode].activePlayer = playerId;
       rooms[roomCode].buzzerLocked = true;
-      
-      // Pause audio instead of stopping
       io.to(roomCode).emit('pause_audio');
-      
-      // Notify clients about the buzz
       io.to(roomCode).emit('player_buzzed', playerId);
-      
       console.log(`Player ${playerId} buzzed in room ${roomCode}`);
     }
   });
   
-  // FIXED: Update player score
+  // Update player score
   socket.on('update_score', ({ roomCode, playerId, change }) => {
     if (rooms[roomCode]) {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       if (player) {
-        // Apply the score change
         player.score = (player.score || 0) + change;
         io.to(roomCode).emit('update_score', player);
         console.log(`Updated score for player ${playerId} in room ${roomCode} to ${player.score}`);
@@ -178,8 +169,35 @@ io.on('connection', (socket) => {
     }
   });
   
+  // Handle disconnects
   socket.on('disconnect', () => {
     console.log('Client disconnected');
+    
+    const roomCode = socket.data?.roomCode;
+    const playerId = socket.data?.playerId;
+    
+    if (roomCode && rooms[roomCode] && playerId) {
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      if (player) {
+        // Notify other players
+        io.to(roomCode).emit('player_disconnected', {
+          playerId,
+          playerName: player.name
+        });
+        
+        // Remove player from room
+        rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
+        
+        console.log(`Player ${player.name} disconnected from room ${roomCode}`);
+        
+        // Close room if empty
+        if (rooms[roomCode].players.length === 0) {
+          delete rooms[roomCode];
+          console.log(`Room ${roomCode} closed`);
+        }
+      }
+    }
   });
 });
 
@@ -192,20 +210,16 @@ function generateRoomCode() {
   return code;
 }
 
-// 8. Server startup with enhanced logging
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`🩺 Health check available at: http://0.0.0.0:${PORT}/health`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Koyeb-specific logging
   if (process.env.KOYEB_SERVICE_NAME) {
     console.log('🚀 Running on Koyeb infrastructure');
   }
 });
 
-// 9. Error handling
 process.on('unhandledRejection', (reason) => {
   console.error('⚠️ UNHANDLED REJECTION:', reason);
 });
