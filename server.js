@@ -90,6 +90,7 @@ io.on('connection', (socket) => {
       rooms[roomCode].activePlayer = playerId;
       rooms[roomCode].buzzerLocked = true;
       io.to(roomCode).emit('pause_audio');
+      io.to(roomCode).emit('pause_audio2');
       io.to(roomCode).emit('player_buzzed', playerId);
       console.log(`Player ${playerId} buzzed in room ${roomCode}`);
     }
@@ -151,6 +152,23 @@ io.on('connection', (socket) => {
   
   socket.on('stop_audio', (roomCode) => {
     io.to(roomCode).emit('stop_audio');
+  });
+  
+  // Normal audio controls
+  socket.on('play_audio2', (roomCode) => {
+    io.to(roomCode).emit('play_audio2');
+  });
+  
+  socket.on('continue_audio2', (roomCode, time) => {
+    io.to(roomCode).emit('continue_audio2', time);
+  });
+  
+  socket.on('pause_audio2', (roomCode) => {
+    io.to(roomCode).emit('pause_audio2');
+  });
+  
+  socket.on('stop_audio2', (roomCode) => {
+    io.to(roomCode).emit('stop_audio2');
   });
   
   // Player leaves room
