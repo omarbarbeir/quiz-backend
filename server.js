@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const randomPhotosData = require('./data_random');
 
 const app = express();
 const server = http.createServer(app);
@@ -51,7 +52,6 @@ const rooms = {};
 io.on('connection', (socket) => {
   console.log('New client connected');
   
-  // Create a new room
   socket.on('create_room', () => {
     const roomCode = generateRoomCode();
     rooms[roomCode] = {
@@ -65,38 +65,35 @@ io.on('connection', (socket) => {
     console.log(`Room created: ${roomCode}`);
   });
   
-  // Join an existing room
   socket.on('join_room', ({ roomCode, player }) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].players.push(player);
+      // Store socket ID with player
+      const playerWithSocket = { 
+        ...player, 
+        socketId: socket.id
+      };
+      rooms[roomCode].players.push(playerWithSocket);
       socket.join(roomCode);
       socket.emit('player_joined', player);
       io.to(roomCode).emit('player_joined', player);
       console.log(`Player ${player.name} joined room ${roomCode}`);
       
-      // Store roomCode and playerId for disconnect handling
-      socket.data = {
-        roomCode,
-        playerId: player.id
-      };
+      socket.data = { roomCode, playerId: player.id };
     } else {
       socket.emit('room_not_found');
     }
   });
   
-  // Player buzzes in
   socket.on('buzz', ({ roomCode, playerId }) => {
     if (rooms[roomCode] && !rooms[roomCode].buzzerLocked) {
       rooms[roomCode].activePlayer = playerId;
       rooms[roomCode].buzzerLocked = true;
       io.to(roomCode).emit('pause_audio');
-      io.to(roomCode).emit('pause_audio2');
       io.to(roomCode).emit('player_buzzed', playerId);
       console.log(`Player ${playerId} buzzed in room ${roomCode}`);
     }
   });
   
-  // Update player score
   socket.on('update_score', ({ roomCode, playerId, change }) => {
     if (rooms[roomCode]) {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
@@ -104,11 +101,16 @@ io.on('connection', (socket) => {
         player.score = (player.score || 0) + change;
         io.to(roomCode).emit('update_score', player);
         console.log(`Updated score for player ${playerId} in room ${roomCode} to ${player.score}`);
+        
+        if (rooms[roomCode].activePlayer === playerId) {
+          rooms[roomCode].activePlayer = null;
+          rooms[roomCode].buzzerLocked = false;
+          io.to(roomCode).emit('reset_buzzer');
+        }
       }
     }
   });
   
-  // Reset buzzer
   socket.on('reset_buzzer', (roomCode) => {
     if (rooms[roomCode]) {
       rooms[roomCode].activePlayer = null;
@@ -118,7 +120,6 @@ io.on('connection', (socket) => {
     }
   });
   
-  // Change question
   socket.on('change_question', ({ roomCode, question }) => {
     if (rooms[roomCode]) {
       rooms[roomCode].currentQuestion = question;
@@ -129,7 +130,6 @@ io.on('connection', (socket) => {
     }
   });
   
-  // End game
   socket.on('end_game', (roomCode) => {
     if (rooms[roomCode]) {
       io.to(roomCode).emit('game_ended');
@@ -137,7 +137,6 @@ io.on('connection', (socket) => {
     }
   });
   
-  // Audio controls
   socket.on('play_audio', (roomCode) => {
     io.to(roomCode).emit('play_audio');
   });
@@ -154,7 +153,6 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('stop_audio');
   });
   
-  // Normal audio controls
   socket.on('play_audio2', (roomCode) => {
     io.to(roomCode).emit('play_audio2');
   });
@@ -171,7 +169,59 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('stop_audio2');
   });
   
-  // Player leaves room
+  // Handle random photo requests
+  socket.on('play_random_question', ({ roomCode, subcategoryId }) => {
+    if (rooms[roomCode]) {
+      const room = rooms[roomCode];
+      
+      // Reset buzzer state
+      room.activePlayer = null;
+      room.buzzerLocked = false;
+      io.to(roomCode).emit('reset_buzzer');
+      
+      // Get the subcategory questions from server data
+      const subcatQuestions = randomPhotosData['random-photos'][subcategoryId];
+      if (!subcatQuestions || subcatQuestions.length === 0) {
+        console.error(`No questions found for subcategory: ${subcategoryId}`);
+        return;
+      }
+      
+      // Create a copy of the indices to track available questions
+      const availableIndices = [...Array(subcatQuestions.length).keys()];
+      
+      // Log player count and socket IDs
+      console.log(`Distributing photos to ${room.players.length} players in room ${roomCode}`);
+      
+      // Create player list string
+      const playerList = room.players.map(p => `${p.name} (${p.socketId})`).join(', ');
+      console.log(`Players: ${playerList}`);
+      
+      // Send a unique random photo to each player
+      room.players.forEach(player => {
+        if (availableIndices.length === 0) {
+          console.error('Not enough questions for all players');
+          return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * availableIndices.length);
+        const questionIndex = availableIndices.splice(randomIndex, 1)[0];
+        const randomQuestion = {
+          ...subcatQuestions[questionIndex],
+          category: 'random-photos',
+          subcategory: subcategoryId,
+          playerId: player.id
+        };
+        
+        console.log(`Sending photo to ${player.name} (${player.socketId}): ${randomQuestion.image}`);
+        
+        // Send to this specific player
+        io.to(player.socketId).emit('player_photo_question', randomQuestion);
+      });
+      
+      console.log(`Sent random photos to players in room ${roomCode}`);
+    }
+  });
+  
   socket.on('leave_room', ({ roomCode, playerId }) => {
     if (rooms[roomCode]) {
       rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
@@ -179,7 +229,6 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('player_left', playerId);
       console.log(`Player ${playerId} left room ${roomCode}`);
       
-      // If last player leaves, close room
       if (rooms[roomCode].players.length === 0) {
         delete rooms[roomCode];
         console.log(`Room ${roomCode} closed`);
@@ -198,18 +247,15 @@ io.on('connection', (socket) => {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
       if (player) {
-        // Notify other players
         io.to(roomCode).emit('player_disconnected', {
           playerId,
           playerName: player.name
         });
         
-        // Remove player from room
         rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
         
         console.log(`Player ${player.name} disconnected from room ${roomCode}`);
         
-        // Close room if empty
         if (rooms[roomCode].players.length === 0) {
           delete rooms[roomCode];
           console.log(`Room ${roomCode} closed`);
@@ -219,8 +265,9 @@ io.on('connection', (socket) => {
   });
 });
 
+// Generate 4-digit alphanumeric room code
 function generateRoomCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
   for (let i = 0; i < 4; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -236,6 +283,8 @@ server.listen(PORT, '0.0.0.0', () => {
   if (process.env.KOYEB_SERVICE_NAME) {
     console.log('🚀 Running on Koyeb infrastructure');
   }
+}).on('error', (err) => {
+  console.error('Failed to start server:', err);
 });
 
 process.on('unhandledRejection', (reason) => {
