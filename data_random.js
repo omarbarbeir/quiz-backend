@@ -1,6 +1,6 @@
 module.exports = {
 
-      'random-photos': {
+      'Random-photos': {
     footballers: [
       {
         id: 'footballer1',
@@ -14,372 +14,372 @@ module.exports = {
     food: [
       {
         id: 'food1',
-        image: '/random/food/Baklava.jpg',
+        image: '/Random/food/Baklava.jpg',
         answer: 'بقلاوة',
       },
       {
         id: 'food2',
-        image: '/random/food/bamya.jpg',
+        image: '/Random/food/bamya.jpg',
         answer: 'بامية',
       },
       {
         id: 'food3',
-        image: '/random/food/basbosa.jpg',
+        image: '/Random/food/basbosa.jpg',
         answer: 'بسبوسة',
       },
       {
         id: 'food4',
-        image: '/random/food/belela.jpg',
+        image: '/Random/food/belela.jpg',
         answer: 'بليلة',
       },
       {
         id: 'food5',
-        image: '/random/food/besara.jpg',
+        image: '/Random/food/besara.jpg',
         answer: 'بصارة',
       },
       {
         id: 'food6',
-        image: '/random/food/biscutes.jpg',
+        image: '/Random/food/biscutes.jpg',
         answer: 'بسكوت',
       },
       {
         id: 'food7',
-        image: '/random/food/eesh_feno.jpg',
+        image: '/Random/food/eesh_feno.jpg',
         answer: 'عيش فينو',
       },
       {
         id: 'food8',
-        image: '/random/food/Falafel.webp',
+        image: '/Random/food/Falafel.webp',
         answer: 'طعمية',
       },
       {
         id: 'food9',
-        image: '/random/food/fesekh.webp',
+        image: '/Random/food/fesekh.webp',
         answer: 'فسيخ',
       },
       {
         id: 'food10',
-        image: '/random/food/feteer_meshaltet.jpg',
+        image: '/Random/food/feteer_meshaltet.jpg',
         answer: 'فطير مشلتت',
       },
       {
         id: 'food11',
-        image: '/random/food/fool.jpg',
+        image: '/Random/food/fool.jpg',
         answer: 'فول',
       },
       {
         id: 'food12',
-        image: '/random/food/kabab_hala.jpg',
+        image: '/Random/food/kabab_hala.jpg',
         answer: 'كباب حلة',
       },
       {
         id: 'food13',
-        image: '/random/food/kahk.jpg',
+        image: '/Random/food/kahk.jpg',
         answer: 'كحك',
       },
       {
         id: 'food14',
-        image: '/random/food/karnabet.jpg',
+        image: '/Random/food/karnabet.jpg',
         answer: 'قرنبيط',
       },
       {
         id: 'food15',
-        image: '/random/food/Kataef.jpg',
+        image: '/Random/food/Kataef.jpg',
         answer: 'قطايف',
       },
       {
         id: 'food16',
-        image: '/random/food/kofta.jpg',
+        image: '/Random/food/kofta.jpg',
         answer: 'كفتة',
       },
       {
         id: 'food17',
-        image: '/random/food/Künefe.jpg',
+        image: '/Random/food/Künefe.jpg',
         answer: 'كنافة',
       },
       {
         id: 'food18',
-        image: '/random/food/mehalabya.jpg',
+        image: '/Random/food/mehalabya.jpg',
         answer: 'مهلبية',
       },
       {
         id: 'food19',
-        image: '/random/food/melokheya.jpg',
+        image: '/Random/food/melokheya.jpg',
         answer: 'ملوخية',
       },
       {
         id: 'food20',
-        image: '/random/food/mesh.avif',
+        image: '/Random/food/mesh.avif',
         answer: 'مش',
       },
       {
         id: 'food21',
-        image: '/random/food/meshabek.jpeg',
+        image: '/Random/food/meshabek.jpeg',
         answer: 'مشبك',
       },
       {
         id: 'food22',
-        image: '/random/food/om_ali.JPG',
+        image: '/Random/food/om_ali.JPG',
         answer: 'أُم علي',
       },
       {
         id: 'food23',
-        image: '/random/food/renga.jpg',
+        image: '/Random/food/renga.jpg',
         answer: 'رنجة',
       },
       {
         id: 'food24',
-        image: '/random/food/rice_laban.jpg',
+        image: '/Random/food/rice_laban.jpg',
         answer: 'رز بلبن',
       },
       {
         id: 'food25',
-        image: '/random/food/sardeen.png',
+        image: '/Random/food/sardeen.png',
         answer: 'سردين',
       },
       {
         id: 'food26',
-        image: '/random/food/semsemya.jpg',
+        image: '/Random/food/semsemya.jpg',
         answer: 'سمسمية',
       },
       {
         id: 'food27',
-        image: '/random/food/zalabya.jpg',
+        image: '/Random/food/zalabya.jpg',
         answer: 'زلابية',
       },
       {
         id: 'food28',
-        image: '/random/food/Areesh_cheese.jpg',
+        image: '/Random/food/Areesh_cheese.jpg',
         answer: 'جبنة قريش',
       },
       {
         id: 'food29',
-        image: '/random/food/bofteek.jpg',
+        image: '/Random/food/bofteek.jpg',
         answer: 'بوفتيك',
       },
       {
         id: 'food30',
-        image: '/random/food/egg_maaly.jpg',
+        image: '/Random/food/egg_maaly.jpg',
         answer: 'بيض مقلي',
       },
       {
         id: 'food31',
-        image: '/random/food/egg_maslooa.jpg',
+        image: '/Random/food/egg_maslooa.jpg',
         answer: 'بيض مسلوق',
       },
       {
         id: 'food32',
-        image: '/random/food/fata.jpg',
+        image: '/Random/food/fata.jpg',
         answer: 'فتة',
       },
       {
         id: 'food33',
-        image: '/random/food/gambary.jpg',
+        image: '/Random/food/gambary.jpg',
         answer: 'جمبري',
       },
       {
         id: 'food34',
-        image: '/random/food/gebna_rekfor.jpeg',
+        image: '/Random/food/gebna_rekfor.jpeg',
         answer: 'جبنة ريكفورد',
       },
       {
         id: 'food35',
-        image: '/random/food/gebna_romy.jpg',
+        image: '/Random/food/gebna_romy.jpg',
         answer: 'جبنة رومي',
       },
       {
         id: 'food36',
-        image: '/random/food/gebnna_white.jpg',
+        image: '/Random/food/gebnna_white.jpg',
         answer: 'جبنة بيضاء',
       },
       {
         id: 'food37',
-        image: '/random/food/hamam_mahshy.webp',
+        image: '/Random/food/hamam_mahshy.webp',
         answer: 'حمام محشي',
       },
       {
         id: 'food38',
-        image: '/random/food/hawawshy.jpg',
+        image: '/Random/food/hawawshy.jpg',
         answer: 'حواوشي',
       },
       {
         id: 'food39',
-        image: '/random/food/kabab_hala.jpg',
+        image: '/Random/food/kabab_hala.jpg',
         answer: 'كباب حلة',
       },
       {
         id: 'food40',
-        image: '/random/food/kabab.jpg',
+        image: '/Random/food/kabab.jpg',
         answer: 'كباب',
       },
       {
         id: 'food41',
-        image: '/random/food/kaborya.jpg',
+        image: '/Random/food/kaborya.jpg',
         answer: 'كابوريا',
       },
       {
         id: 'food42',
-        image: '/random/food/kaware.jpg',
+        image: '/Random/food/kaware.jpg',
         answer: 'كوارع',
       },
       {
         id: 'food43',
-        image: '/random/food/kebda_eskandrany.jpg',
+        image: '/Random/food/kebda_eskandrany.jpg',
         answer: 'كبدة إسكندراني',
       },
       {
         id: 'food44',
-        image: '/random/food/keshk.jpg',
+        image: '/Random/food/keshk.jpg',
         answer: 'كِشك',
       },
       {
         id: 'food45',
-        image: '/random/food/kofta_rice.jpg',
+        image: '/Random/food/kofta_rice.jpg',
         answer: 'كفتة أُرز',
       },
       {
         id: 'food46',
-        image: '/random/food/kofta.jpg',
+        image: '/Random/food/kofta.jpg',
         answer: 'كفتة',
       },
       {
         id: 'food47',
-        image: '/random/food/kosa.jpeg',
+        image: '/Random/food/kosa.jpeg',
         answer: 'كوسا',
       },
       {
         id: 'food48',
-        image: '/random/food/Koshary.jpg',
+        image: '/Random/food/Koshary.jpg',
         answer: 'كشري',
       },
       {
         id: 'food49',
-        image: '/random/food/laban.jpg',
+        image: '/Random/food/laban.jpg',
         answer: 'لبن',
       },
       {
         id: 'food50',
-        image: '/random/food/lanshon.webp',
+        image: '/Random/food/lanshon.webp',
         answer: 'لانشون',
       },
       {
         id: 'food51',
-        image: '/random/food/Lentil-Soup.jpg.webp',
+        image: '/Random/food/Lentil-Soup.jpg.webp',
         answer: 'شوربة عدس',
       },
       {
         id: 'food52',
-        image: '/random/food/mahshy_eggplannet.jpeg',
+        image: '/Random/food/mahshy_eggplannet.jpeg',
         answer: 'محشي بتنجان',
       },
       {
         id: 'food53',
-        image: '/random/food/mahshy_felfel.jpg',
+        image: '/Random/food/mahshy_felfel.jpg',
         answer: 'محشي فلفل',
       },
       {
         id: 'food54',
-        image: '/random/food/mahshy_kosa.jpg',
+        image: '/Random/food/mahshy_kosa.jpg',
         answer: 'محشي كوسا',
       },
       {
         id: 'food55',
-        image: '/random/food/mahshy_kronb.jpg',
+        image: '/Random/food/mahshy_kronb.jpg',
         answer: 'محشي كرنب',
       },
       {
         id: 'food56',
-        image: '/random/food/mahshy_warak_enab.jpg',
+        image: '/Random/food/mahshy_warak_enab.jpg',
         answer: 'محشي ورق عنب',
       },
       {
         id: 'food57',
-        image: '/random/food/makarona_bashamel.jpg',
+        image: '/Random/food/makarona_bashamel.jpg',
         answer: 'مكرونة بشاميل',
       },
       {
         id: 'food58',
-        image: '/random/food/mombar.jpg',
+        image: '/Random/food/mombar.jpg',
         answer: 'ممبار',
       },
       {
         id: 'food59',
-        image: '/random/food/msakaaa.jpeg',
+        image: '/Random/food/msakaaa.jpeg',
         answer: 'مسقعة',
       },
       {
         id: 'food60',
-        image: '/random/food/olas.jpg',
+        image: '/Random/food/olas.jpg',
         answer: 'قلقاس',
       },
       {
         id: 'food61',
-        image: '/random/food/om_ali.JPG',
+        image: '/Random/food/om_ali.JPG',
         answer: 'أم علي',
       },
       {
         id: 'food62',
-        image: '/random/food/pizza.jpg',
+        image: '/Random/food/pizza.jpg',
         answer: 'بيتزا',
       },
       {
         id: 'food63',
-        image: '/random/food/rokak_with_meat.jpg',
+        image: '/Random/food/rokak_with_meat.jpg',
         answer: 'رقاق باللحمة',
       },
       {
         id: 'food64',
-        image: '/random/food/roz_meamar.webp',
+        image: '/Random/food/roz_meamar.webp',
         answer: 'أُرز معمر',
       },
       {
         id: 'food65',
-        image: '/random/food/sabanekh.jpg',
+        image: '/Random/food/sabanekh.jpg',
         answer: 'سبانخ',
       },
       {
         id: 'food66',
-        image: '/random/food/samak_makly.jpg',
+        image: '/Random/food/samak_makly.jpg',
         answer: 'سمك مقلي',
       },
       {
         id: 'food67',
-        image: '/random/food/shakshouka.jpg',
+        image: '/Random/food/shakshouka.jpg',
         answer: 'شكشوكة',
       },
       {
         id: 'food68',
-        image: '/random/food/shawerma.png',
+        image: '/Random/food/shawerma.png',
         answer: 'شاورما',
       },
       {
         id: 'food69',
-        image: '/random/food/shorbet_khodar.jpg',
+        image: '/Random/food/shorbet_khodar.jpg',
         answer: 'شوربة خضار',
       },
       {
         id: 'food70',
-        image: '/random/food/smeet.jpeg',
+        image: '/Random/food/smeet.jpeg',
         answer: 'سميط',
       },
       {
         id: 'food71',
-        image: '/random/food/tagen_akawy.webp',
+        image: '/Random/food/tagen_akawy.webp',
         answer: 'طاجن عكاوي',
       },
       {
         id: 'food72',
-        image: '/random/food/tarb.jpg',
+        image: '/Random/food/tarb.jpg',
         answer: 'طرب',
       },
       {
         id: 'food73',
-        image: '/random/food/torli.jpg',
+        image: '/Random/food/torli.jpg',
         answer: 'تورلي',
       },
       {
         id: 'food74',
-        image: '/random/food/zabady.jpg',
+        image: '/Random/food/zabady.jpg',
         answer: 'زبادي',
       },
 
@@ -1275,19 +1275,19 @@ module.exports = {
     animals: [
       {
         id: 'animal1',
-        image: '/images/random/lion.jpg',
+        image: '/images/Random/lion.jpg',
         answer: 'Lion',
         bounc: 'King of the jungle'
       },
       {
         id: 'animal2',
-        image: '/images/random/tiger.jpg',
+        image: '/images/Random/tiger.jpg',
         answer: 'Tiger',
         bounc: 'Large cat'
       },
       {
         id: 'animal3',
-        image: '/images/random/elephant.jpg',
+        image: '/images/Random/elephant.jpg',
         answer: 'Elephant',
         bounc: 'Largest land animal'
       }
@@ -1298,19 +1298,19 @@ module.exports = {
     nature: [
       {
         id: 'nature1',
-        image: '/images/random/mountain.jpg',
+        image: '/images/Random/mountain.jpg',
         answer: 'Mountain',
         bounc: 'Natural landform'
       },
       {
         id: 'nature2',
-        image: '/images/random/waterfall.jpg',
+        image: '/images/Random/waterfall.jpg',
         answer: 'Waterfall',
         bounc: 'Falling water'
       },
       {
         id: 'nature3',
-        image: '/images/random/forest.jpg',
+        image: '/images/Random/forest.jpg',
         answer: 'Forest',
         bounc: 'Dense trees area'
       }
@@ -1321,19 +1321,19 @@ module.exports = {
     art: [
       {
         id: 'art1',
-        image: '/images/random/painting.jpg',
+        image: '/images/Random/painting.jpg',
         answer: 'Painting',
         bounc: 'Art on canvas'
       },
       {
         id: 'art2',
-        image: '/images/random/sculpture.jpg',
+        image: '/images/Random/sculpture.jpg',
         answer: 'Sculpture',
         bounc: '3D artwork'
       },
       {
         id: 'art3',
-        image: '/images/random/street-art.jpg',
+        image: '/images/Random/street-art.jpg',
         answer: 'Street Art',
         bounc: 'Urban art form'
       }
