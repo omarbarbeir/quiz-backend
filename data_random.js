@@ -147,6 +147,242 @@ module.exports = {
         image: '/random/food/zalabya.jpg',
         answer: 'زلابية',
       },
+      {
+        id: 'food28',
+        image: '/random/food/Areesh_cheese.jpg',
+        answer: 'جبنة قريش',
+      },
+      {
+        id: 'food29',
+        image: '/random/food/bofteek.jpg',
+        answer: 'بوفتيك',
+      },
+      {
+        id: 'food30',
+        image: '/random/food/egg_maaly.jpg',
+        answer: 'بيض مقلي',
+      },
+      {
+        id: 'food31',
+        image: '/random/food/egg_maslooa.jpg',
+        answer: 'بيض مسلوق',
+      },
+      {
+        id: 'food32',
+        image: '/random/food/fata.jpg',
+        answer: 'فتة',
+      },
+      {
+        id: 'food33',
+        image: '/random/food/gambary.jpg',
+        answer: 'جمبري',
+      },
+      {
+        id: 'food34',
+        image: '/random/food/gebna_rekfor.jpeg',
+        answer: 'جبنة ريكفورد',
+      },
+      {
+        id: 'food35',
+        image: '/random/food/gebna_romy.jpg',
+        answer: 'جبنة رومي',
+      },
+      {
+        id: 'food36',
+        image: '/random/food/gebnna_white.jpg',
+        answer: 'جبنة بيضاء',
+      },
+      {
+        id: 'food37',
+        image: '/random/food/hamam_mahshy.webp',
+        answer: 'حمام محشي',
+      },
+      {
+        id: 'food38',
+        image: '/random/food/hawawshy.jpg',
+        answer: 'حواوشي',
+      },
+      {
+        id: 'food39',
+        image: '/random/food/kabab_hala.jpg',
+        answer: 'كباب حلة',
+      },
+      {
+        id: 'food40',
+        image: '/random/food/kabab.jpg',
+        answer: 'كباب',
+      },
+      {
+        id: 'food41',
+        image: '/random/food/kaborya.jpg',
+        answer: 'كابوريا',
+      },
+      {
+        id: 'food42',
+        image: '/random/food/kaware.jpg',
+        answer: 'كوارع',
+      },
+      {
+        id: 'food43',
+        image: '/random/food/kebda_eskandrany.jpg',
+        answer: 'كبدة إسكندراني',
+      },
+      {
+        id: 'food44',
+        image: '/random/food/keshk.jpg',
+        answer: 'كِشك',
+      },
+      {
+        id: 'food45',
+        image: '/random/food/kofta_rice.jpg',
+        answer: 'كفتة أُرز',
+      },
+      {
+        id: 'food46',
+        image: '/random/food/kofta.jpg',
+        answer: 'كفتة',
+      },
+      {
+        id: 'food47',
+        image: '/random/food/kosa.jpeg',
+        answer: 'كوسا',
+      },
+      {
+        id: 'food48',
+        image: '/random/food/Koshary.jpg',
+        answer: 'كشري',
+      },
+      {
+        id: 'food49',
+        image: '/random/food/laban.jpg',
+        answer: 'لبن',
+      },
+      {
+        id: 'food50',
+        image: '/random/food/lanshon.webp',
+        answer: 'لانشون',
+      },
+      {
+        id: 'food51',
+        image: '/random/food/Lentil-Soup.jpg.webp',
+        answer: 'شوربة عدس',
+      },
+      {
+        id: 'food52',
+        image: '/random/food/mahshy_eggplannet.jpeg',
+        answer: 'محشي بتنجان',
+      },
+      {
+        id: 'food53',
+        image: '/random/food/mahshy_felfel.jpg',
+        answer: 'محشي فلفل',
+      },
+      {
+        id: 'food54',
+        image: '/random/food/mahshy_kosa.jpg',
+        answer: 'محشي كوسا',
+      },
+      {
+        id: 'food55',
+        image: '/random/food/mahshy_kronb.jpg',
+        answer: 'محشي كرنب',
+      },
+      {
+        id: 'food56',
+        image: '/random/food/mahshy_warak_enab.jpg',
+        answer: 'محشي ورق عنب',
+      },
+      {
+        id: 'food57',
+        image: '/random/food/makarona_bashamel.jpg',
+        answer: 'مكرونة بشاميل',
+      },
+      {
+        id: 'food58',
+        image: '/random/food/mombar.jpg',
+        answer: 'ممبار',
+      },
+      {
+        id: 'food59',
+        image: '/random/food/msakaaa.jpeg',
+        answer: 'مسقعة',
+      },
+      {
+        id: 'food60',
+        image: '/random/food/olas.jpg',
+        answer: 'قلقاس',
+      },
+      {
+        id: 'food61',
+        image: '/random/food/om_ali.JPG',
+        answer: 'أم علي',
+      },
+      {
+        id: 'food62',
+        image: '/random/food/pizza.jpg',
+        answer: 'بيتزا',
+      },
+      {
+        id: 'food63',
+        image: '/random/food/rokak_with_meat.jpg',
+        answer: 'رقاق باللحمة',
+      },
+      {
+        id: 'food64',
+        image: '/random/food/roz_meamar.webp',
+        answer: 'أُرز معمر',
+      },
+      {
+        id: 'food65',
+        image: '/random/food/sabanekh.jpg',
+        answer: 'سبانخ',
+      },
+      {
+        id: 'food66',
+        image: '/random/food/samak_makly.jpg',
+        answer: 'سمك مقلي',
+      },
+      {
+        id: 'food67',
+        image: '/random/food/shakshouka.jpg',
+        answer: 'شكشوكة',
+      },
+      {
+        id: 'food68',
+        image: '/random/food/shawerma.png',
+        answer: 'شاورما',
+      },
+      {
+        id: 'food69',
+        image: '/random/food/shorbet_khodar.jpg',
+        answer: 'شوربة خضار',
+      },
+      {
+        id: 'food70',
+        image: '/random/food/smeet.jpeg',
+        answer: 'سميط',
+      },
+      {
+        id: 'food71',
+        image: '/random/food/tagen_akawy.webp',
+        answer: 'طاجن عكاوي',
+      },
+      {
+        id: 'food72',
+        image: '/random/food/tarb.jpg',
+        answer: 'طرب',
+      },
+      {
+        id: 'food73',
+        image: '/random/food/torli.jpg',
+        answer: 'تورلي',
+      },
+      {
+        id: 'food74',
+        image: '/random/food/zabady.jpg',
+        answer: 'زبادي',
+      },
+
     ],
 
     
@@ -700,6 +936,336 @@ module.exports = {
         id: 'actors110',
         image: '/Random/actors/abdelmenem_ebraheem.webp',
         answer: 'عبد المنعم إبراهيم',
+      },
+      {
+        id: 'actors111',
+        image: '/Random/actors/ahmed_slama.jpg',
+        answer: 'أحمد سلامة',
+      },
+      {
+        id: 'actors112',
+        image: '/Random/actors/ahmed_safwat.jpg',
+        answer: 'أحمد صفوت',
+      },
+      {
+        id: 'actors113',
+        image: '/Random/actors/Ahmed.Azmy.jpg',
+        answer: 'أحمد عزمي',
+      },
+      {
+        id: 'actors114',
+        image: '/Random/actors/ahmed_akl.JPG',
+        answer: 'أحمد عقل',
+      },
+      {
+        id: 'actors115',
+        image: '/Random/actors/ahmed_eid.png',
+        answer: 'أحمد عيد',
+      },
+      {
+        id: 'actors116',
+        image: '/Random/actors/ahmed_fouad_selim.jpg',
+        answer: 'أحمد فؤاد سليم',
+      },
+      {
+        id: 'actors117',
+        image: '/Random/actors/Ahmed_Fahmy.png',
+        answer: 'أحمد فهمي',
+      },
+      {
+        id: 'actors118',
+        image: '/Random/actors/ahmed_maher.jpg',
+        answer: 'أحمد ماهر',
+      },
+      {
+        id: 'actors119',
+        image: '/Random/actors/Ashraf_Zaki.png',
+        answer: 'أشرف زكي',
+      },
+      {
+        id: 'actors120',
+        image: '/Random/actors/Ashraf_Abdel_Baky.jpg',
+        answer: 'أشرف عبد الباقي',
+      },
+      {
+        id: 'actors121',
+        image: '/Random/actors/Ashraf_Abdel_Ghafour.jpg',
+        answer: 'أشرف عبد الغفور',
+      },
+      {
+        id: 'actors122',
+        image: '/Random/actors/amir_shahen.jpeg',
+        answer: 'أمير شاهين',
+      },
+      {
+        id: 'actors123',
+        image: '/Random/actors/Anwar_Wagdi.jpg',
+        answer: 'أنور وجدي',
+      },
+      {
+        id: 'actors124',
+        image: '/Random/actors/ibrahem_nasr.jpg',
+        answer: 'إبراهيم نصر',
+      },
+      {
+        id: 'actors125',
+        image: '/Random/actors/Ibrahim-yousri.jpg',
+        answer: 'إبراهيم يسري',
+      },
+      {
+        id: 'actors126',
+        image: '/Random/actors/Ismail_Yassin.jpg',
+        answer: 'إسماعيل يس',
+      },
+      {
+        id: 'actors127',
+        image: '/Random/actors/El_Deif_Ahmed.png',
+        answer: 'الضيف أحمد',
+      },
+      {
+        id: 'actors128',
+        image: '/Random/actors/elmontaser.jpg',
+        answer: 'المنتصر بالله',
+      },
+      {
+        id: 'actors129',
+        image: '/Random/actors/Bassem_Samra.png',
+        answer: 'باسم سمرة',
+      },
+      {
+        id: 'actors130',
+        image: '/Random/actors/Tewfik_El_Dekn.jpg',
+        answer: 'توفيق الدقن',
+      },
+      {
+        id: 'actors131',
+        image: '/Random/actors/gamal_esmael.jpg',
+        answer: 'جمال إسماعيل',
+      },
+      {
+        id: 'actors132',
+        image: '/Random/actors/gameel_barsoom.jpg',
+        answer: 'جميل برسوم',
+      },
+      {
+        id: 'actors133',
+        image: '/Random/actors/Gamil_Rateb.jpg',
+        answer: 'جميل راتب',
+      },
+      {
+        id: 'actors134',
+        image: '/Random/actors/Goerg-Sedhom.jpg',
+        answer: 'جورج سيدهم',
+      },
+      {
+        id: 'actors135',
+        image: '/Random/actors/hatem_zulfakar.jpg',
+        answer: 'حاتم ذو الفقار',
+      },
+      {
+        id: 'actors136',
+        image: '/Random/actors/hagag.jpg',
+        answer: 'حجاج عبدالعظيم',
+      },
+      {
+        id: 'actors137',
+        image: '/Random/actors/hasan_elasmar.jpg',
+        answer: 'حسن الأسمر',
+      },
+      {
+        id: 'actors138',
+        image: '/Random/actors/hasan_housne.jpg',
+        answer: 'حسن حسني',
+      },
+      {
+        id: 'actors139',
+        image: '/Random/actors/hasan_fayek.jpeg',
+        answer: 'حسن فايق',
+      },
+      {
+        id: 'actors140',
+        image: '/Random/actors/hasan_yousif.jpg',
+        answer: 'حسن يوسف',
+      },
+      {
+        id: 'actors141',
+        image: '/Random/actors/huseen_abou_hagaag.jpg',
+        answer: 'حسين أبو حجاج',
+      },
+      {
+        id: 'actors142',
+        image: '/Random/actors/hamdy_elsakhawy.jpg',
+        answer: 'حمدي السخاوي',
+      },
+      {
+        id: 'actors143',
+        image: '/Random/actors/hamdy_geith.jpg',
+        answer: 'حمدي غيث',
+      },
+      {
+        id: 'actors144',
+        image: '/Random/actors/Khaled_Abol_Naga.jpg',
+        answer: 'خالد أبو النجا',
+      },
+      {
+        id: 'actors145',
+        image: '/Random/actors/khaled_elsawy.jpg',
+        answer: 'خالد الصاوي',
+      },
+      {
+        id: 'actors146',
+        image: '/Random/actors/Khaled_El_Nabawy.jpg',
+        answer: 'خالد النبوي',
+      },
+      {
+        id: 'actors147',
+        image: '/Random/actors/khaled_sarhan.jpg',
+        answer: 'خالد سرحان',
+      },
+      {
+        id: 'actors148',
+        image: '/Random/actors/Khaled-SaleH.JPG',
+        answer: 'خالد صالح',
+      },
+      {
+        id: 'actors149',
+        image: '/Random/actors/khalil_morsy.jpg',
+        answer: 'خليل مرسي',
+      },
+      {
+        id: 'actors150',
+        image: '/Random/actors/ramiz_galal.png',
+        answer: 'رامز جلال',
+      },
+      {
+        id: 'actors151',
+        image: '/Random/actors/Rashwan_Tawfiq.png',
+        answer: 'رشوان توفيق',
+      },
+      {
+        id: 'actors152',
+        image: '/Random/actors/reyad_elkholy.jpg',
+        answer: 'رياض الخولي',
+      },
+      {
+        id: 'actors153',
+        image: '/Random/actors/reyad_elasabgy.jpg',
+        answer: 'رياض القصبجي',
+      },
+      {
+        id: 'actors154',
+        image: '/Random/actors/zaki_abdelwahab.jpeg',
+        answer: 'زكي فطين عبد الوهاب',
+      },
+      {
+        id: 'actors155',
+        image: '/Random/actors/sameh_elsrety.jpeg',
+        answer: 'سامح الصريطي',
+      },
+      {
+        id: 'actors156',
+        image: '/Random/actors/sami_eladl.jpg',
+        answer: 'سامي العدل',
+      },
+      {
+        id: 'actors157',
+        image: '/Random/actors/Sami_Maghawiri.png',
+        answer: 'سامي مغاوري',
+      },
+      {
+        id: 'actors158',
+        image: '/Random/actors/seraj_monier.JPG',
+        answer: 'سراج منير',
+      },
+      {
+        id: 'actors159',
+        image: '/Random/actors/Saeed_Saleh.jpg',
+        answer: 'سعيد صالح',
+      },
+      {
+        id: 'actors160',
+        image: '/Random/actors/said_tarabeek.jpg',
+        answer: 'سعيد طرابيك',
+      },
+      {
+        id: 'actors161',
+        image: '/Random/actors/saeed_abdelghanny.jpg',
+        answer: 'سعيد عبد الغني',
+      },
+      {
+        id: 'actors162',
+        image: '/Random/actors/soliman_eid.png',
+        answer: 'سليمان عيد',
+      },
+      {
+        id: 'actors163',
+        image: '/Random/actors/solimann_naguib.jpg',
+        answer: 'سليمان نجيب',
+      },
+      {
+        id: 'actors164',
+        image: '/Random/actors/Samir-sabri.jpg',
+        answer: 'سمير صبري',
+      },
+      {
+        id: 'actors165',
+        image: '/Random/actors/Samir_Ghanem.jpg',
+        answer: 'سمير غانم',
+      },
+      {
+        id: 'actors166',
+        image: '/Random/actors/sanaa_shafe.jpg',
+        answer: 'سناء شافع',
+      },
+      {
+        id: 'actors167',
+        image: '/Random/actors/Sayed_Ragab.jpg',
+        answer: 'سيد رجب',
+      },
+      {
+        id: 'actors168',
+        image: '/Random/actors/sayed_hatem.jpeg',
+        answer: 'سيد حاتم',
+      },
+      {
+        id: 'actors169',
+        image: '/Random/actors/Sherif_Mounir.png',
+        answer: 'شريف منير',
+      },
+      {
+        id: 'actors170',
+        image: '/Random/actors/Shoukry_Sarhan.jpg',
+        answer: 'شكري سرحان',
+      },
+      {
+        id: 'actors171',
+        image: '/Random/actors/sobhi_khalil.webp',
+        answer: 'صبحي خليل',
+      },
+      {
+        id: 'actors172',
+        image: '/Random/actors/sabry_abdelmonem.jpg',
+        answer: 'صبري عبد المنعم',
+      },
+      {
+        id: 'actors173',
+        image: '/Random/actors/sabry_fawaz.png',
+        answer: 'صبري فواز',
+      },
+      {
+        id: 'actors174',
+        image: '/Random/actors/salah_elsadany.jpeg',
+        answer: 'صلاح السعدني',
+      },
+      {
+        id: 'actors175',
+        image: '/Random/actors/diaa_elmargany.jpeg',
+        answer: 'ضياء المرغني',
+      },
+      {
+        id: 'actors176',
+        image: '/Random/actors/diaa_abdelkhalek.webp',
+        answer: 'ضياء عبد الخالق',
       },
 
     ],
