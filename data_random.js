@@ -377,12 +377,6 @@ module.exports = {
         image: '/Random/food/torli.jpg',
         answer: 'تورلي',
       },
-      {
-        id: 'food74',
-        image: '/Random/food/zabady.jpg',
-        answer: 'زبادي',
-      },
-
     ],
 
     
