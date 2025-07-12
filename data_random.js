@@ -1,6 +1,6 @@
 module.exports = {
 
-      'Random-photos': {
+      'random-photos': {
     footballers: [
       {
         id: 'footballer1',

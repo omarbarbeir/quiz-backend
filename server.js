@@ -179,13 +179,28 @@ io.on('connection', (socket) => {
       room.buzzerLocked = false;
       io.to(roomCode).emit('reset_buzzer');
       
-      // Get the subcategory questions from server data
+      // SAFETY CHECK: Verify the category exists
+      if (!randomPhotosData['random-photos']) {
+        console.error('Random photos category not found in data');
+        return;
+      }
+      
+      // SAFETY CHECK: Verify the subcategory exists
+      if (!randomPhotosData['random-photos'][subcategoryId]) {
+        console.error(`Subcategory ${subcategoryId} not found in random-photos category`);
+        console.log('Available subcategories:', Object.keys(randomPhotosData['random-photos']));
+        return;
+      }
+
+      // Get the subcategory questions
       const subcatQuestions = randomPhotosData['random-photos'][subcategoryId];
+      
+      // ADD THIS SAFETY CHECK
       if (!subcatQuestions || subcatQuestions.length === 0) {
         console.error(`No questions found for subcategory: ${subcategoryId}`);
         return;
       }
-      
+
       // Create a copy of the indices to track available questions
       const availableIndices = [...Array(subcatQuestions.length).keys()];
       
