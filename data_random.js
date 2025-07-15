@@ -1261,6 +1261,211 @@ module.exports = {
         image: '/Random/actors/diaa_abdelkhalek.webp',
         answer: 'ضياء عبد الخالق',
       },
+      {
+        id: 'actors177',
+        image: '/Random/actors/abdallah_farghaly.jpg',
+        answer: 'عبد الله فرغلي',
+      },
+      {
+        id: 'actors178',
+        image: '/Random/actors/abdallah_geasth.jpeg',
+        answer: 'عبدالله غيث',
+      },
+      {
+        id: 'actors179',
+        image: '/Random/actors/Abdallah_Mishrif.png',
+        answer: 'عبد الله مشرف',
+      },
+      {
+        id: 'actors180',
+        image: '/Random/actors/Abdel_mom3em_madbawelyy.jpg',
+        answer: 'عبد المنعم متبولي',
+      },
+      {
+        id: 'actors181',
+        image: '/Random/actors/Abdel-Fatah_elasry.jpg',
+        answer: 'عبد الفتاح القصري',
+      },
+      {
+        id: 'actors182',
+        image: '/Random/actors/Abdel-Rahman_Hassan.jpg',
+        answer: 'عبد الرحمن حسن',
+      },
+      {
+        id: 'actors183',
+        image: '/Random/actors/abdelazez_makhyoun.jpg',
+        answer: 'عبد العزيز مخيون',
+      },
+      {
+        id: 'actors184',
+        image: '/Random/actors/abdelsalam_elnabolsy.jpg',
+        answer: 'عبد السلام النابلسي',
+      },
+      {
+        id: 'actors185',
+        image: '/Random/actors/Abdelwareth_Asar.jpg',
+        answer: 'عبد الوارث عسر',
+      },
+      {
+        id: 'actors186',
+        image: '/Random/actors/adel_adham.webp',
+        answer: 'عادل أدهم',
+      },
+      {
+        id: 'actors187',
+        image: '/Random/actors/adli_kaseb.jpg',
+        answer: 'عدلي كاسب',
+      },
+      {
+        id: 'actors188',
+        image: '/Random/actors/ahdy_sadek.jpeg',
+        answer: 'عهدي صادق',
+      },
+      {
+        id: 'actors189',
+        image: '/Random/actors/Alaa_Morsi.png',
+        answer: 'علاء مرسي',
+      },
+      {
+        id: 'actors190',
+        image: '/Random/actors/alaa_waley_eldeen.jpg',
+        answer: 'علاء ولي الدين',
+      },
+      {
+        id: 'actors191',
+        image: '/Random/actors/Ali_Al-Kassar.jpg',
+        answer: 'علي الكسار',
+      },
+      {
+        id: 'actors192',
+        image: '/Random/actors/ali_hasanein.jpg',
+        answer: 'علي حسنين',
+      },
+      {
+        id: 'actors193',
+        image: '/Random/actors/Ali_Qasem.png',
+        answer: 'علي قاسم',
+      },
+      {
+        id: 'actors194',
+        image: '/Random/actors/Ali_Rabee.png',
+        answer: 'علي ربيع',
+      },
+      {
+        id: 'actors195',
+        image: '/Random/actors/alla_zenhom.png',
+        answer: 'علاء زينهم',
+      },
+      {
+        id: 'actors196',
+        image: '/Random/actors/amer_moneeb.jpg',
+        answer: 'عامر منيب',
+      },
+      {
+        id: 'actors197',
+        image: '/Random/actors/amr_abdelgeleel.png',
+        answer: 'عمرو عبد الجليل',
+      },
+      {
+        id: 'actors198',
+        image: '/Random/actors/emad_rashad.jpg',
+        answer: 'عماد رشاد',
+      },
+      {
+        id: 'actors199',
+        image: '/Random/actors/ezzat_elalayle.jpg',
+        answer: 'عزت العلايلي',
+      },
+      {
+        id: 'actors200',
+        image: '/Random/actors/farouk_falwkas.jpg',
+        answer: 'فاروق فلوكس',
+      },
+      {
+        id: 'actors201',
+        image: '/Random/actors/Farouq-al-Feshawi.jpg',
+        answer: 'فاروق الفيشاوي',
+      },
+      {
+        id: 'actors202',
+        image: '/Random/actors/fayek_azab.jpg',
+        answer: 'فايق عزب',
+      },
+      {
+        id: 'actors203',
+        image: '/Random/actors/ghareb_mahmoud.jpg',
+        answer: 'غريب محمود',
+      },
+      {
+        id: 'actors204',
+        image: '/Random/actors/Imad_Hamdy.jpg',
+        answer: 'عماد حمدي',
+      },
+      {
+        id: 'actors205',
+        image: '/Random/actors/osman_mohamed_ali.jpg',
+        answer: 'عثمان محمد علي',
+      },
+      {
+        id: 'actors206',
+        image: '/Random/actors/Tarek_ebdelazez.jpeg',
+        answer: 'طارق عبد العزيز',
+      },
+      {
+        id: 'actors207',
+        image: '/Random/actors/Tarek_Lotfy.png',
+        answer: 'طارق لطفي',
+      },
+      {
+        id: 'actors208',
+        image: '/Random/actors/fathy_abdelwahab.jpg',
+        answer: 'فتحي عبد الوهاب',
+      },
+      {
+        id: 'actors209',
+        image: '/Random/actors/fared_elatrash.jpg',
+        answer: 'فريد الأطرش',
+      },
+      {
+        id: 'actors210',
+        image: '/Random/actors/kareem_abdelazez.png',
+        answer: 'كريم عبد العزيز',
+      },
+      {
+        id: 'actors211',
+        image: '/Random/actors/kamal_abouraya.jpg',
+        answer: 'كمال أبو ريا',
+      },
+      {
+        id: 'actors212',
+        image: '/Random/actors/Maged_El-Masry.png',
+        answer: 'ماجد المصري',
+      },
+      {
+        id: 'actors213',
+        image: '/Random/actors/maher_essam.jpg',
+        answer: 'ماهر عصام',
+      },
+      {
+        id: 'actors214',
+        image: '/Random/actors/Magdy_Kamel.png',
+        answer: 'مجدي كامل',
+      },
+      {
+        id: 'actors215',
+        image: '/Random/actors/mohamed_abou_daooud.jpg',
+        answer: 'محمد أبو داوود',
+      },
+      {
+        id: 'actors216',
+        image: '/Random/actors/mohamed_eltagy.jpeg',
+        answer: 'محمد التاجي',
+      },
+      {
+        id: 'actors217',
+        image: '/Random/actors/mohamed_elsawy.png',
+        answer: 'محمد الصاوي',
+      },
 
     ],
 
