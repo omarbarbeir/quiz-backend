@@ -54,6 +54,15 @@ function generateStrokeId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
 
+function generateRoomCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
 io.on('connection', (socket) => {
   console.log('New client connected');
   
@@ -67,6 +76,12 @@ io.on('connection', (socket) => {
       whiteboard: {
         strokes: [],
         currentStroke: null
+      },
+      timer: {
+        duration: 120,
+        intervalId: null,
+        currentTime: null,
+        isRunning: false
       }
     };
     socket.emit('room_created', roomCode);
@@ -87,6 +102,11 @@ io.on('connection', (socket) => {
       
       // Send whiteboard state to new player
       socket.emit('whiteboard_state', rooms[roomCode].whiteboard);
+      
+      // Send current timer state if active
+      if (rooms[roomCode].timer.intervalId) {
+        socket.emit('timer_started', rooms[roomCode].timer.currentTime);
+      }
       
       socket.data = { roomCode, playerId: player.id };
       console.log(`Player ${player.name} joined room ${roomCode}`);
@@ -180,7 +200,6 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('stop_audio2');
   });
   
-  // Handle random photo requests
   socket.on('play_random_question', ({ roomCode, subcategoryId }) => {
     if (rooms[roomCode]) {
       const room = rooms[roomCode];
@@ -246,6 +265,10 @@ io.on('connection', (socket) => {
       console.log(`Player ${playerId} left room ${roomCode}`);
       
       if (rooms[roomCode].players.length === 0) {
+        // Clear timer if running
+        if (rooms[roomCode].timer.intervalId) {
+          clearInterval(rooms[roomCode].timer.intervalId);
+        }
         delete rooms[roomCode];
         console.log(`Room ${roomCode} closed`);
       }
@@ -308,6 +331,103 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Timer event handlers
+  socket.on('start_timer', ({ roomCode, duration }) => {
+    if (rooms[roomCode]) {
+      // Clear any existing timer
+      if (rooms[roomCode].timer.intervalId) {
+        clearInterval(rooms[roomCode].timer.intervalId);
+      }
+      
+      // Initialize timer
+      rooms[roomCode].timer = {
+        duration,
+        currentTime: duration,
+        isRunning: true,
+        intervalId: setInterval(() => {
+          rooms[roomCode].timer.currentTime--;
+          
+          // Broadcast to all players
+          io.to(roomCode).emit('timer_update', rooms[roomCode].timer.currentTime);
+          
+          // End timer if time runs out
+          if (rooms[roomCode].timer.currentTime <= 0) {
+            clearInterval(rooms[roomCode].timer.intervalId);
+            rooms[roomCode].timer.intervalId = null;
+            rooms[roomCode].timer.isRunning = false;
+            io.to(roomCode).emit('timer_end');
+          }
+        }, 1000)
+      };
+      
+      // Broadcast initial timer state
+      io.to(roomCode).emit('timer_started', rooms[roomCode].timer.currentTime);
+      console.log(`Timer started in room ${roomCode}`);
+    }
+  });
+
+  socket.on('stop_timer', ({ roomCode }) => {
+    if (rooms[roomCode] && rooms[roomCode].timer.intervalId) {
+      clearInterval(rooms[roomCode].timer.intervalId);
+      rooms[roomCode].timer.intervalId = null;
+      rooms[roomCode].timer.isRunning = false;
+      io.to(roomCode).emit('timer_stopped');
+      console.log(`Timer stopped in room ${roomCode}`);
+    }
+  });
+
+  socket.on('continue_timer', ({ roomCode, currentTime }) => {
+    if (rooms[roomCode]) {
+      // Clear any existing timer
+      if (rooms[roomCode].timer.intervalId) {
+        clearInterval(rooms[roomCode].timer.intervalId);
+      }
+      
+      // Continue timer from current time
+      rooms[roomCode].timer.currentTime = currentTime;
+      rooms[roomCode].timer.isRunning = true;
+      rooms[roomCode].timer.intervalId = setInterval(() => {
+        rooms[roomCode].timer.currentTime--;
+        
+        // Broadcast to all players
+        io.to(roomCode).emit('timer_update', rooms[roomCode].timer.currentTime);
+        
+        // End timer if time runs out
+        if (rooms[roomCode].timer.currentTime <= 0) {
+          clearInterval(rooms[roomCode].timer.intervalId);
+          rooms[roomCode].timer.intervalId = null;
+          rooms[roomCode].timer.isRunning = false;
+          io.to(roomCode).emit('timer_end');
+        }
+      }, 1000);
+      
+      // Broadcast timer continued
+      io.to(roomCode).emit('timer_continued', rooms[roomCode].timer.currentTime);
+      console.log(`Timer continued in room ${roomCode} from ${currentTime} seconds`);
+    }
+  });
+
+  socket.on('reset_timer', ({ roomCode }) => {
+    if (rooms[roomCode]) {
+      // Clear any existing timer
+      if (rooms[roomCode].timer.intervalId) {
+        clearInterval(rooms[roomCode].timer.intervalId);
+      }
+      
+      // Reset timer to initial state
+      rooms[roomCode].timer = {
+        duration: 120,
+        currentTime: 120,
+        intervalId: null,
+        isRunning: false
+      };
+      
+      // Broadcast timer reset
+      io.to(roomCode).emit('timer_reset');
+      console.log(`Timer reset in room ${roomCode}`);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected');
     
@@ -327,6 +447,10 @@ io.on('connection', (socket) => {
         console.log(`Player ${player.name} disconnected from room ${roomCode}`);
         
         if (rooms[roomCode].players.length === 0) {
+          // Clear timer if running
+          if (rooms[roomCode].timer.intervalId) {
+            clearInterval(rooms[roomCode].timer.intervalId);
+          }
           delete rooms[roomCode];
           console.log(`Room ${roomCode} closed`);
         }
@@ -334,15 +458,6 @@ io.on('connection', (socket) => {
     }
   });
 });
-
-function generateRoomCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-}
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
