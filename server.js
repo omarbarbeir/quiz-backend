@@ -810,7 +810,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Challenge response
+  // UPDATED: Challenge response - Player must discard after receiving 3 cards
   socket.on('card_game_challenge_response', ({ roomCode, playerId, accept, declaredPlayerId }) => {
     console.log(`⚖️ CHALLENGE RESPONSE by player ${playerId}: ${accept ? 'ACCEPT' : 'REJECT'} in room ${roomCode}`);
     
@@ -832,6 +832,7 @@ io.on('connection', (socket) => {
           
           game.playerCircles[declaredPlayerId] = [null, null, null, null];
           
+          // Draw 3 new cards
           for (let i = 0; i < 3; i++) {
             if (game.drawPile.length > 0) {
               const drawnCard = game.drawPile.pop();
@@ -839,13 +840,17 @@ io.on('connection', (socket) => {
             }
           }
           
-          game.currentTurn = getNextNonSkippedPlayer(roomCode, declaredPlayerId, game.skippedPlayers);
+          // NEW: Force the player to discard a card after receiving 3 new cards
+          game.playerHasDrawn[declaredPlayerId] = true;
+          
+          // Keep the turn with the same player so they can discard
+          game.currentTurn = declaredPlayerId;
           
           console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
           console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
           console.log(`   Player drew 3 new cards from pile`);
           console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
-          console.log(`   Turn goes to NEXT player: ${game.currentTurn}`);
+          console.log(`   Player must now discard a card before turn ends`);
         }
       } else {
         game.currentTurn = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
