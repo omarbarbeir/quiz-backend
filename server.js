@@ -21,11 +21,16 @@ app.get('/', (req, res) => {
   res.send('Quiz Game Server Running');
 });
 
+// FIXED: Improved Socket.IO configuration
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  pingTimeout: 60000, // Increase ping timeout
+  pingInterval: 25000, // Increase ping interval
+  connectTimeout: 45000, // Increase connection timeout
+  transports: ['websocket', 'polling'] // Allow both transports
 });
 
 // Import data files
@@ -151,7 +156,7 @@ const gameCategories = [
   { 
     id: 20, 
     name: 'الفئة 20', 
-    description: 'أفلام فيها فرح',
+    description: 'أفلام فيها رقص',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
@@ -177,19 +182,7 @@ const gameCategories = [
     name: 'الفئة 24', 
     description: 'أفلام البطل فيها قتل شخصية ليست ثانوية (بمعني انها شخصية تكرر ظهورها ولم تظهر في مشهد مقتلها فقط)',
     rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 25, 
-    name: 'الفئة 25', 
-    description: 'ممثلين إسمهم من ٣ كلمات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 26, 
-    name: 'الفئة 26', 
-    description: 'أفلام فيهم حيوانات',
-    rules: 'اجمع ٣ بطاقات'
-  },
+  }
 ];
 
 const rooms = {};
@@ -333,6 +326,11 @@ function initializeCardGame(players) {
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
+
+  // NEW: Handle connection errors
+  socket.on('error', (error) => {
+    console.error('❌ Socket error:', error);
+  });
 
   // Create room
   socket.on('create_room', () => {
@@ -1099,8 +1097,8 @@ io.on('connection', (socket) => {
   });
 
   // Disconnect
-  socket.on('disconnect', () => {
-    console.log('🔌 Client disconnected:', socket.id);
+  socket.on('disconnect', (reason) => {
+    console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason);
     
     const roomCode = socket.data?.roomCode;
     const playerId = socket.data?.playerId;
@@ -1109,12 +1107,20 @@ io.on('connection', (socket) => {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
       if (player) {
-        rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
-        console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
-        
-        if (rooms[roomCode].players.length === 0) {
-          delete rooms[roomCode];
-          console.log(`🏠 Room ${roomCode} closed (no players)`);
+        // Only remove if the socket ID matches (don't remove if player reconnected)
+        if (player.socketId === socket.id) {
+          rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
+          console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
+          
+          if (rooms[roomCode].players.length === 0) {
+            delete rooms[roomCode];
+            console.log(`🏠 Room ${roomCode} closed (no players)`);
+          } else {
+            // Notify other players
+            io.to(roomCode).emit('player_left', playerId);
+          }
+        } else {
+          console.log(`🔄 ${player.name} reconnected with new socket, keeping in room`);
         }
       }
     }
