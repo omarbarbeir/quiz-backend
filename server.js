@@ -151,7 +151,7 @@ const gameCategories = [
   { 
     id: 20, 
     name: 'الفئة 20', 
-    description: 'أفلام فيها رقص',
+    description: 'أفلام فيها فرح',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
@@ -177,20 +177,27 @@ const gameCategories = [
     name: 'الفئة 24', 
     description: 'أفلام البطل فيها قتل شخصية ليست ثانوية (بمعني انها شخصية تكرر ظهورها ولم تظهر في مشهد مقتلها فقط)',
     rules: 'اجمع ٣ بطاقات'
-  }
+  },
+  { 
+    id: 25, 
+    name: 'الفئة 25', 
+    description: 'ممثلين إسمهم من ٣ كلمات',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 26, 
+    name: 'الفئة 26', 
+    description: 'أفلام فيهم حيوانات',
+    rules: 'اجمع ٣ بطاقات'
+  },
 ];
 
 const rooms = {};
 const pendingActions = {};
 
-// Utility functions
+// UPDATED: Generate numeric room code (4 digits)
 function generateRoomCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
+  return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 function generateStrokeId() {
@@ -292,7 +299,7 @@ function generateGameDeck(baseDeck) {
 
 // UPDATED: Initialize card game with ALL cards
 function initializeCardGame(players) {
-  console.log('🃏 Initializing card game for players:', players.map(p => p.name));
+  console.log('🎮 Initializing card game for players:', players.map(p => p.name));
   
   // Generate deck using ALL available cards
   const gameDeck = generateGameDeck(cardData.deck);
@@ -380,6 +387,46 @@ io.on('connection', (socket) => {
     } else {
       socket.emit('room_not_found');
       console.log(`❌ Room ${roomCode} not found`);
+    }
+  });
+
+  // NEW: Rejoin room event
+  socket.on('rejoin_room', ({ roomCode, player }) => {
+    console.log(`🔄 Rejoining room: ${roomCode} for player: ${player.name}`);
+    
+    if (rooms[roomCode]) {
+      // Check if player already exists
+      const existingPlayerIndex = rooms[roomCode].players.findIndex(p => p.id === player.id);
+      
+      if (existingPlayerIndex === -1) {
+        // Player doesn't exist, add them
+        const playerWithSocket = { 
+          ...player, 
+          socketId: socket.id
+        };
+        rooms[roomCode].players.push(playerWithSocket);
+      } else {
+        // Update socket ID for existing player
+        rooms[roomCode].players[existingPlayerIndex].socketId = socket.id;
+      }
+      
+      socket.join(roomCode);
+      
+      // Send current room state to rejoining player
+      socket.emit('rejoin_success', {
+        players: rooms[roomCode].players,
+        cardGame: rooms[roomCode].cardGame,
+        currentQuestion: rooms[roomCode].currentQuestion,
+        activePlayer: rooms[roomCode].activePlayer
+      });
+      
+      // Notify other players
+      socket.to(roomCode).emit('player_joined', player);
+      
+      console.log(`✅ ${player.name} rejoined room ${roomCode}`);
+    } else {
+      socket.emit('rejoin_failed');
+      console.log(`❌ Room ${roomCode} not found for rejoin`);
     }
   });
 
@@ -526,56 +573,65 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Play card to table
+  // FIXED: Play card to table handler with enhanced validation
   socket.on('card_game_play_table', ({ roomCode, playerId, cardId }) => {
     console.log(`🃏 PLAY TO TABLE by player ${playerId} with card ${cardId} in room ${roomCode}`);
     
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      
-      if (game.skippedPlayers[playerId]) {
-        console.log(`❌ Player ${playerId} is skipped this turn`);
-        socket.emit('card_game_error', { message: 'You are skipped this turn' });
-        return;
-      }
-      
-      if (game.currentTurn !== playerId) {
-        console.log(`❌ Not player ${playerId}'s turn`);
-        socket.emit('card_game_error', { message: 'Not your turn' });
-        return;
-      }
-
-      if (!game.playerHasDrawn[playerId]) {
-        console.log(`❌ Player ${playerId} must draw a card first`);
-        socket.emit('card_game_error', { message: 'You must draw a card before discarding' });
-        return;
-      }
-
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Card not found in hand' });
-        return;
-      }
-
-      const [card] = game.playerHands[playerId].splice(cardIndex, 1);
-      
-      // REMOVED ACTION CARD HANDLING - ONLY JOKER AND SKIP REMAIN
-      game.tableCards.push(card);
-      
-      game.playerHasDrawn[playerId] = false;
-      
-      delete game.skippedPlayers[playerId];
-      
-      // Use the new skip-aware next player function
-      let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
-      game.currentTurn = nextPlayerId;
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Card played to table. Table cards: ${game.tableCards.length}. Next turn: ${game.currentTurn}`);
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
+    // Enhanced validation
+    if (!rooms[roomCode]) {
+      console.log(`❌ Room ${roomCode} not found`);
+      socket.emit('card_game_error', { message: 'Room not found. Please rejoin the game.' });
+      return;
     }
+    
+    if (!rooms[roomCode].cardGame) {
+      console.log(`❌ Card game not initialized in room ${roomCode}`);
+      socket.emit('card_game_error', { message: 'Game not found. Please restart the card game.' });
+      return;
+    }
+    
+    const game = rooms[roomCode].cardGame;
+    
+    if (game.skippedPlayers[playerId]) {
+      console.log(`❌ Player ${playerId} is skipped this turn`);
+      socket.emit('card_game_error', { message: 'You are skipped this turn' });
+      return;
+    }
+    
+    if (game.currentTurn !== playerId) {
+      console.log(`❌ Not player ${playerId}'s turn. Current turn: ${game.currentTurn}`);
+      socket.emit('card_game_error', { message: 'Not your turn' });
+      return;
+    }
+
+    if (!game.playerHasDrawn[playerId]) {
+      console.log(`❌ Player ${playerId} must draw a card first`);
+      socket.emit('card_game_error', { message: 'You must draw a card before discarding' });
+      return;
+    }
+
+    const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
+    if (cardIndex === -1) {
+      console.log(`❌ Card ${cardId} not found in player's hand`);
+      socket.emit('card_game_error', { message: 'Card not found in hand' });
+      return;
+    }
+
+    const [card] = game.playerHands[playerId].splice(cardIndex, 1);
+    
+    // REMOVED ACTION CARD HANDLING - ONLY JOKER AND SKIP REMAIN
+    game.tableCards.push(card);
+    
+    game.playerHasDrawn[playerId] = false;
+    
+    delete game.skippedPlayers[playerId];
+    
+    // Use the new skip-aware next player function
+    let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
+    game.currentTurn = nextPlayerId;
+    
+    io.to(roomCode).emit('card_game_state_update', game);
+    console.log(`✅ Card played to table. Table cards: ${game.tableCards.length}. Next turn: ${game.currentTurn}`);
   });
 
   // UPDATED: Take card from table - Action cards cannot be taken

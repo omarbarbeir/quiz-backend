@@ -371,6 +371,18 @@ const cardData = {
     { id: 'actor-348', type: 'actor', name: 'آسر ياسين', image: '/images/cards/actors/asser_yasin.jpg' },
     { id: 'actor-349', type: 'actor', name: 'محمود عبد العزيز', image: '/images/cards/actors/mahmoud_abd_elaziz.jpg' },
     { id: 'actor-350', type: 'actor', name: 'محمد محمود عبد العزيز', image: '/images/cards/actors/mohamed_mahmoud_abd_elaziz.jpg' },
+    { id: 'actor-351', type: 'actor', name: 'محمد عادل إمام', image: '/images/cards/actors/mohamed_emam.jpeg' },
+    { id: 'actor-352', type: 'actor', name: 'هاني سلامة', image: '/images/cards/actors/hany_salama.jpg' },
+    { id: 'actor-353', type: 'actor', name: 'محمود الجندي', image: '/images/cards/actors/mahmoud_elgendy.jpg' },
+    { id: 'actor-354', type: 'actor', name: 'محمد ممدوح', image: '/images/cards/actors/mohamed_mamdouh.jpg' },
+    { id: 'actor-355', type: 'actor', name: 'يوسف الشريف', image: '/images/cards/actors/yousif_elshiref.jpg' },
+    { id: 'actor-356', type: 'actor', name: 'مصطفي شعبان', image: '/images/cards/actors/mostafa_shaban.jpg' },
+    { id: 'actor-357', type: 'actor', name: 'محمد ثروت', image: '/images/cards/actors/mohamed_sarwat.jpg' },
+    { id: 'actor-358', type: 'actor', name: 'ماجد الكدواني', image: '/images/cards/actors/maged_elkedwany.jpg' },
+    { id: 'actor-359', type: 'actor', name: 'محمود عبد المغني', image: '/images/cards/actors/mahmoud_mogny.jpg' },
+    { id: 'actor-360', type: 'actor', name: 'محمود المليجي', image: '/images/cards/actors/mahmoud_elmlegy.jpg' },
+    { id: 'actor-361', type: 'actor', name: 'إسماعيل ياسين', image: '/images/cards/actors/ismail_yasin.jpg' },
+    { id: 'actor-362', type: 'actor', name: 'عمرو يوسف', image: '/images/cards/actors/amr_yousif.jpg' },
 
 
 
