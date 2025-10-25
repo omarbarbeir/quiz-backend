@@ -7,42 +7,30 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Enhanced middleware
+// Simple middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Enhanced health check with more info
+// Health check
 app.get('/health', (req, res) => {
-  const roomCount = Object.keys(rooms).length;
-  const totalPlayers = Object.values(rooms).reduce((sum, room) => sum + room.players.length, 0);
-  
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    rooms: roomCount,
-    players: totalPlayers,
-    memory: process.memoryUsage()
-  });
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 app.get('/', (req, res) => {
-  res.send('Quiz Game Server Running - Enhanced Connection Stability');
+  res.send('Quiz Game Server Running');
 });
 
-// ENHANCED: Improved Socket.IO configuration
+// SIMPLE & STABLE Socket.IO configuration
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
   },
-  pingTimeout: 60000, // Increased ping timeout
-  pingInterval: 25000, // Increased ping interval
-  connectTimeout: 45000, // Increased connection timeout
-  transports: ['websocket', 'polling'],
-  allowEIO3: true, // Enable Engine.IO v3 compatibility
-  maxHttpBufferSize: 1e8, // Increase max buffer size
-  cookie: false
+  pingTimeout: 60000,
+  pingInterval: 25000, 
+  connectTimeout: 45000,
+  transports: ['websocket', 'polling']
 });
 
 // Import data files
@@ -198,51 +186,6 @@ const gameCategories = [
 ];
 
 const rooms = {};
-const pendingActions = {};
-
-// NEW: Connection monitoring
-const connectionStats = {
-  totalConnections: 0,
-  activeConnections: 0,
-  reconnections: 0
-};
-
-// NEW: Room cleanup interval - ENHANCED: Longer intervals for admin rooms
-setInterval(() => {
-  const now = Date.now();
-  let cleanedRooms = 0;
-  
-  Object.keys(rooms).forEach(roomCode => {
-    const room = rooms[roomCode];
-    const roomAge = now - (room.createdAt || now);
-    const hasAdmin = room.players.some(p => p.isAdmin);
-    const lastActivity = now - room.lastActivity;
-    
-    // Different cleanup rules for admin rooms vs regular rooms
-    if (room.players.length === 0) {
-      if (hasAdmin) {
-        // Admin rooms: keep for 2 hours if no activity, otherwise 4 hours
-        const maxAge = lastActivity > 7200000 ? 14400000 : 14400000; // 2 hours inactive = 4 hours total
-        if (roomAge > maxAge) {
-          delete rooms[roomCode];
-          cleanedRooms++;
-          console.log(`🧹 Cleaned up inactive admin room: ${roomCode}`);
-        }
-      } else {
-        // Regular rooms: clean up after 1 hour
-        if (roomAge > 3600000) {
-          delete rooms[roomCode];
-          cleanedRooms++;
-          console.log(`🧹 Cleaned up empty room: ${roomCode}`);
-        }
-      }
-    }
-  });
-  
-  if (cleanedRooms > 0) {
-    console.log(`🧹 Cleaned up ${cleanedRooms} rooms`);
-  }
-}, 300000); // Check every 5 minutes
 
 function generateRoomCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -365,25 +308,11 @@ function initializeCardGame(players) {
   };
 }
 
-// ENHANCED: Socket.io connection handling with better monitoring and admin protection
+// SIMPLE & RELIABLE Socket.io connection handling
 io.on('connection', (socket) => {
-  connectionStats.totalConnections++;
-  connectionStats.activeConnections++;
-  
-  console.log('🔌 New client connected:', socket.id, 
-    `(Active: ${connectionStats.activeConnections}, Total: ${connectionStats.totalConnections})`);
+  console.log('🔌 New client connected:', socket.id);
 
-  // NEW: Handle ping/pong for connection health
-  socket.on('ping', () => {
-    socket.emit('pong');
-  });
-
-  // NEW: Handle connection errors
-  socket.on('error', (error) => {
-    console.error('❌ Socket error for', socket.id, ':', error);
-  });
-
-  // Create room with enhanced room tracking
+  // Create room
   socket.on('create_room', () => {
     const roomCode = generateRoomCode();
     rooms[roomCode] = {
@@ -401,30 +330,24 @@ io.on('connection', (socket) => {
         intervalId: null,
         currentTime: null,
         isRunning: false
-      },
-      createdAt: Date.now(),
-      lastActivity: Date.now(),
-      isAdminRoom: true // NEW: Mark as admin room for special handling
+      }
     };
     
     socket.emit('room_created', roomCode);
     socket.join(roomCode);
-    console.log(`🏠 Admin Room created: ${roomCode} (Total rooms: ${Object.keys(rooms).length})`);
+    console.log(`🏠 Room created: ${roomCode}`);
   });
 
-  // Enhanced join room with activity tracking
+  // Join room
   socket.on('join_room', ({ roomCode, player }) => {
     console.log(`👤 Player ${player.name} joining room: ${roomCode}`);
     
     if (rooms[roomCode]) {
       const playerWithSocket = { 
         ...player, 
-        socketId: socket.id,
-        joinedAt: Date.now(),
-        lastSeen: Date.now()
+        socketId: socket.id
       };
       rooms[roomCode].players.push(playerWithSocket);
-      rooms[roomCode].lastActivity = Date.now();
       socket.join(roomCode);
       
       socket.emit('player_joined', player);
@@ -437,13 +360,7 @@ io.on('connection', (socket) => {
         socket.emit('card_game_state_update', rooms[roomCode].cardGame);
       }
       
-      socket.data = { 
-        roomCode, 
-        playerId: player.id,
-        playerName: player.name,
-        isAdmin: player.isAdmin || false,
-        joinedAt: Date.now()
-      };
+      socket.data = { roomCode, playerId: player.id };
       console.log(`✅ ${player.name} joined room ${roomCode}. Total players: ${rooms[roomCode].players.length}`);
     } else {
       socket.emit('room_not_found');
@@ -451,30 +368,26 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Enhanced rejoin room with better error handling
+  // Rejoin room event
   socket.on('rejoin_room', ({ roomCode, player }) => {
     console.log(`🔄 Rejoining room: ${roomCode} for player: ${player.name}`);
-    connectionStats.reconnections++;
     
     if (rooms[roomCode]) {
+      // Check if player already exists
       const existingPlayerIndex = rooms[roomCode].players.findIndex(p => p.id === player.id);
       
       if (existingPlayerIndex === -1) {
+        // Player doesn't exist, add them
         const playerWithSocket = { 
           ...player, 
-          socketId: socket.id,
-          joinedAt: Date.now(),
-          lastSeen: Date.now(),
-          reconnected: true
+          socketId: socket.id
         };
         rooms[roomCode].players.push(playerWithSocket);
       } else {
+        // Update socket ID for existing player
         rooms[roomCode].players[existingPlayerIndex].socketId = socket.id;
-        rooms[roomCode].players[existingPlayerIndex].lastSeen = Date.now();
-        rooms[roomCode].players[existingPlayerIndex].reconnected = true;
       }
       
-      rooms[roomCode].lastActivity = Date.now();
       socket.join(roomCode);
       
       // Send current room state to rejoining player
@@ -485,16 +398,8 @@ io.on('connection', (socket) => {
         activePlayer: rooms[roomCode].activePlayer
       });
       
-      // Notify other players about reconnection
-      socket.to(roomCode).emit('player_reconnected', player);
-      
-      socket.data = { 
-        roomCode, 
-        playerId: player.id,
-        playerName: player.name,
-        isAdmin: player.isAdmin || false,
-        rejoinedAt: Date.now()
-      };
+      // Notify other players
+      socket.to(roomCode).emit('player_joined', player);
       
       console.log(`✅ ${player.name} rejoined room ${roomCode}`);
     } else {
@@ -503,21 +408,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Handle player reconnection notification
-  socket.on('player_reconnected', ({ roomCode, playerId }) => {
-    if (rooms[roomCode]) {
-      const player = rooms[roomCode].players.find(p => p.id === playerId);
-      if (player) {
-        player.lastSeen = Date.now();
-        socket.to(roomCode).emit('player_reconnected', player);
-      }
-    }
-  });
-
   // WHITEBOARD EVENTS
   socket.on('start_drawing', ({ roomCode, startX, startY, color, size }) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       const strokeId = generateStrokeId();
       rooms[roomCode].whiteboard.currentStroke = {
         id: strokeId,
@@ -538,7 +431,6 @@ io.on('connection', (socket) => {
 
   socket.on('update_drawing', ({ roomCode, x, y }) => {
     if (rooms[roomCode] && rooms[roomCode].whiteboard.currentStroke) {
-      rooms[roomCode].lastActivity = Date.now();
       const stroke = rooms[roomCode].whiteboard.currentStroke;
       stroke.points.push({ x, y });
       
@@ -552,7 +444,6 @@ io.on('connection', (socket) => {
 
   socket.on('end_drawing', ({ roomCode }) => {
     if (rooms[roomCode] && rooms[roomCode].whiteboard.currentStroke) {
-      rooms[roomCode].lastActivity = Date.now();
       const stroke = rooms[roomCode].whiteboard.currentStroke;
       rooms[roomCode].whiteboard.strokes.push(stroke);
       rooms[roomCode].whiteboard.currentStroke = null;
@@ -565,7 +456,6 @@ io.on('connection', (socket) => {
 
   socket.on('clear_whiteboard', ({ roomCode }) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       rooms[roomCode].whiteboard = {
         strokes: [],
         currentStroke: null
@@ -574,7 +464,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // CARD GAME EVENTS with activity tracking
+  // CARD GAME EVENTS
   socket.on('card_game_initialize', ({ roomCode }) => {
     console.log(`🎮 CARD GAME INITIALIZE for room: ${roomCode}`);
     
@@ -586,7 +476,6 @@ io.on('connection', (socket) => {
 
     try {
       const room = rooms[roomCode];
-      room.lastActivity = Date.now();
       
       if (room.players.length === 0) {
         console.log('❌ No players in room');
@@ -601,6 +490,7 @@ io.on('connection', (socket) => {
       console.log(`✅ Card game initialized successfully in ${roomCode}`);
       console.log(`   Players: ${room.players.length}`);
       console.log(`   Draw pile: ${room.cardGame.drawPile.length} cards`);
+      console.log(`   Player hands:`, Object.keys(room.cardGame.playerHands).length);
       
       io.to(roomCode).emit('card_game_state_update', room.cardGame);
       console.log(`📤 Game state sent to room ${roomCode}`);
@@ -617,7 +507,6 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       if (game.skippedPlayers[playerId]) {
         console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -661,7 +550,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Play card to table handler with enhanced validation
+  // Play card to table handler
   socket.on('card_game_play_table', ({ roomCode, playerId, cardId }) => {
     console.log(`🃏 PLAY TO TABLE by player ${playerId} with card ${cardId} in room ${roomCode}`);
     
@@ -678,7 +567,6 @@ io.on('connection', (socket) => {
     }
     
     const game = rooms[roomCode].cardGame;
-    rooms[roomCode].lastActivity = Date.now();
     
     if (game.skippedPlayers[playerId]) {
       console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -719,13 +607,12 @@ io.on('connection', (socket) => {
     console.log(`✅ Card played to table. Table cards: ${game.tableCards.length}. Next turn: ${game.currentTurn}`);
   });
 
-  // Take card from table - Action cards cannot be taken
+  // Take card from table
   socket.on('card_game_take_table', ({ roomCode, playerId, cardId }) => {
     console.log(`🃏 TAKE FROM TABLE by player ${playerId} for card ${cardId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       if (game.skippedPlayers[playerId]) {
         console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -769,13 +656,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use skip card - AUTOMATICALLY skips next player
+  // Use skip card
   socket.on('card_game_use_skip', ({ roomCode, playerId, cardId }) => {
     console.log(`🎭 USE SKIP CARD by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -829,20 +715,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  // INDEPENDENT DICE FUNCTION - Now 24 numbers
+  // Dice roll handler
   socket.on('card_game_roll_dice', ({ roomCode, playerId }) => {
-    console.log(`🎲 INDEPENDENT DICE ROLL by player ${playerId} in room ${roomCode}`);
+    console.log(`🎲 DICE ROLL by player ${playerId} in room ${roomCode}`);
     
-    if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
-    }
-    
-    const diceValue = Math.floor(Math.random() * 24) + 1; // Now 1-24
+    const diceValue = Math.floor(Math.random() * 24) + 1;
     
     socket.emit('card_game_dice_rolled', { diceValue });
     
     console.log(`🎯 Player ${playerId} rolled dice: ${diceValue}`);
-    console.log(`   ✅ Dice is completely independent - no game state changes`);
   });
 
   // Move card to circle
@@ -851,7 +732,6 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -882,7 +762,6 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -912,7 +791,6 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -947,13 +825,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Challenge response - Player must discard after receiving 3 cards
+  // Challenge response
   socket.on('card_game_challenge_response', ({ roomCode, playerId, accept, declaredPlayerId }) => {
     console.log(`⚖️ CHALLENGE RESPONSE by player ${playerId}: ${accept ? 'ACCEPT' : 'REJECT'} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       if (accept) {
         const completedPlayer = rooms[roomCode].players.find(p => p.id === declaredPlayerId);
@@ -1009,7 +886,6 @@ io.on('connection', (socket) => {
     console.log(`🚪 EXIT CARD GAME in room ${roomCode}`);
     
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       rooms[roomCode].cardGame = null;
       io.to(roomCode).emit('card_game_exited');
       console.log(`✅ Card game exited in room ${roomCode}`);
@@ -1022,7 +898,6 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
-        rooms[roomCode].lastActivity = Date.now();
         rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
         io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
         console.log(`✅ Card game reset successfully in ${roomCode}`);
@@ -1035,13 +910,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use action card - SIMPLIFIED: Only joker and skip remain
+  // Use action card
   socket.on('card_game_use_action', ({ roomCode, playerId, cardId, actionType }) => {
     console.log(`🎭 USE ACTION CARD by player ${playerId}: ${actionType} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
       if (cardIndex === -1) {
@@ -1053,16 +927,13 @@ io.on('connection', (socket) => {
       // Remove action card from player's hand
       const [actionCard] = game.playerHands[playerId].splice(cardIndex, 1);
 
-      // Handle different action types
       if (actionType === 'joker') {
-        // Joker can be used anytime - no restrictions
         console.log(`✅ Joker card used by ${playerId}`);
         game.drawPile.unshift(actionCard);
         
         io.to(roomCode).emit('card_game_state_update', game);
         console.log(`✅ Joker card used successfully by player ${playerId}`);
       } else if (actionType === 'skip') {
-        // Skip card logic is now handled separately via card_game_use_skip
         console.log(`❌ Skip card should be used via card_game_use_skip event`);
         socket.emit('card_game_error', { message: 'Skip card should be used via the skip interface' });
         return;
@@ -1082,7 +953,6 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       const currentPlayerIndex = rooms[roomCode].players.findIndex(p => p.id === game.currentTurn);
       const nextPlayerIndex = (currentPlayerIndex + 1) % rooms[roomCode].players.length;
       game.currentTurn = rooms[roomCode].players[nextPlayerIndex].id;
@@ -1096,13 +966,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Shuffle deck - Only shuffles table cards and draw pile, keeps player hands
+  // Shuffle deck
   socket.on('card_game_shuffle', ({ roomCode }) => {
     console.log(`🔀 SHUFFLE DECK in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      rooms[roomCode].lastActivity = Date.now();
       
       // ONLY shuffle table cards and draw pile, NOT player hands
       const allCards = [...game.drawPile, ...game.tableCards];
@@ -1131,7 +1000,6 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode]) {
       const room = rooms[roomCode];
-      room.lastActivity = Date.now();
       
       // Reset buzzer state
       room.activePlayer = null;
@@ -1186,73 +1054,39 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ENHANCED: Disconnect handler with admin protection
+  // Disconnect - SIMPLE & RELIABLE
   socket.on('disconnect', (reason) => {
-    connectionStats.activeConnections--;
-    console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason, 
-      `(Active: ${connectionStats.activeConnections})`);
+    console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason);
     
     const roomCode = socket.data?.roomCode;
     const playerId = socket.data?.playerId;
-    const playerName = socket.data?.playerName;
-    const isAdmin = socket.data?.isAdmin || false;
     
     if (roomCode && rooms[roomCode] && playerId) {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
       if (player) {
+        // Only remove if the socket ID matches (don't remove if player reconnected)
         if (player.socketId === socket.id) {
-          // ENHANCED: Different timeout for admin vs regular players
-          const timeoutDuration = isAdmin ? 30000 : 5000; // 30 seconds for admin, 5 for others
+          rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
+          console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
           
-          setTimeout(() => {
-            if (rooms[roomCode]) {
-              const currentPlayer = rooms[roomCode].players.find(p => p.id === playerId);
-              // Only remove if player hasn't reconnected with new socket
-              if (currentPlayer && currentPlayer.socketId === socket.id) {
-                rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
-                console.log(`❌ ${playerName || 'Player'} disconnected from room ${roomCode}`);
-                
-                // If admin disconnected, notify other players but don't close room immediately
-                if (isAdmin) {
-                  console.log(`🚨 Admin ${playerName} disconnected from room ${roomCode}. Room will be kept active for reconnection.`);
-                  io.to(roomCode).emit('admin_disconnected', { 
-                    playerName, 
-                    message: 'المسؤول فقد الاتصال. الغرفة ستبقى مفتوحة للسماح بإعادة الاتصال.' 
-                  });
-                }
-                
-                if (rooms[roomCode].players.length === 0) {
-                  // Delay room deletion to allow reconnection - longer for admin rooms
-                  const roomDeleteDelay = isAdmin ? 60000 : 30000; // 60 seconds for admin rooms, 30 for regular
-                  setTimeout(() => {
-                    if (rooms[roomCode] && rooms[roomCode].players.length === 0) {
-                      delete rooms[roomCode];
-                      console.log(`🏠 Room ${roomCode} closed (no players)`);
-                    }
-                  }, roomDeleteDelay);
-                } else {
-                  // Notify other players after a short delay
-                  setTimeout(() => {
-                    if (rooms[roomCode] && !rooms[roomCode].players.find(p => p.id === playerId)) {
-                      io.to(roomCode).emit('player_left', playerId);
-                    }
-                  }, 5000);
-                }
-              }
-            }
-          }, timeoutDuration);
+          if (rooms[roomCode].players.length === 0) {
+            delete rooms[roomCode];
+            console.log(`🏠 Room ${roomCode} closed (no players)`);
+          } else {
+            // Notify other players
+            io.to(roomCode).emit('player_left', playerId);
+          }
         } else {
-          console.log(`🔄 ${playerName || 'Player'} reconnected with new socket, keeping in room`);
+          console.log(`🔄 ${player.name} reconnected with new socket, keeping in room`);
         }
       }
     }
   });
 
-  // Existing quiz game events with activity tracking
+  // Existing quiz game events
   socket.on('buzz', ({ roomCode, playerId }) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       rooms[roomCode].activePlayer = playerId;
       rooms[roomCode].buzzerLocked = true;
       io.to(roomCode).emit('player_buzzed', playerId);
@@ -1261,7 +1095,6 @@ io.on('connection', (socket) => {
 
   socket.on('reset_buzzer', (roomCode) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       rooms[roomCode].activePlayer = null;
       rooms[roomCode].buzzerLocked = false;
       io.to(roomCode).emit('reset_buzzer');
@@ -1270,7 +1103,6 @@ io.on('connection', (socket) => {
 
   socket.on('update_score', ({ roomCode, playerId, change }) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       if (player) {
         player.score += change;
@@ -1281,7 +1113,6 @@ io.on('connection', (socket) => {
 
   socket.on('change_question', ({ roomCode, question }) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       rooms[roomCode].currentQuestion = question;
       io.to(roomCode).emit('question_changed', question);
     }
@@ -1289,51 +1120,34 @@ io.on('connection', (socket) => {
 
   socket.on('end_game', (roomCode) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       io.to(roomCode).emit('game_ended');
     }
   });
 
   socket.on('leave_room', ({ roomCode, playerId }) => {
     if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
       rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
       io.to(roomCode).emit('player_left', playerId);
       
       if (rooms[roomCode].players.length === 0) {
-        setTimeout(() => {
-          if (rooms[roomCode] && rooms[roomCode].players.length === 0) {
-            delete rooms[roomCode];
-            console.log(`🏠 Room ${roomCode} closed (no players)`);
-          }
-        }, 30000);
+        delete rooms[roomCode];
       }
     }
   });
 
   socket.on('play_audio', (roomCode) => {
-    if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
-      io.to(roomCode).emit('play_audio');
-    }
+    io.to(roomCode).emit('play_audio');
   });
 
   socket.on('pause_audio', (roomCode) => {
-    if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
-      io.to(roomCode).emit('pause_audio');
-    }
+    io.to(roomCode).emit('pause_audio');
   });
 
   socket.on('continue_audio', (roomCode, time) => {
-    if (rooms[roomCode]) {
-      rooms[roomCode].lastActivity = Date.now();
-      io.to(roomCode).emit('continue_audio', time);
-    }
+    io.to(roomCode).emit('continue_audio', time);
   });
 });
 
-// Enhanced server startup with monitoring
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
@@ -1341,18 +1155,4 @@ server.listen(PORT, () => {
   console.log(`🃏 Card game system ready!`);
   console.log(`📸 Random photos system ready!`);
   console.log(`🖊️ Whiteboard system ready!`);
-  console.log(`🔧 Enhanced connection stability enabled`);
-  console.log(`👑 Admin room protection enabled`);
 });
-
-// NEW: Periodic server status logging
-setInterval(() => {
-  const roomCount = Object.keys(rooms).length;
-  const totalPlayers = Object.values(rooms).reduce((sum, room) => sum + room.players.length, 0);
-  const adminRooms = Object.values(rooms).filter(room => room.isAdminRoom).length;
-  const memoryUsage = process.memoryUsage();
-  
-  console.log(`📊 Server Status - Rooms: ${roomCount} (${adminRooms} admin), Players: ${totalPlayers}, ` +
-    `Active Connections: ${connectionStats.activeConnections}, ` +
-    `Memory: ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`);
-}, 60000); // Log every minute
