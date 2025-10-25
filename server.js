@@ -27,14 +27,13 @@ const io = new Server(server, {
     origin: "*",
     methods: ["GET", "POST"]
   }
-  // NO extra timeouts or transports - this was causing the 2-minute disconnections
 });
 
 // Import data files
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 
-// Game categories - Numbers 1 to 12 only (like old code)
+// Game categories - Numbers 1 to 24 (increased from 12)
 const gameCategories = [
   { 
     id: 1, 
@@ -107,13 +106,85 @@ const gameCategories = [
     name: 'الفئة 12', 
     description: 'ممثلين مثلوا دور ظابط',
     rules: 'اجمع ٣ بطاقات'
+  },
+  // NEW CATEGORIES 13-24
+  { 
+    id: 13, 
+    name: 'الفئة 13', 
+    description: 'أفلام خيال علمي',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 14, 
+    name: 'الفئة 14', 
+    description: 'ممثلين فازوا بجوائز',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 15, 
+    name: 'الفئة 15', 
+    description: 'أفلام تاريخية',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 16, 
+    name: 'الفئة 16', 
+    description: 'ممثلين من الأسرة الفنية نفسها',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 17, 
+    name: 'الفئة 17', 
+    description: 'أفلام تحكي عن الفن',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 18, 
+    name: 'الفئة 18', 
+    description: 'ممثلين مثلوا أدوار رياضية',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 19, 
+    name: 'الفئة 19', 
+    description: 'أفلام تحكي عن السفر',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 20, 
+    name: 'الفئة 20', 
+    description: 'ممثلين مثلوا أدوار طبية',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 21, 
+    name: 'الفئة 21', 
+    description: 'أفلام تحكي عن التعليم',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 22, 
+    name: 'الفئة 22', 
+    description: 'ممثلين مثلوا أدوار شرطية',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 23, 
+    name: 'الفئة 23', 
+    description: 'أفلام تحكي عن الأسرة',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 24, 
+    name: 'الفئة 24', 
+    description: 'ممثلين مثلوا أدوار كوميدية',
+    rules: 'اجمع ٣ بطاقات'
   }
 ];
 
 const rooms = {};
 const pendingActions = {};
 
-// CRITICAL FIX: Use EXACT same room code generation as old working code
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
@@ -168,31 +239,7 @@ function getNextNonSkippedPlayer(roomCode, currentPlayerId, skippedPlayers) {
   return nextPlayerId;
 }
 
-// CRITICAL FIX: Use EXACT same deck generation as old working code
-function generateLargeDeck(baseDeck, targetSize = 60) {
-  console.log(`🃏 Generating large deck: ${baseDeck.length} base cards → ${targetSize} target size`);
-  
-  const largeDeck = [];
-  let copyCount = 0;
-  
-  while (largeDeck.length < targetSize) {
-    baseDeck.forEach(originalCard => {
-      if (largeDeck.length < targetSize) {
-        copyCount++;
-        const newCard = {
-          ...originalCard,
-          id: `${originalCard.id}-copy-${copyCount}`,
-          name: originalCard.name
-        };
-        largeDeck.push(newCard);
-      }
-    });
-  }
-  
-  console.log(`✅ Generated ${largeDeck.length} cards for the deck`);
-  return largeDeck;
-}
-
+// UPDATED: Use ALL cards from the deck without limiting to 60
 function initializeCardGame(players) {
   console.log('🃏 Initializing card game for players:', players.map(p => p.name));
   
@@ -201,14 +248,18 @@ function initializeCardGame(players) {
     card.type !== 'action' || card.subtype === 'joker' || card.subtype === 'skip'
   );
   
-  const largeDeck = generateLargeDeck(filteredDeck, 60);
-  const shuffledDeck = shuffleDeck(largeDeck);
+  console.log(`🃏 Total cards in filtered deck: ${filteredDeck.length}`);
+  
+  // Use ALL filtered cards instead of generating a limited deck
+  const shuffledDeck = shuffleDeck(filteredDeck);
   const playerHands = {};
   
   players.forEach(player => {
     playerHands[player.id] = shuffledDeck.splice(0, 5);
     console.log(`   Dealt 5 cards to ${player.name}`);
   });
+
+  console.log(`🃏 Remaining cards in draw pile: ${shuffledDeck.length}`);
 
   return {
     deck: shuffledDeck,
@@ -229,7 +280,7 @@ function initializeCardGame(players) {
   };
 }
 
-// Socket.io connection handling - SIMPLE like old code
+// Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
 
@@ -587,11 +638,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // CRITICAL FIX: Use EXACT same dice as old working code (12 numbers)
+  // UPDATED: Dice roll for 24 categories
   socket.on('card_game_roll_dice', ({ roomCode, playerId }) => {
     console.log(`🎲 DICE ROLL by player ${playerId} in room ${roomCode}`);
     
-    const diceValue = Math.floor(Math.random() * 12) + 1;
+    // Updated to roll 24 numbers for 24 categories
+    const diceValue = Math.floor(Math.random() * 24) + 1;
     
     socket.emit('card_game_dice_rolled', { diceValue });
     
@@ -911,7 +963,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // CRITICAL FIX: Use EXACT same disconnect handler as old working code
+  // Disconnect handler
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected:', socket.id);
     
