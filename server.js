@@ -7,7 +7,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Simple middleware
+// Basic middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
@@ -21,23 +21,20 @@ app.get('/', (req, res) => {
   res.send('Quiz Game Server Running');
 });
 
-// SIMPLE & STABLE Socket.IO configuration
+// CRITICAL FIX: Use EXACT same Socket.IO config as old working code
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  },
-  pingTimeout: 60000,
-  pingInterval: 25000, 
-  connectTimeout: 45000,
-  transports: ['websocket', 'polling']
+  }
+  // NO extra timeouts or transports - this was causing the 2-minute disconnections
 });
 
 // Import data files
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 
-// Game categories - Numbers 1 to 24
+// Game categories - Numbers 1 to 12 only (like old code)
 const gameCategories = [
   { 
     id: 1, 
@@ -110,85 +107,20 @@ const gameCategories = [
     name: 'الفئة 12', 
     description: 'ممثلين مثلوا دور ظابط',
     rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 13, 
-    name: 'الفئة 13', 
-    description: 'ممثلين ليهم مشاهد بياكلوا فيها',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 14, 
-    name: 'الفئة 14', 
-    description: 'أفلام فيها عصابة',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 15, 
-    name: 'الفئة 15', 
-    description: 'أفلام فيها شخصية بتنتحل شخصية تانية',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 16, 
-    name: 'الفئة 16', 
-    description: 'ممثلين عملوا إعلانات في التليفزيون',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 17, 
-    name: 'الفئة 17', 
-    description: 'أفلام فيها مطاردة عربيات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 18, 
-    name: 'الفئة 18', 
-    description: 'أفلام إسمها من ٣ كلمات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 19, 
-    name: 'الفئة 19', 
-    description: 'ممثلين تقدر تقول إسم شخصيتهم في فيلم علي الأقل (مش لازم يكونوا كلهم في نفس الفيلم، يعني تذكر اسم شخصية كل ممثل في فيلم هو كان فيه)',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 20, 
-    name: 'الفئة 20', 
-    description: 'أفلام فيها رقص',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 21, 
-    name: 'الفئة 21', 
-    description: 'أفلام فيها حمام سباحة (يعني حمام السباحة ظهر في مشهد و تذكر ما هو المشهد)',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 22, 
-    name: 'الفئة 22', 
-    description: 'افلام فيها البطل دخل السجن',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 23, 
-    name: 'الفئة 23', 
-    description: 'أفلام البطل فيها كان له إخوات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 24, 
-    name: 'الفئة 24', 
-    description: 'أفلام البطل فيها قتل شخصية ليست ثانوية (بمعني انها شخصية تكرر ظهورها ولم تظهر في مشهد مقتلها فقط)',
-    rules: 'اجمع ٣ بطاقات'
   }
 ];
 
 const rooms = {};
+const pendingActions = {};
 
+// CRITICAL FIX: Use EXACT same room code generation as old working code
 function generateRoomCode() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 function generateStrokeId() {
@@ -236,52 +168,41 @@ function getNextNonSkippedPlayer(roomCode, currentPlayerId, skippedPlayers) {
   return nextPlayerId;
 }
 
-function canTakeCardFromTable(card) {
-  if (card.type === 'action') {
-    return false;
+// CRITICAL FIX: Use EXACT same deck generation as old working code
+function generateLargeDeck(baseDeck, targetSize = 60) {
+  console.log(`🃏 Generating large deck: ${baseDeck.length} base cards → ${targetSize} target size`);
+  
+  const largeDeck = [];
+  let copyCount = 0;
+  
+  while (largeDeck.length < targetSize) {
+    baseDeck.forEach(originalCard => {
+      if (largeDeck.length < targetSize) {
+        copyCount++;
+        const newCard = {
+          ...originalCard,
+          id: `${originalCard.id}-copy-${copyCount}`,
+          name: originalCard.name
+        };
+        largeDeck.push(newCard);
+      }
+    });
   }
-  return true;
-}
-
-function generateGameDeck(baseDeck) {
-  console.log(`🃏 Generating game deck from ${baseDeck.length} available cards`);
   
-  const actionCards = baseDeck.filter(card => 
-    card.type === 'action' && (card.subtype === 'joker' || card.subtype === 'skip')
-  );
-  
-  const nonActionCards = baseDeck.filter(card => 
-    card.type !== 'action' || (card.subtype !== 'joker' && card.subtype !== 'skip')
-  );
-  
-  console.log(`📊 Action cards: ${actionCards.length}, Non-action cards: ${nonActionCards.length}`);
-  
-  const actionCardCopies = [];
-  
-  actionCards.forEach(card => {
-    for (let i = 0; i < 5; i++) {
-      actionCardCopies.push({
-        ...card,
-        id: `${card.id}_copy_${i}`
-      });
-    }
-  });
-  
-  const enhancedDeck = [...nonActionCards, ...actionCardCopies];
-  
-  console.log(`🎯 Enhanced deck: ${enhancedDeck.length} cards (${actionCardCopies.length} action cards)`);
-  
-  const finalDeck = shuffleDeck(enhancedDeck);
-  
-  console.log(`✅ Using enhanced deck with ${finalDeck.length} cards (more action cards)`);
-  return finalDeck;
+  console.log(`✅ Generated ${largeDeck.length} cards for the deck`);
+  return largeDeck;
 }
 
 function initializeCardGame(players) {
-  console.log('🎮 Initializing card game for players:', players.map(p => p.name));
+  console.log('🃏 Initializing card game for players:', players.map(p => p.name));
   
-  const gameDeck = generateGameDeck(cardData.deck);
-  const shuffledDeck = shuffleDeck(gameDeck);
+  // Filter out action cards except joker and skip
+  const filteredDeck = cardData.deck.filter(card => 
+    card.type !== 'action' || card.subtype === 'joker' || card.subtype === 'skip'
+  );
+  
+  const largeDeck = generateLargeDeck(filteredDeck, 60);
+  const shuffledDeck = shuffleDeck(largeDeck);
   const playerHands = {};
   
   players.forEach(player => {
@@ -308,7 +229,7 @@ function initializeCardGame(players) {
   };
 }
 
-// SIMPLE & RELIABLE Socket.io connection handling
+// Socket.io connection handling - SIMPLE like old code
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
 
@@ -365,46 +286,6 @@ io.on('connection', (socket) => {
     } else {
       socket.emit('room_not_found');
       console.log(`❌ Room ${roomCode} not found`);
-    }
-  });
-
-  // Rejoin room event
-  socket.on('rejoin_room', ({ roomCode, player }) => {
-    console.log(`🔄 Rejoining room: ${roomCode} for player: ${player.name}`);
-    
-    if (rooms[roomCode]) {
-      // Check if player already exists
-      const existingPlayerIndex = rooms[roomCode].players.findIndex(p => p.id === player.id);
-      
-      if (existingPlayerIndex === -1) {
-        // Player doesn't exist, add them
-        const playerWithSocket = { 
-          ...player, 
-          socketId: socket.id
-        };
-        rooms[roomCode].players.push(playerWithSocket);
-      } else {
-        // Update socket ID for existing player
-        rooms[roomCode].players[existingPlayerIndex].socketId = socket.id;
-      }
-      
-      socket.join(roomCode);
-      
-      // Send current room state to rejoining player
-      socket.emit('rejoin_success', {
-        players: rooms[roomCode].players,
-        cardGame: rooms[roomCode].cardGame,
-        currentQuestion: rooms[roomCode].currentQuestion,
-        activePlayer: rooms[roomCode].activePlayer
-      });
-      
-      // Notify other players
-      socket.to(roomCode).emit('player_joined', player);
-      
-      console.log(`✅ ${player.name} rejoined room ${roomCode}`);
-    } else {
-      socket.emit('rejoin_failed');
-      console.log(`❌ Room ${roomCode} not found for rejoin`);
     }
   });
 
@@ -550,61 +431,53 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Play card to table handler
+  // Play card to table
   socket.on('card_game_play_table', ({ roomCode, playerId, cardId }) => {
     console.log(`🃏 PLAY TO TABLE by player ${playerId} with card ${cardId} in room ${roomCode}`);
     
-    if (!rooms[roomCode]) {
-      console.log(`❌ Room ${roomCode} not found`);
-      socket.emit('card_game_error', { message: 'Room not found. Please rejoin the game.' });
-      return;
-    }
-    
-    if (!rooms[roomCode].cardGame) {
-      console.log(`❌ Card game not initialized in room ${roomCode}`);
-      socket.emit('card_game_error', { message: 'Game not found. Please restart the card game.' });
-      return;
-    }
-    
-    const game = rooms[roomCode].cardGame;
-    
-    if (game.skippedPlayers[playerId]) {
-      console.log(`❌ Player ${playerId} is skipped this turn`);
-      socket.emit('card_game_error', { message: 'You are skipped this turn' });
-      return;
-    }
-    
-    if (game.currentTurn !== playerId) {
-      console.log(`❌ Not player ${playerId}'s turn. Current turn: ${game.currentTurn}`);
-      socket.emit('card_game_error', { message: 'Not your turn' });
-      return;
-    }
+    if (rooms[roomCode] && rooms[roomCode].cardGame) {
+      const game = rooms[roomCode].cardGame;
+      
+      if (game.skippedPlayers[playerId]) {
+        console.log(`❌ Player ${playerId} is skipped this turn`);
+        socket.emit('card_game_error', { message: 'You are skipped this turn' });
+        return;
+      }
+      
+      if (game.currentTurn !== playerId) {
+        console.log(`❌ Not player ${playerId}'s turn`);
+        socket.emit('card_game_error', { message: 'Not your turn' });
+        return;
+      }
 
-    if (!game.playerHasDrawn[playerId]) {
-      console.log(`❌ Player ${playerId} must draw a card first`);
-      socket.emit('card_game_error', { message: 'You must draw a card before discarding' });
-      return;
-    }
+      if (!game.playerHasDrawn[playerId]) {
+        console.log(`❌ Player ${playerId} must draw a card first`);
+        socket.emit('card_game_error', { message: 'You must draw a card before discarding' });
+        return;
+      }
 
-    const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-    if (cardIndex === -1) {
-      console.log(`❌ Card ${cardId} not found in player's hand`);
-      socket.emit('card_game_error', { message: 'Card not found in hand' });
-      return;
-    }
+      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
+      if (cardIndex === -1) {
+        console.log(`❌ Card ${cardId} not found in player's hand`);
+        socket.emit('card_game_error', { message: 'Card not found in hand' });
+        return;
+      }
 
-    const [card] = game.playerHands[playerId].splice(cardIndex, 1);
-    game.tableCards.push(card);
-    
-    game.playerHasDrawn[playerId] = false;
-    
-    delete game.skippedPlayers[playerId];
-    
-    let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
-    game.currentTurn = nextPlayerId;
-    
-    io.to(roomCode).emit('card_game_state_update', game);
-    console.log(`✅ Card played to table. Table cards: ${game.tableCards.length}. Next turn: ${game.currentTurn}`);
+      const [card] = game.playerHands[playerId].splice(cardIndex, 1);
+      game.tableCards.push(card);
+      
+      game.playerHasDrawn[playerId] = false;
+      
+      delete game.skippedPlayers[playerId];
+      
+      let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
+      game.currentTurn = nextPlayerId;
+      
+      io.to(roomCode).emit('card_game_state_update', game);
+      console.log(`✅ Card played to table. Table cards: ${game.tableCards.length}. Next turn: ${game.currentTurn}`);
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found' });
+    }
   });
 
   // Take card from table
@@ -639,12 +512,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      if (!canTakeCardFromTable(topCard)) {
-        console.log(`❌ Action card ${cardId} cannot be taken from table`);
-        socket.emit('card_game_error', { message: 'Action cards cannot be taken from the table' });
-        return;
-      }
-
       const [card] = game.tableCards.splice(-1, 1);
       game.playerHands[playerId].push(card);
       game.playerHasDrawn[playerId] = true;
@@ -657,8 +524,8 @@ io.on('connection', (socket) => {
   });
 
   // Use skip card
-  socket.on('card_game_use_skip', ({ roomCode, playerId, cardId }) => {
-    console.log(`🎭 USE SKIP CARD by player ${playerId} in room ${roomCode}`);
+  socket.on('card_game_use_skip', ({ roomCode, playerId, cardId, targetPlayerId }) => {
+    console.log(`🎭 USE SKIP CARD by player ${playerId} on target ${targetPlayerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
@@ -682,32 +549,37 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const nextPlayerId = getNextPlayer(roomCode, playerId);
-      game.skippedPlayers[nextPlayerId] = true;
-      
+      const targetPlayer = rooms[roomCode].players.find(p => p.id === targetPlayerId);
+      if (!targetPlayer) {
+        console.log(`❌ Target player ${targetPlayerId} not found`);
+        socket.emit('card_game_error', { message: 'Target player not found' });
+        return;
+      }
+
+      if (targetPlayerId === playerId) {
+        console.log(`❌ Cannot skip yourself`);
+        socket.emit('card_game_error', { message: 'You cannot skip yourself' });
+        return;
+      }
+
       const [skipCard] = game.playerHands[playerId].splice(cardIndex, 1);
+      game.skippedPlayers[targetPlayerId] = true;
       game.tableCards.push(skipCard);
-      
       game.playerHasDrawn[playerId] = false;
-      
       delete game.skippedPlayers[playerId];
       
-      let nextTurnPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
-      game.currentTurn = nextTurnPlayerId;
+      let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
+      game.currentTurn = nextPlayerId;
       
       io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Skip card used by ${playerId} on ${nextPlayerId}. Turn ended and moved to ${nextTurnPlayerId}`);
+      console.log(`✅ Skip card used by ${playerId} on ${targetPlayerId}. Turn ended and moved to ${nextPlayerId}`);
       
       const currentPlayer = rooms[roomCode].players.find(p => p.id === playerId);
-      const skippedPlayer = rooms[roomCode].players.find(p => p.id === nextPlayerId);
-      const nextPlayer = rooms[roomCode].players.find(p => p.id === nextTurnPlayerId);
-      
       io.to(roomCode).emit('card_game_message', {
         type: 'skip',
-        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة تخطي! تم تخطي ${skippedPlayer?.name || 'اللاعب التالي'}. الدور ينتقل إلى ${nextPlayer?.name || 'اللاعب التالي'}.`,
+        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة تخطي على ${targetPlayer.name}! الدور ينتقل للاعب التالي.`,
         playerId: playerId,
-        skippedPlayerId: nextPlayerId,
-        nextPlayerId: nextTurnPlayerId
+        targetPlayerId: targetPlayerId
       });
       
     } else {
@@ -715,11 +587,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Dice roll handler
+  // CRITICAL FIX: Use EXACT same dice as old working code (12 numbers)
   socket.on('card_game_roll_dice', ({ roomCode, playerId }) => {
     console.log(`🎲 DICE ROLL by player ${playerId} in room ${roomCode}`);
     
-    const diceValue = Math.floor(Math.random() * 24) + 1;
+    const diceValue = Math.floor(Math.random() * 12) + 1;
     
     socket.emit('card_game_dice_rolled', { diceValue });
     
@@ -842,12 +714,9 @@ io.on('connection', (socket) => {
           });
           
           game.completedCategories[declaredPlayerId].push(game.playerCategories[declaredPlayerId]);
-          
           game.playerLevels[declaredPlayerId] = Math.min(4, game.playerLevels[declaredPlayerId] + 1);
-          
           game.playerCircles[declaredPlayerId] = [null, null, null, null];
           
-          // Draw 3 new cards
           for (let i = 0; i < 3; i++) {
             if (game.drawPile.length > 0) {
               const drawnCard = game.drawPile.pop();
@@ -855,17 +724,13 @@ io.on('connection', (socket) => {
             }
           }
           
-          // Force the player to discard a card after receiving 3 new cards
-          game.playerHasDrawn[declaredPlayerId] = true;
-          
-          // Keep the turn with the same player so they can discard
-          game.currentTurn = declaredPlayerId;
+          game.currentTurn = getNextNonSkippedPlayer(roomCode, declaredPlayerId, game.skippedPlayers);
           
           console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
           console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
           console.log(`   Player drew 3 new cards from pile`);
           console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
-          console.log(`   Player must now discard a card before turn ends`);
+          console.log(`   Turn goes to NEXT player: ${game.currentTurn}`);
         }
       } else {
         game.currentTurn = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
@@ -881,7 +746,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Exit card game and return to categories
+  // Exit card game
   socket.on('card_game_exit', ({ roomCode }) => {
     console.log(`🚪 EXIT CARD GAME in room ${roomCode}`);
     
@@ -924,7 +789,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Remove action card from player's hand
       const [actionCard] = game.playerHands[playerId].splice(cardIndex, 1);
 
       if (actionType === 'joker') {
@@ -973,22 +837,22 @@ io.on('connection', (socket) => {
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
       
-      // ONLY shuffle table cards and draw pile, NOT player hands
       const allCards = [...game.drawPile, ...game.tableCards];
-      
-      if (allCards.length === 0) {
-        console.log('❌ No cards to shuffle');
-        socket.emit('card_game_error', { message: 'No cards available to shuffle' });
-        return;
-      }
+      Object.values(game.playerHands).forEach(hand => {
+        allCards.push(...hand);
+      });
       
       const shuffled = shuffleDeck(allCards);
       
       game.drawPile = shuffled;
       game.tableCards = [];
       
+      Object.keys(game.playerHands).forEach(playerId => {
+        game.playerHands[playerId] = game.drawPile.splice(0, 5);
+      });
+      
       io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Deck shuffled. Draw pile: ${shuffled.length} cards (player hands preserved)`);
+      console.log(`✅ Deck shuffled. Draw pile: ${shuffled.length} cards`);
     } else {
       socket.emit('card_game_error', { message: 'Game not found' });
     }
@@ -1001,25 +865,21 @@ io.on('connection', (socket) => {
     if (rooms[roomCode]) {
       const room = rooms[roomCode];
       
-      // Reset buzzer state
       room.activePlayer = null;
       room.buzzerLocked = false;
       io.to(roomCode).emit('reset_buzzer');
       
-      // SAFETY CHECK: Verify the category exists
       if (!randomPhotosData['random-photos']) {
         console.error('Random photos category not found in data');
         return;
       }
       
-      // SAFETY CHECK: Verify the subcategory exists
       if (!randomPhotosData['random-photos'][subcategoryId]) {
         console.error(`Subcategory ${subcategoryId} not found in random-photos category`);
         console.log('Available subcategories:', Object.keys(randomPhotosData['random-photos']));
         return;
       }
 
-      // Get the subcategory questions
       const subcatQuestions = randomPhotosData['random-photos'][subcategoryId];
       
       if (!subcatQuestions || subcatQuestions.length === 0) {
@@ -1027,10 +887,8 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Create a copy of the indices to track available questions
       const availableIndices = [...Array(subcatQuestions.length).keys()];
       
-      // Send a unique random photo to each player
       room.players.forEach(player => {
         if (availableIndices.length === 0) {
           console.error('Not enough questions for all players');
@@ -1046,7 +904,6 @@ io.on('connection', (socket) => {
           playerId: player.id
         };
         
-        // Send to this specific player
         io.to(player.socketId).emit('player_photo_question', randomQuestion);
       });
       
@@ -1054,9 +911,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Disconnect - SIMPLE & RELIABLE
-  socket.on('disconnect', (reason) => {
-    console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason);
+  // CRITICAL FIX: Use EXACT same disconnect handler as old working code
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
     
     const roomCode = socket.data?.roomCode;
     const playerId = socket.data?.playerId;
@@ -1065,20 +922,12 @@ io.on('connection', (socket) => {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
       if (player) {
-        // Only remove if the socket ID matches (don't remove if player reconnected)
-        if (player.socketId === socket.id) {
-          rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
-          console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
-          
-          if (rooms[roomCode].players.length === 0) {
-            delete rooms[roomCode];
-            console.log(`🏠 Room ${roomCode} closed (no players)`);
-          } else {
-            // Notify other players
-            io.to(roomCode).emit('player_left', playerId);
-          }
-        } else {
-          console.log(`🔄 ${player.name} reconnected with new socket, keeping in room`);
+        rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
+        console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
+        
+        if (rooms[roomCode].players.length === 0) {
+          delete rooms[roomCode];
+          console.log(`🏠 Room ${roomCode} closed (no players)`);
         }
       }
     }
