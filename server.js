@@ -107,77 +107,76 @@ const gameCategories = [
     description: 'ممثلين مثلوا دور ظابط',
     rules: 'اجمع ٣ بطاقات'
   },
-  // NEW CATEGORIES 13-24
   { 
     id: 13, 
     name: 'الفئة 13', 
-    description: 'أفلام خيال علمي',
+    description: 'أفلام فيها فرح',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 14, 
     name: 'الفئة 14', 
-    description: 'ممثلين فازوا بجوائز',
+    description: 'ممثلين ليهم مشاهد بيأكلوا فيها',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 15, 
     name: 'الفئة 15', 
-    description: 'أفلام تاريخية',
+    description: 'أفلام فيها عصابة',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 16, 
     name: 'الفئة 16', 
-    description: 'ممثلين من الأسرة الفنية نفسها',
+    description: 'أفلام فيها شخصية بتنتحل شخصية تانيه',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 17, 
     name: 'الفئة 17', 
-    description: 'أفلام تحكي عن الفن',
+    description: 'أفلام فيها مطاردة عربيات',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 18, 
     name: 'الفئة 18', 
-    description: 'ممثلين مثلوا أدوار رياضية',
+    description: 'أفلام إسمها من ٣ كلمات',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 19, 
     name: 'الفئة 19', 
-    description: 'أفلام تحكي عن السفر',
+    description: 'ممثلين تقدر تذكر إسم شخصيتهم في فيلم علي الأقل',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 20, 
     name: 'الفئة 20', 
-    description: 'ممثلين مثلوا أدوار طبية',
+    description: 'فيلم ظهر فيه حمام سباحة',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 21, 
     name: 'الفئة 21', 
-    description: 'أفلام تحكي عن التعليم',
+    description: 'أفلام البطل فيها دخل السجن',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 22, 
     name: 'الفئة 22', 
-    description: 'ممثلين مثلوا أدوار شرطية',
+    description: 'ممثلين ليهم إخوات في فيلم',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 23, 
     name: 'الفئة 23', 
-    description: 'أفلام تحكي عن الأسرة',
+    description: 'ممثلين عملوا إعلان في التليفزيون',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
     id: 24, 
     name: 'الفئة 24', 
-    description: 'ممثلين مثلوا أدوار كوميدية',
+    description: 'أفلام ظهر فيها حيوان',
     rules: 'اجمع ٣ بطاقات'
   }
 ];
@@ -563,6 +562,13 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // NEW: Skip cards cannot be taken from table
+      if (topCard.type === 'action' && topCard.subtype === 'skip') {
+        console.log(`❌ Skip cards cannot be taken from table`);
+        socket.emit('card_game_error', { message: 'Skip cards cannot be taken from the table' });
+        return;
+      }
+
       const [card] = game.tableCards.splice(-1, 1);
       game.playerHands[playerId].push(card);
       game.playerHasDrawn[playerId] = true;
@@ -574,9 +580,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use skip card
-  socket.on('card_game_use_skip', ({ roomCode, playerId, cardId, targetPlayerId }) => {
-    console.log(`🎭 USE SKIP CARD by player ${playerId} on target ${targetPlayerId} in room ${roomCode}`);
+  // Use skip card - UPDATED: Automatically skip next player
+  socket.on('card_game_use_skip', ({ roomCode, playerId, cardId }) => {
+    console.log(`🎭 USE SKIP CARD by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
@@ -600,37 +606,82 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const targetPlayer = rooms[roomCode].players.find(p => p.id === targetPlayerId);
-      if (!targetPlayer) {
-        console.log(`❌ Target player ${targetPlayerId} not found`);
-        socket.emit('card_game_error', { message: 'Target player not found' });
-        return;
-      }
-
-      if (targetPlayerId === playerId) {
-        console.log(`❌ Cannot skip yourself`);
-        socket.emit('card_game_error', { message: 'You cannot skip yourself' });
-        return;
-      }
-
       const [skipCard] = game.playerHands[playerId].splice(cardIndex, 1);
-      game.skippedPlayers[targetPlayerId] = true;
+      
+      // NEW: Automatically skip the next player
+      const nextPlayerId = getNextPlayer(roomCode, playerId);
+      game.skippedPlayers[nextPlayerId] = true;
+      
+      // Put skip card on table (cannot be taken)
       game.tableCards.push(skipCard);
+      
       game.playerHasDrawn[playerId] = false;
       delete game.skippedPlayers[playerId];
       
-      let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
-      game.currentTurn = nextPlayerId;
+      // Move turn to player after the skipped one
+      let finalNextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
+      game.currentTurn = finalNextPlayerId;
       
       io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Skip card used by ${playerId} on ${targetPlayerId}. Turn ended and moved to ${nextPlayerId}`);
+      console.log(`✅ Skip card used by ${playerId}. Next player ${nextPlayerId} skipped. Turn moved to ${finalNextPlayerId}`);
+      
+      const currentPlayer = rooms[roomCode].players.find(p => p.id === playerId);
+      const skippedPlayer = rooms[roomCode].players.find(p => p.id === nextPlayerId);
+      io.to(roomCode).emit('card_game_message', {
+        type: 'skip',
+        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة تخطي! ${skippedPlayer?.name || 'اللاعب التالي'} تم تخطيه.`,
+        playerId: playerId,
+        skippedPlayerId: nextPlayerId
+      });
+      
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found' });
+    }
+  });
+
+  // NEW: Use joker card - Allow multiple jokers in same turn
+  socket.on('card_game_use_joker', ({ roomCode, playerId, cardId }) => {
+    console.log(`🃏 USE JOKER CARD by player ${playerId} in room ${roomCode}`);
+    
+    if (rooms[roomCode] && rooms[roomCode].cardGame) {
+      const game = rooms[roomCode].cardGame;
+      
+      if (game.currentTurn !== playerId) {
+        console.log(`❌ Not player ${playerId}'s turn`);
+        socket.emit('card_game_error', { message: 'Not your turn' });
+        return;
+      }
+
+      if (!game.playerHasDrawn[playerId]) {
+        console.log(`❌ Player ${playerId} must draw a card first`);
+        socket.emit('card_game_error', { message: 'You must draw a card before using action cards' });
+        return;
+      }
+
+      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
+      if (cardIndex === -1) {
+        console.log(`❌ Joker card ${cardId} not found in player's hand`);
+        socket.emit('card_game_error', { message: 'Joker card not found in hand' });
+        return;
+      }
+
+      const [jokerCard] = game.playerHands[playerId].splice(cardIndex, 1);
+      
+      // Put joker card on table (can be taken)
+      game.tableCards.push(jokerCard);
+      
+      // Note: Player can continue their turn with other jokers
+      // We don't change playerHasDrawn or currentTurn here
+      // Player must still discard a card to end turn
+      
+      io.to(roomCode).emit('card_game_state_update', game);
+      console.log(`✅ Joker card used by ${playerId}. Player can continue turn.`);
       
       const currentPlayer = rooms[roomCode].players.find(p => p.id === playerId);
       io.to(roomCode).emit('card_game_message', {
-        type: 'skip',
-        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة تخطي على ${targetPlayer.name}! الدور ينتقل للاعب التالي.`,
-        playerId: playerId,
-        targetPlayerId: targetPlayerId
+        type: 'joker',
+        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة جوكر!`,
+        playerId: playerId
       });
       
     } else {
@@ -660,6 +711,12 @@ io.on('connection', (socket) => {
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
         socket.emit('card_game_error', { message: 'Not your turn' });
+        return;
+      }
+
+      if (!game.playerHasDrawn[playerId]) {
+        console.log(`❌ Player ${playerId} must draw a card first`);
+        socket.emit('card_game_error', { message: 'You must draw a card before placing cards in circles' });
         return;
       }
 
@@ -693,6 +750,12 @@ io.on('connection', (socket) => {
         return;
       }
 
+      if (!game.playerHasDrawn[playerId]) {
+        console.log(`❌ Player ${playerId} must draw a card first`);
+        socket.emit('card_game_error', { message: 'You must draw a card before modifying circles' });
+        return;
+      }
+
       const card = game.playerCircles[playerId][circleIndex];
       
       if (card) {
@@ -719,6 +782,12 @@ io.on('connection', (socket) => {
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
         socket.emit('card_game_error', { message: 'Not your turn' });
+        return;
+      }
+
+      if (!game.playerHasDrawn[playerId]) {
+        console.log(`❌ Player ${playerId} must draw a card first`);
+        socket.emit('card_game_error', { message: 'You must draw a card before declaring category' });
         return;
       }
 
@@ -749,7 +818,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Challenge response
+  // Challenge response - UPDATED: Player must discard after category completion
   socket.on('card_game_challenge_response', ({ roomCode, playerId, accept, declaredPlayerId }) => {
     console.log(`⚖️ CHALLENGE RESPONSE by player ${playerId}: ${accept ? 'ACCEPT' : 'REJECT'} in room ${roomCode}`);
     
@@ -769,6 +838,7 @@ io.on('connection', (socket) => {
           game.playerLevels[declaredPlayerId] = Math.min(4, game.playerLevels[declaredPlayerId] + 1);
           game.playerCircles[declaredPlayerId] = [null, null, null, null];
           
+          // NEW: Give 3 new cards but player must still discard
           for (let i = 0; i < 3; i++) {
             if (game.drawPile.length > 0) {
               const drawnCard = game.drawPile.pop();
@@ -776,23 +846,25 @@ io.on('connection', (socket) => {
             }
           }
           
-          game.currentTurn = getNextNonSkippedPlayer(roomCode, declaredPlayerId, game.skippedPlayers);
-          
+          // NEW: Keep turn with same player, they must discard one card
+          // game.playerHasDrawn remains true so they can discard
           console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
           console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
           console.log(`   Player drew 3 new cards from pile`);
           console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
-          console.log(`   Turn goes to NEXT player: ${game.currentTurn}`);
+          console.log(`   Player must now discard one card`);
         }
       } else {
+        // If rejected, move to next player
         game.currentTurn = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
+        game.playerHasDrawn[declaredPlayerId] = false;
       }
       
       game.challengeInProgress = false;
       game.declaredCategory = null;
       
       io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Challenge resolved. Next turn: ${game.currentTurn}`);
+      console.log(`✅ Challenge resolved. Current turn: ${game.currentTurn}`);
     } else {
       socket.emit('card_game_error', { message: 'Game not found' });
     }
@@ -824,61 +896,6 @@ io.on('connection', (socket) => {
       }
     } else {
       socket.emit('card_game_error', { message: 'Game not found or no players' });
-    }
-  });
-
-  // Use action card
-  socket.on('card_game_use_action', ({ roomCode, playerId, cardId, actionType }) => {
-    console.log(`🎭 USE ACTION CARD by player ${playerId}: ${actionType} in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Action card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Action card not found in hand' });
-        return;
-      }
-
-      const [actionCard] = game.playerHands[playerId].splice(cardIndex, 1);
-
-      if (actionType === 'joker') {
-        console.log(`✅ Joker card used by ${playerId}`);
-        game.drawPile.unshift(actionCard);
-        
-        io.to(roomCode).emit('card_game_state_update', game);
-        console.log(`✅ Joker card used successfully by player ${playerId}`);
-      } else if (actionType === 'skip') {
-        console.log(`❌ Skip card should be used via card_game_use_skip event`);
-        socket.emit('card_game_error', { message: 'Skip card should be used via the skip interface' });
-        return;
-      } else {
-        console.log(`❌ Unknown action type: ${actionType}`);
-        socket.emit('card_game_error', { message: 'Unknown action type' });
-        return;
-      }
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Next turn
-  socket.on('card_game_next_turn', ({ roomCode }) => {
-    console.log(`🔄 NEXT TURN in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const currentPlayerIndex = rooms[roomCode].players.findIndex(p => p.id === game.currentTurn);
-      const nextPlayerIndex = (currentPlayerIndex + 1) % rooms[roomCode].players.length;
-      game.currentTurn = rooms[roomCode].players[nextPlayerIndex].id;
-      
-      game.playerHasDrawn[game.currentTurn] = false;
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Next turn: ${game.currentTurn}`);
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
     }
   });
 
