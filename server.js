@@ -34,6 +34,7 @@ const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 
 // Game categories - Numbers 1 to 24 (increased from 12)
+// This will automatically work with any new categories added
 const gameCategories = [
   { 
     id: 1, 
@@ -689,16 +690,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  // UPDATED: Dice roll for 24 categories
+  // UPDATED: Dice roll for categories - Show dice number and category only to player who rolled
   socket.on('card_game_roll_dice', ({ roomCode, playerId }) => {
     console.log(`🎲 DICE ROLL by player ${playerId} in room ${roomCode}`);
     
-    // Updated to roll 24 numbers for 24 categories
-    const diceValue = Math.floor(Math.random() * 24) + 1;
+    // DYNAMIC: Automatically works with any number of categories
+    const diceValue = Math.floor(Math.random() * gameCategories.length) + 1;
     
+    // Find the category with this ID - works with any categories array
+    const category = gameCategories.find(cat => cat.id === diceValue);
+    
+    // UPDATED: Send dice value ONLY to the player who rolled (not to all players)
     socket.emit('card_game_dice_rolled', { diceValue });
     
-    console.log(`🎯 Player ${playerId} rolled dice: ${diceValue}`);
+    // NEW: Send category ONLY to the player who rolled
+    if (category) {
+      socket.emit('card_game_dice_category', { category });
+      console.log(`🎯 Player ${playerId} rolled dice: ${diceValue} - Category: ${category.name}`);
+      console.log(`📊 Total categories available: ${gameCategories.length}`);
+    } else {
+      console.log(`❌ Category not found for dice value: ${diceValue}`);
+      console.log(`📊 Available categories:`, gameCategories.map(c => c.id));
+    }
   });
 
   // Move card to circle
@@ -1073,4 +1086,6 @@ server.listen(PORT, () => {
   console.log(`🃏 Card game system ready!`);
   console.log(`📸 Random photos system ready!`);
   console.log(`🖊️ Whiteboard system ready!`);
+  console.log(`🎲 Dice system ready with ${gameCategories.length} categories!`);
+  console.log(`🎯 Private dice rolls enabled - only showing to rolling player`);
 });
