@@ -912,29 +912,43 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Shuffle deck
+  // UPDATED: Shuffle deck - Only shuffle table cards and draw pile, keep player hands unchanged
   socket.on('card_game_shuffle', ({ roomCode }) => {
-    console.log(`🔀 SHUFFLE DECK in room ${roomCode}`);
+    console.log(`🔀 SHUFFLE CARDS (Table + Draw Pile) in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
       
-      const allCards = [...game.drawPile, ...game.tableCards];
-      Object.values(game.playerHands).forEach(hand => {
-        allCards.push(...hand);
-      });
+      // Combine only table cards and draw pile
+      const cardsToShuffle = [...game.drawPile, ...game.tableCards];
       
-      const shuffled = shuffleDeck(allCards);
+      if (cardsToShuffle.length === 0) {
+        console.log('❌ No cards to shuffle');
+        socket.emit('card_game_error', { message: 'No cards available to shuffle' });
+        return;
+      }
       
+      const shuffled = shuffleDeck(cardsToShuffle);
+      
+      // Update draw pile with shuffled cards
       game.drawPile = shuffled;
+      
+      // Clear table cards
       game.tableCards = [];
       
-      Object.keys(game.playerHands).forEach(playerId => {
-        game.playerHands[playerId] = game.drawPile.splice(0, 5);
-      });
+      // Player hands remain unchanged
       
       io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Deck shuffled. Draw pile: ${shuffled.length} cards`);
+      console.log(`✅ Cards shuffled. Table cards moved to draw pile. Draw pile: ${game.drawPile.length} cards, Table: ${game.tableCards.length} cards`);
+      console.log(`   Player hands remain unchanged`);
+      
+      // Send message to all players
+      io.to(roomCode).emit('card_game_message', {
+        type: 'shuffle',
+        message: `تم خلط ${shuffled.length} بطاقة من الطاولة والمجموعة!`,
+        shuffledCards: shuffled.length
+      });
+      
     } else {
       socket.emit('card_game_error', { message: 'Game not found' });
     }
@@ -1088,4 +1102,5 @@ server.listen(PORT, () => {
   console.log(`🖊️ Whiteboard system ready!`);
   console.log(`🎲 Dice system ready with ${gameCategories.length} categories!`);
   console.log(`🎯 Private dice rolls enabled - only showing to rolling player`);
+  console.log(`🔀 Shuffle system ready - table cards move to draw pile only`);
 });
