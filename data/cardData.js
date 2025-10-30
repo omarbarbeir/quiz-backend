@@ -808,6 +808,8 @@ const cardData = {
     { id: 'movie-378', type: 'movie', name: 'إبن حميدو', image: '/images/cards/Posters/OLD/ebn_hamedo.jpg' },
     { id: 'movie-379', type: 'movie', name: 'باب الحديد', image: '/images/cards/Posters/OLD/iron_door.jpg' },
     { id: 'movie-380', type: 'movie', name: 'بابا أمين', image: '/images/cards/Posters/OLD/baba_amen.jpg' },
+    { id: 'movie-381', type: 'movie', name: 'المصلحة', image: '/images/cards/Posters/El_Maslaha_Poster.jpg' },
+    { id: 'movie-382', type: 'movie', name: 'منم ٣٠ سنه', image: '/images/cards/Posters/men_30_sana.jpg' },
 
 
 
