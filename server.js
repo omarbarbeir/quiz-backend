@@ -207,13 +207,16 @@ const gameCategories = [
   { 
     id: 29, 
     name: 'الفئة 29', 
-    description: 'فيلم البطل فيه عنده أولاد',
+    description: 'أفلام البطل فيها عنده أولاد',
     rules: 'اجمع ٣ بطاقات'
   },
 ];
 
 const rooms = {};
 const pendingActions = {};
+
+// NEW: Track player activity timestamps
+const playerActivity = {};
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -269,6 +272,35 @@ function getNextNonSkippedPlayer(roomCode, currentPlayerId, skippedPlayers) {
   return nextPlayerId;
 }
 
+// NEW: Update player activity timestamp
+function updatePlayerActivity(socketId) {
+  playerActivity[socketId] = Date.now();
+  console.log(`🕐 Updated activity for socket ${socketId}`);
+}
+
+// NEW: Check for inactive players and disconnect them
+function checkInactivePlayers() {
+  const now = Date.now();
+  const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
+  
+  Object.keys(playerActivity).forEach(socketId => {
+    const lastActivity = playerActivity[socketId];
+    if (now - lastActivity > FIVE_MINUTES) {
+      console.log(`⏰ Disconnecting inactive socket ${socketId} (last activity: ${new Date(lastActivity).toISOString()})`);
+      
+      // Find the socket and disconnect it
+      const socket = io.sockets.sockets.get(socketId);
+      if (socket) {
+        socket.disconnect(true);
+        delete playerActivity[socketId];
+      }
+    }
+  });
+}
+
+// NEW: Start the inactivity checker (runs every minute)
+setInterval(checkInactivePlayers, 60000);
+
 // UPDATED: Use ALL cards from the deck without limiting to 60
 function initializeCardGame(players) {
   console.log('🃏 Initializing card game for players:', players.map(p => p.name));
@@ -315,9 +347,13 @@ function initializeCardGame(players) {
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
+  
+  // NEW: Initialize activity tracking for this socket
+  updatePlayerActivity(socket.id);
 
   // Create room
   socket.on('create_room', () => {
+    updatePlayerActivity(socket.id);
     const roomCode = generateRoomCode();
     rooms[roomCode] = {
       players: [],
@@ -344,6 +380,7 @@ io.on('connection', (socket) => {
 
   // Join room
   socket.on('join_room', ({ roomCode, player }) => {
+    updatePlayerActivity(socket.id);
     console.log(`👤 Player ${player.name} joining room: ${roomCode}`);
     
     if (rooms[roomCode]) {
@@ -374,6 +411,7 @@ io.on('connection', (socket) => {
 
   // WHITEBOARD EVENTS
   socket.on('start_drawing', ({ roomCode, startX, startY, color, size }) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
       const strokeId = generateStrokeId();
       rooms[roomCode].whiteboard.currentStroke = {
@@ -394,6 +432,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('update_drawing', ({ roomCode, x, y }) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode] && rooms[roomCode].whiteboard.currentStroke) {
       const stroke = rooms[roomCode].whiteboard.currentStroke;
       stroke.points.push({ x, y });
@@ -407,6 +446,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('end_drawing', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode] && rooms[roomCode].whiteboard.currentStroke) {
       const stroke = rooms[roomCode].whiteboard.currentStroke;
       rooms[roomCode].whiteboard.strokes.push(stroke);
@@ -419,6 +459,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('clear_whiteboard', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
       rooms[roomCode].whiteboard = {
         strokes: [],
@@ -430,6 +471,7 @@ io.on('connection', (socket) => {
 
   // CARD GAME EVENTS
   socket.on('card_game_initialize', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🎮 CARD GAME INITIALIZE for room: ${roomCode}`);
     
     if (!rooms[roomCode]) {
@@ -467,6 +509,7 @@ io.on('connection', (socket) => {
 
   // Draw card from pile
   socket.on('card_game_draw', ({ roomCode, playerId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🃏 DRAW CARD by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -516,6 +559,7 @@ io.on('connection', (socket) => {
 
   // Play card to table
   socket.on('card_game_play_table', ({ roomCode, playerId, cardId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🃏 PLAY TO TABLE by player ${playerId} with card ${cardId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -565,6 +609,7 @@ io.on('connection', (socket) => {
 
   // Take card from table
   socket.on('card_game_take_table', ({ roomCode, playerId, cardId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🃏 TAKE FROM TABLE by player ${playerId} for card ${cardId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -615,6 +660,7 @@ io.on('connection', (socket) => {
 
   // Use skip card - UPDATED: Automatically skip next player
   socket.on('card_game_use_skip', ({ roomCode, playerId, cardId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🎭 USE SKIP CARD by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -674,6 +720,7 @@ io.on('connection', (socket) => {
 
   // NEW: Use joker card - Allow multiple jokers in same turn
   socket.on('card_game_use_joker', ({ roomCode, playerId, cardId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🃏 USE JOKER CARD by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -724,6 +771,7 @@ io.on('connection', (socket) => {
 
   // UPDATED: Dice roll for categories - Show dice number and category only to player who rolled
   socket.on('card_game_roll_dice', ({ roomCode, playerId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🎲 DICE ROLL by player ${playerId} in room ${roomCode}`);
     
     // DYNAMIC: Automatically works with any number of categories
@@ -748,6 +796,7 @@ io.on('connection', (socket) => {
 
   // Move card to circle
   socket.on('card_game_move_to_circle', ({ roomCode, playerId, circleIndex, cardId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🔄 MOVE TO CIRCLE by player ${playerId}, card ${cardId} to circle ${circleIndex} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -784,6 +833,7 @@ io.on('connection', (socket) => {
 
   // Remove card from circle
   socket.on('card_game_remove_from_circle', ({ roomCode, playerId, circleIndex }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🔄 REMOVE FROM CIRCLE by player ${playerId} from circle ${circleIndex} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -819,6 +869,7 @@ io.on('connection', (socket) => {
 
   // Declare category
   socket.on('card_game_declare', ({ roomCode, playerId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🏆 DECLARE CATEGORY by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -870,6 +921,7 @@ io.on('connection', (socket) => {
 
   // UPDATED: Challenge response - Player who rejects doesn't lose turn
   socket.on('card_game_challenge_response', ({ roomCode, playerId, accept, declaredPlayerId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`⚖️ CHALLENGE RESPONSE by player ${playerId}: ${accept ? 'ACCEPT' : 'REJECT'} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -981,6 +1033,7 @@ io.on('connection', (socket) => {
 
   // Exit card game
   socket.on('card_game_exit', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🚪 EXIT CARD GAME in room ${roomCode}`);
     
     if (rooms[roomCode]) {
@@ -992,6 +1045,7 @@ io.on('connection', (socket) => {
 
   // Reset card game
   socket.on('card_game_reset', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🔄 RESET CARD GAME in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
@@ -1010,6 +1064,7 @@ io.on('connection', (socket) => {
 
   // UPDATED: Shuffle deck - Only shuffle table cards and draw pile, keep player hands unchanged
   socket.on('card_game_shuffle', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
     console.log(`🔀 SHUFFLE CARDS (Table + Draw Pile) in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
@@ -1052,6 +1107,7 @@ io.on('connection', (socket) => {
 
   // Random photos question handler
   socket.on('play_random_question', ({ roomCode, subcategoryId }) => {
+    updatePlayerActivity(socket.id);
     console.log(`📸 PLAY RANDOM QUESTION for subcategory: ${subcategoryId} in room: ${roomCode}`);
     
     if (rooms[roomCode]) {
@@ -1107,6 +1163,9 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected:', socket.id);
     
+    // NEW: Remove from activity tracking
+    delete playerActivity[socket.id];
+    
     const roomCode = socket.data?.roomCode;
     const playerId = socket.data?.playerId;
     
@@ -1125,8 +1184,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Existing quiz game events
+  // Existing quiz game events - ALL UPDATED with activity tracking
   socket.on('buzz', ({ roomCode, playerId }) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
       rooms[roomCode].activePlayer = playerId;
       rooms[roomCode].buzzerLocked = true;
@@ -1135,6 +1195,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('reset_buzzer', (roomCode) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
       rooms[roomCode].activePlayer = null;
       rooms[roomCode].buzzerLocked = false;
@@ -1143,6 +1204,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('update_score', ({ roomCode, playerId, change }) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       if (player) {
@@ -1153,6 +1215,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('change_question', ({ roomCode, question }) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
       rooms[roomCode].currentQuestion = question;
       io.to(roomCode).emit('question_changed', question);
@@ -1160,12 +1223,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('end_game', (roomCode) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
       io.to(roomCode).emit('game_ended');
     }
   });
 
   socket.on('leave_room', ({ roomCode, playerId }) => {
+    updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
       rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
       io.to(roomCode).emit('player_left', playerId);
@@ -1177,14 +1242,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('play_audio', (roomCode) => {
+    updatePlayerActivity(socket.id);
     io.to(roomCode).emit('play_audio');
   });
 
   socket.on('pause_audio', (roomCode) => {
+    updatePlayerActivity(socket.id);
     io.to(roomCode).emit('pause_audio');
   });
 
   socket.on('continue_audio', (roomCode, time) => {
+    updatePlayerActivity(socket.id);
     io.to(roomCode).emit('continue_audio', time);
   });
 });
@@ -1199,4 +1267,5 @@ server.listen(PORT, () => {
   console.log(`🎲 Dice system ready with ${gameCategories.length} categories!`);
   console.log(`🎯 Private dice rolls enabled - only showing to rolling player`);
   console.log(`🔀 Shuffle system ready - table cards move to draw pile only`);
+  console.log(`⏰ Inactivity timeout enabled - players will be disconnected after 5 minutes of inactivity`);
 });

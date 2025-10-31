@@ -809,7 +809,7 @@ const cardData = {
     { id: 'movie-379', type: 'movie', name: 'باب الحديد', image: '/images/cards/Posters/OLD/iron_door.jpg' },
     { id: 'movie-380', type: 'movie', name: 'بابا أمين', image: '/images/cards/Posters/OLD/baba_amen.jpg' },
     { id: 'movie-381', type: 'movie', name: 'المصلحة', image: '/images/cards/Posters/El_Maslaha_Poster.jpg' },
-    { id: 'movie-382', type: 'movie', name: 'منم ٣٠ سنه', image: '/images/cards/Posters/men_30_sana.jpg' },
+    { id: 'movie-382', type: 'movie', name: 'من ٣٠ سنه', image: '/images/cards/Posters/men_30_sana.jpg' },
     { id: 'movie-383', type: 'movie', name: 'صنع في مصر', image: '/images/cards/Posters/Made_In_Egypt_Poster.jpg' },
 
 
