@@ -204,6 +204,12 @@ const gameCategories = [
     description: 'ممثلين عملوا أكتر من دور في نفس الفيلم',
     rules: 'اجمع ٣ بطاقات'
   },
+  { 
+    id: 29, 
+    name: 'الفئة 29', 
+    description: 'فيلم البطل فيه عنده أولاد',
+    rules: 'اجمع ٣ بطاقات'
+  },
 ];
 
 const rooms = {};

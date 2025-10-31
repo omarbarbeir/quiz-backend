@@ -433,7 +433,7 @@ const cardData = {
     { id: 'movie-003', type: 'movie', name: 'تك تك بوم', image: '/images/Cinema images/Tak_Tak_Boom_Poster.jpeg' },
     { id: 'movie-004', type: 'movie', name: 'صرخة نملة', image: '/images/Cinema images/Sarkhet_Namla_Poster.jpg' },
     { id: 'movie-005', type: 'movie', name: 'سامي أكسيد الكربون', image: '/images/Cinema images/Samy_Oksed_Elkarbon_Poster.jpg' },
-    { id: 'movie-006', type: 'movie', name: 'فاصل و نعود', image: '/images/Cinema images/fasel w naood.jpg' },
+    { id: 'movie-006', type: 'movie', name: 'فاصل و نعود', image: '/images/Cinema images/fasel w naood.avif' },
     { id: 'movie-007', type: 'movie', name: 'سيما علي بابا', image: '/images/Cinema images/cima ali baba.jpg' },
     { id: 'movie-008', type: 'movie', name: 'بيبو و بشير', image: '/images/Cinema images/bebo besher.jpg' },
     { id: 'movie-009', type: 'movie', name: 'اكس لارج', image: '/images/Cinema images/xLarge.jpg' },
@@ -810,6 +810,7 @@ const cardData = {
     { id: 'movie-380', type: 'movie', name: 'بابا أمين', image: '/images/cards/Posters/OLD/baba_amen.jpg' },
     { id: 'movie-381', type: 'movie', name: 'المصلحة', image: '/images/cards/Posters/El_Maslaha_Poster.jpg' },
     { id: 'movie-382', type: 'movie', name: 'منم ٣٠ سنه', image: '/images/cards/Posters/men_30_sana.jpg' },
+    { id: 'movie-383', type: 'movie', name: 'صنع في مصر', image: '/images/cards/Posters/Made_In_Egypt_Poster.jpg' },
 
 
 
