@@ -21,12 +21,24 @@ app.get('/', (req, res) => {
   res.send('Quiz Game Server Running');
 });
 
-// CRITICAL FIX: Use EXACT same Socket.IO config as old working code
+// UPDATED: Socket.IO configuration with longer timeouts and heartbeat
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  // Prevent disconnection due to inactivity
+  pingTimeout: 60000, // 60 seconds (increased from default 20s)
+  pingInterval: 25000, // 25 seconds (increased from default 25s)
+  connectTimeout: 45000, // 45 seconds connection timeout
+  // Allow more concurrent connections
+  maxHttpBufferSize: 1e8, // 100MB max buffer size
+  // Better transport handling
+  transports: ['websocket', 'polling'],
+  // Allow longer polling intervals
+  allowUpgrades: true,
+  // Better connection state handling
+  allowEIO3: true
 });
 
 // Import data files
@@ -204,10 +216,19 @@ const gameCategories = [
     description: 'ممثلين عملوا أكتر من دور في نفس الفيلم',
     rules: 'اجمع ٣ بطاقات'
   },
+  { 
+    id: 29, 
+    name: 'الفئة 29', 
+    description: 'أفلام فيها البطل له أولاد',
+    rules: 'اجمع ٣ بطاقات'
+  },
 ];
 
 const rooms = {};
 const pendingActions = {};
+
+// NEW: Track connection health
+const connectionHealth = new Map();
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -300,13 +321,76 @@ function initializeCardGame(players) {
     categories: gameCategories,
     playerHasDrawn: Object.fromEntries(players.map(p => [p.id, false])),
     playerCategories: Object.fromEntries(players.map(p => [p.id, null])),
-    skippedPlayers: {}
+    skippedPlayers: {},
+    challengeResponses: {}, // NEW: Track challenge responses
+    challengeRespondedPlayers: [] // NEW: Track which players have responded
   };
+}
+
+// NEW: Heartbeat function to keep connections alive
+function setupConnectionHealth(socket) {
+  connectionHealth.set(socket.id, {
+    lastPing: Date.now(),
+    isAlive: true
+  });
+
+  // Send periodic ping to client
+  const pingInterval = setInterval(() => {
+    if (connectionHealth.has(socket.id)) {
+      const health = connectionHealth.get(socket.id);
+      if (health.isAlive) {
+        health.isAlive = false;
+        socket.emit('ping');
+        
+        // Check if client responds within timeout
+        setTimeout(() => {
+          if (connectionHealth.has(socket.id) && !connectionHealth.get(socket.id).isAlive) {
+            console.log(`❌ Client ${socket.id} did not respond to ping, forcing reconnection`);
+            socket.disconnect(true);
+          }
+        }, 10000); // 10 second timeout for pong response
+      }
+    }
+  }, 30000); // Send ping every 30 seconds
+
+  // Store interval ID for cleanup
+  socket.pingInterval = pingInterval;
+}
+
+// NEW: Clean up connection health data
+function cleanupConnectionHealth(socket) {
+  if (socket.pingInterval) {
+    clearInterval(socket.pingInterval);
+  }
+  connectionHealth.delete(socket.id);
 }
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
+
+  // NEW: Setup connection health monitoring
+  setupConnectionHealth(socket);
+
+  // NEW: Handle pong responses from client
+  socket.on('pong', () => {
+    if (connectionHealth.has(socket.id)) {
+      const health = connectionHealth.get(socket.id);
+      health.isAlive = true;
+      health.lastPing = Date.now();
+      console.log(`💓 Received pong from ${socket.id}`);
+    }
+  });
+
+  // NEW: Client can also send periodic keep-alive
+  socket.on('keep_alive', () => {
+    if (connectionHealth.has(socket.id)) {
+      const health = connectionHealth.get(socket.id);
+      health.isAlive = true;
+      health.lastPing = Date.now();
+      console.log(`💓 Keep-alive from ${socket.id}`);
+    }
+  });
 
   // Create room
   socket.on('create_room', () => {
@@ -844,8 +928,13 @@ io.on('connection', (socket) => {
         };
         game.challengeInProgress = true;
         
+        // NEW: Initialize challenge tracking
+        game.challengeResponses = {};
+        game.challengeRespondedPlayers = [];
+        
         io.to(roomCode).emit('card_game_state_update', game);
         console.log(`✅ Category declared: Category ${game.playerCategories[playerId]?.id}`);
+        console.log(`🔄 Challenge started. Waiting for responses from other players.`);
       } else {
         console.log(`❌ Not enough valid cards in circles (${filledCircles.length}/3, need at least 2 non-joker cards)`);
         socket.emit('card_game_error', { message: 'Need at least 3 cards in circles with at least 2 non-joker cards' });
@@ -855,53 +944,112 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Challenge response - UPDATED: Player must discard after category completion
+  // UPDATED: Challenge response - Player who rejects doesn't lose turn
   socket.on('card_game_challenge_response', ({ roomCode, playerId, accept, declaredPlayerId }) => {
     console.log(`⚖️ CHALLENGE RESPONSE by player ${playerId}: ${accept ? 'ACCEPT' : 'REJECT'} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const room = rooms[roomCode];
       
-      if (accept) {
-        const completedPlayer = rooms[roomCode].players.find(p => p.id === declaredPlayerId);
-        if (completedPlayer) {
-          const completedCards = game.playerCircles[declaredPlayerId].filter(card => card !== null);
-          
-          completedCards.forEach(card => {
-            game.tableCards.unshift(card);
-          });
-          
-          game.completedCategories[declaredPlayerId].push(game.playerCategories[declaredPlayerId]);
-          game.playerLevels[declaredPlayerId] = Math.min(4, game.playerLevels[declaredPlayerId] + 1);
-          game.playerCircles[declaredPlayerId] = [null, null, null, null];
-          
-          // NEW: Give 3 new cards but player must still discard
-          for (let i = 0; i < 3; i++) {
-            if (game.drawPile.length > 0) {
-              const drawnCard = game.drawPile.pop();
-              game.playerHands[declaredPlayerId].push(drawnCard);
-            }
-          }
-          
-          // NEW: Keep turn with same player, they must discard one card
-          // game.playerHasDrawn remains true so they can discard
-          console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
-          console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
-          console.log(`   Player drew 3 new cards from pile`);
-          console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
-          console.log(`   Player must now discard one card`);
-        }
-      } else {
-        // If rejected, move to next player
-        game.currentTurn = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
-        game.playerHasDrawn[declaredPlayerId] = false;
+      if (!game.challengeInProgress) {
+        console.log(`❌ No challenge in progress`);
+        socket.emit('card_game_error', { message: 'No challenge in progress' });
+        return;
       }
-      
-      game.challengeInProgress = false;
-      game.declaredCategory = null;
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Challenge resolved. Current turn: ${game.currentTurn}`);
+
+      // Track responses
+      if (!game.challengeRespondedPlayers.includes(playerId)) {
+        game.challengeRespondedPlayers.push(playerId);
+        game.challengeResponses[playerId] = accept;
+        
+        console.log(`📝 Player ${playerId} responded: ${accept ? 'ACCEPT' : 'REJECT'}`);
+        console.log(`📊 Responses so far:`, game.challengeResponses);
+        
+        // Send update to show who has responded
+        io.to(roomCode).emit('card_game_state_update', game);
+      }
+
+      // Check if all players have responded (excluding the declaring player)
+      const otherPlayers = room.players.filter(p => p.id !== declaredPlayerId);
+      const allResponded = otherPlayers.every(player => 
+        game.challengeRespondedPlayers.includes(player.id)
+      );
+
+      if (allResponded) {
+        console.log(`✅ All players have responded. Processing challenge result...`);
+        
+        // Check if all players accepted
+        const allAccepted = otherPlayers.every(player => 
+          game.challengeResponses[player.id] === true
+        );
+
+        if (allAccepted) {
+          console.log(`🎉 Challenge SUCCESS: All players accepted!`);
+          const completedPlayer = room.players.find(p => p.id === declaredPlayerId);
+          if (completedPlayer) {
+            const completedCards = game.playerCircles[declaredPlayerId].filter(card => card !== null);
+            
+            completedCards.forEach(card => {
+              game.tableCards.unshift(card);
+            });
+            
+            game.completedCategories[declaredPlayerId].push(game.playerCategories[declaredPlayerId]);
+            game.playerLevels[declaredPlayerId] = Math.min(4, game.playerLevels[declaredPlayerId] + 1);
+            game.playerCircles[declaredPlayerId] = [null, null, null, null];
+            
+            // Give 3 new cards but player must still discard
+            for (let i = 0; i < 3; i++) {
+              if (game.drawPile.length > 0) {
+                const drawnCard = game.drawPile.pop();
+                game.playerHands[declaredPlayerId].push(drawnCard);
+              }
+            }
+            
+            // Keep turn with same player, they must discard one card
+            // game.playerHasDrawn remains true so they can discard
+            console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
+            console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
+            console.log(`   Player drew 3 new cards from pile`);
+            console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
+            console.log(`   Player must now discard one card`);
+            
+            // Send success message
+            io.to(roomCode).emit('card_game_message', {
+              type: 'challenge_success',
+              message: `🎉 ${completedPlayer.name} أكمل الفئة بنجاح!`,
+              playerId: declaredPlayerId
+            });
+          }
+        } else {
+          console.log(`❌ Challenge FAILED: At least one player rejected`);
+          
+          // NEW: Challenge failed but declaring player keeps their turn
+          // They can continue playing (place cards in circles or discard)
+          // No penalty for failed challenge
+          
+          const declaringPlayer = room.players.find(p => p.id === declaredPlayerId);
+          if (declaringPlayer) {
+            console.log(`🔄 ${declaringPlayer.name} keeps their turn after failed challenge`);
+            
+            // Send failure message
+            io.to(roomCode).emit('card_game_message', {
+              type: 'challenge_failed',
+              message: `❌ ${declaringPlayer.name} لم يكمل الفئة، لكنه يحتفظ بدوره!`,
+              playerId: declaredPlayerId
+            });
+          }
+        }
+        
+        // End challenge regardless of outcome
+        game.challengeInProgress = false;
+        game.declaredCategory = null;
+        game.challengeResponses = {};
+        game.challengeRespondedPlayers = [];
+        
+        io.to(roomCode).emit('card_game_state_update', game);
+        console.log(`✅ Challenge resolved. Current turn remains with: ${game.currentTurn}`);
+      }
     } else {
       socket.emit('card_game_error', { message: 'Game not found' });
     }
@@ -1032,8 +1180,11 @@ io.on('connection', (socket) => {
   });
 
   // Disconnect handler
-  socket.on('disconnect', () => {
-    console.log('🔌 Client disconnected:', socket.id);
+  socket.on('disconnect', (reason) => {
+    console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason);
+    
+    // NEW: Clean up connection health data
+    cleanupConnectionHealth(socket);
     
     const roomCode = socket.data?.roomCode;
     const playerId = socket.data?.playerId;
@@ -1048,6 +1199,14 @@ io.on('connection', (socket) => {
         if (rooms[roomCode].players.length === 0) {
           delete rooms[roomCode];
           console.log(`🏠 Room ${roomCode} closed (no players)`);
+        } else {
+          // Notify other players about the disconnection
+          io.to(roomCode).emit('player_left', playerId);
+          io.to(roomCode).emit('card_game_message', {
+            type: 'player_left',
+            message: `👋 ${player.name} غادر اللعبة`,
+            playerId: playerId
+          });
         }
       }
     }
@@ -1127,4 +1286,5 @@ server.listen(PORT, () => {
   console.log(`🎲 Dice system ready with ${gameCategories.length} categories!`);
   console.log(`🎯 Private dice rolls enabled - only showing to rolling player`);
   console.log(`🔀 Shuffle system ready - table cards move to draw pile only`);
+  console.log(`💓 Connection health monitoring enabled with 60s timeout`);
 });
