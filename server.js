@@ -21,24 +21,12 @@ app.get('/', (req, res) => {
   res.send('Quiz Game Server Running');
 });
 
-// UPDATED: Socket.IO configuration with longer timeouts and heartbeat
+// CRITICAL FIX: Use EXACT same Socket.IO config as old working code
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  },
-  // Prevent disconnection due to inactivity
-  pingTimeout: 60000, // 60 seconds (increased from default 20s)
-  pingInterval: 25000, // 25 seconds (increased from default 25s)
-  connectTimeout: 45000, // 45 seconds connection timeout
-  // Allow more concurrent connections
-  maxHttpBufferSize: 1e8, // 100MB max buffer size
-  // Better transport handling
-  transports: ['websocket', 'polling'],
-  // Allow longer polling intervals
-  allowUpgrades: true,
-  // Better connection state handling
-  allowEIO3: true
+  }
 });
 
 // Import data files
@@ -216,19 +204,10 @@ const gameCategories = [
     description: 'ممثلين عملوا أكتر من دور في نفس الفيلم',
     rules: 'اجمع ٣ بطاقات'
   },
-  { 
-    id: 29, 
-    name: 'الفئة 29', 
-    description: 'أفلام فيها البطل له أولاد',
-    rules: 'اجمع ٣ بطاقات'
-  },
 ];
 
 const rooms = {};
 const pendingActions = {};
-
-// NEW: Track connection health
-const connectionHealth = new Map();
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -327,70 +306,9 @@ function initializeCardGame(players) {
   };
 }
 
-// NEW: Heartbeat function to keep connections alive
-function setupConnectionHealth(socket) {
-  connectionHealth.set(socket.id, {
-    lastPing: Date.now(),
-    isAlive: true
-  });
-
-  // Send periodic ping to client
-  const pingInterval = setInterval(() => {
-    if (connectionHealth.has(socket.id)) {
-      const health = connectionHealth.get(socket.id);
-      if (health.isAlive) {
-        health.isAlive = false;
-        socket.emit('ping');
-        
-        // Check if client responds within timeout
-        setTimeout(() => {
-          if (connectionHealth.has(socket.id) && !connectionHealth.get(socket.id).isAlive) {
-            console.log(`❌ Client ${socket.id} did not respond to ping, forcing reconnection`);
-            socket.disconnect(true);
-          }
-        }, 10000); // 10 second timeout for pong response
-      }
-    }
-  }, 30000); // Send ping every 30 seconds
-
-  // Store interval ID for cleanup
-  socket.pingInterval = pingInterval;
-}
-
-// NEW: Clean up connection health data
-function cleanupConnectionHealth(socket) {
-  if (socket.pingInterval) {
-    clearInterval(socket.pingInterval);
-  }
-  connectionHealth.delete(socket.id);
-}
-
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
-
-  // NEW: Setup connection health monitoring
-  setupConnectionHealth(socket);
-
-  // NEW: Handle pong responses from client
-  socket.on('pong', () => {
-    if (connectionHealth.has(socket.id)) {
-      const health = connectionHealth.get(socket.id);
-      health.isAlive = true;
-      health.lastPing = Date.now();
-      console.log(`💓 Received pong from ${socket.id}`);
-    }
-  });
-
-  // NEW: Client can also send periodic keep-alive
-  socket.on('keep_alive', () => {
-    if (connectionHealth.has(socket.id)) {
-      const health = connectionHealth.get(socket.id);
-      health.isAlive = true;
-      health.lastPing = Date.now();
-      console.log(`💓 Keep-alive from ${socket.id}`);
-    }
-  });
 
   // Create room
   socket.on('create_room', () => {
@@ -1180,11 +1098,8 @@ io.on('connection', (socket) => {
   });
 
   // Disconnect handler
-  socket.on('disconnect', (reason) => {
-    console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason);
-    
-    // NEW: Clean up connection health data
-    cleanupConnectionHealth(socket);
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
     
     const roomCode = socket.data?.roomCode;
     const playerId = socket.data?.playerId;
@@ -1199,14 +1114,6 @@ io.on('connection', (socket) => {
         if (rooms[roomCode].players.length === 0) {
           delete rooms[roomCode];
           console.log(`🏠 Room ${roomCode} closed (no players)`);
-        } else {
-          // Notify other players about the disconnection
-          io.to(roomCode).emit('player_left', playerId);
-          io.to(roomCode).emit('card_game_message', {
-            type: 'player_left',
-            message: `👋 ${player.name} غادر اللعبة`,
-            playerId: playerId
-          });
         }
       }
     }
@@ -1286,5 +1193,4 @@ server.listen(PORT, () => {
   console.log(`🎲 Dice system ready with ${gameCategories.length} categories!`);
   console.log(`🎯 Private dice rolls enabled - only showing to rolling player`);
   console.log(`🔀 Shuffle system ready - table cards move to draw pile only`);
-  console.log(`💓 Connection health monitoring enabled with 60s timeout`);
 });
