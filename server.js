@@ -204,12 +204,6 @@ const gameCategories = [
     description: 'ممثلين عملوا أكتر من دور في نفس الفيلم',
     rules: 'اجمع ٣ بطاقات'
   },
-  { 
-    id: 29, 
-    name: 'الفئة 29', 
-    description: 'أفلام البطل فيها عنده أولاد',
-    rules: 'اجمع ٣ بطاقات'
-  },
 ];
 
 const rooms = {};
@@ -971,7 +965,9 @@ io.on('connection', (socket) => {
             });
             
             game.completedCategories[declaredPlayerId].push(game.playerCategories[declaredPlayerId]);
-            game.playerLevels[declaredPlayerId] = Math.min(4, game.playerLevels[declaredPlayerId] + 1);
+            
+            // FIXED: Allow progression to level 5 (WIN)
+            game.playerLevels[declaredPlayerId] = Math.min(5, game.playerLevels[declaredPlayerId] + 1);
             game.playerCircles[declaredPlayerId] = [null, null, null, null];
             
             // Give 3 new cards but player must still discard
@@ -990,12 +986,23 @@ io.on('connection', (socket) => {
             console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
             console.log(`   Player must now discard one card`);
             
-            // Send success message
-            io.to(roomCode).emit('card_game_message', {
-              type: 'challenge_success',
-              message: `🎉 ${completedPlayer.name} أكمل الفئة بنجاح!`,
-              playerId: declaredPlayerId
-            });
+            // Check if player won (reached level 5)
+            if (game.playerLevels[declaredPlayerId] >= 5) {
+              console.log(`🎊 ${completedPlayer.name} WON THE GAME! 🎊`);
+              io.to(roomCode).emit('card_game_message', {
+                type: 'game_win',
+                message: `🎉 ${completedPlayer.name} فاز باللعبة! 🎉`,
+                playerId: declaredPlayerId,
+                winnerName: completedPlayer.name
+              });
+            } else {
+              // Send success message for regular level completion
+              io.to(roomCode).emit('card_game_message', {
+                type: 'challenge_success',
+                message: `🎉 ${completedPlayer.name} أكمل الفئة بنجاح!`,
+                playerId: declaredPlayerId
+              });
+            }
           }
         } else {
           console.log(`❌ Challenge FAILED: At least one player rejected`);
@@ -1268,4 +1275,5 @@ server.listen(PORT, () => {
   console.log(`🎯 Private dice rolls enabled - only showing to rolling player`);
   console.log(`🔀 Shuffle system ready - table cards move to draw pile only`);
   console.log(`⏰ Inactivity timeout enabled - players will be disconnected after 5 minutes of inactivity`);
+  console.log(`🏆 Win condition enabled - players can now reach level 5 and win the game!`);
 });
