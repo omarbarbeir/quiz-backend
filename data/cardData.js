@@ -811,6 +811,8 @@ const cardData = {
     { id: 'movie-381', type: 'movie', name: 'المصلحة', image: '/images/cards/Posters/El_Maslaha_Poster.jpg' },
     { id: 'movie-382', type: 'movie', name: 'من ٣٠ سنه', image: '/images/cards/Posters/men_30_sana.jpg' },
     { id: 'movie-383', type: 'movie', name: 'صنع في مصر', image: '/images/cards/Posters/Made_In_Egypt_Poster.jpg' },
+    { id: 'movie-384', type: 'movie', name: 'عبود علي الحدود', image: '/images/cards/Posters/abod_ala-elhedod.jpg' },
+    { id: 'movie-385', type: 'movie', name: 'الطريق إلي إيلات', image: '/images/cards/Posters/OLD/road_to_elat.jpg' },
 
 
 
