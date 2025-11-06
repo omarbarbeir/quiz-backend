@@ -9,7 +9,7 @@ const cardData = {
       subtype: 'joker', 
       name: 'جوكر', 
       description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
-      // image: '/images/cards/joker.jpg'
+      image: '/images/joker.jpg'
     },
     { 
       id: 'skip-001', 
@@ -17,7 +17,7 @@ const cardData = {
       subtype: 'skip', 
       name: 'تخطي دور', 
       description: 'تخطي دور لاعب آخر',
-      // image: '/images/cards/skip.jpg'
+      image: '/images/skip.jpg'
     },
 
     // Actors
