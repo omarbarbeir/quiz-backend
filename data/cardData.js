@@ -489,7 +489,7 @@ const cardData = {
     { id: 'movie-052', type: 'movie', name: 'كباريه', image: '/images/Cinema images/kabareh.jpg' },
     { id: 'movie-053', type: 'movie', name: 'كامب', image: '/images/Cinema images/Camp_Film_Poster.jpeg' },
     { id: 'movie-054', type: 'movie', name: 'كابتن هيما', image: '/images/Cinema images/Captain_Hema_Poster.jpg' },
-    { id: 'movie-055', type: 'movie', name: 'علي جنب يسطا', image: '/images/Cinema images/ala ganb yasta.jpg' },
+    { id: 'movie-055', type: 'movie', name: 'علي جنب يا أسطي', image: '/images/Cinema images/ala ganb yasta.jpg' },
     { id: 'movie-056', type: 'movie', name: 'طباخ الرئيس', image: '/images/Cinema images/The_President_Chef_Poster.jpg' },
     { id: 'movie-057', type: 'movie', name: 'شعبان الفارس', image: '/images/Cinema images/Shaban_El_Fares_Poster.png' },
     { id: 'movie-058', type: 'movie', name: 'شبه منحرف', image: '/images/Cinema images/Shebh_Monharef_Poster.jpg' },
@@ -837,7 +837,7 @@ const cardData = {
     { id: 'movie-400', type: 'movie', name: 'بنت الأكابر', image: '/images/cards/Posters/OLD/bent_elakaber.jpeg' },
     { id: 'movie-401', type: 'movie', name: 'إسماعيل ياسين في بيت الأشباح', image: '/images/cards/Posters/OLD/ghosts_house.jpg' },
     { id: 'movie-402', type: 'movie', name: 'ليلة الدخلة', image: '/images/cards/Posters/OLD/lelt_eldokhla.webp' },
-    { id: 'movie-403', type: 'movie', name: 'الحاسة السابعة', image: '/images/cards/Posters/elhasa_elseven.jpg' },
+    { id: 'movie-403', type: 'movie', name: 'الأولة في الغرام', image: '/images/cards/Posters/first_in-love.jpg' },
     { id: 'movie-404', type: 'movie', name: 'حاحا و تفاحه', image: '/images/cards/Posters/haha_apple.jpeg' },
     { id: 'movie-405', type: 'movie', name: 'الآنسه مامي', image: '/images/cards/Posters/miss_mama.webp' },
     { id: 'movie-406', type: 'movie', name: 'بنات العم', image: '/images/cards/Posters/banat_elam.jpg' },
@@ -870,6 +870,8 @@ const cardData = {
     { id: 'movie-433', type: 'movie', name: 'الكويسين', image: '/images/cards/Posters/good_people.jpeg' },
     { id: 'movie-434', type: 'movie', name: 'حرب كرموز', image: '/images/cards/Posters/karmoz_war.jpeg' },
     { id: 'movie-435', type: 'movie', name: 'قلب أمه', image: '/images/cards/Posters/alb_omoh.jpeg' },
+    { id: 'movie-436', type: 'movie', name: 'عجميستا', image: '/images/cards/Posters/agamesta.jpg' },
+    { id: 'movie-437', type: 'movie', name: 'لن أبكي أبدًا', image: '/images/cards/Posters/OLD/will_never-cry.jpg.webp' },
 
 
 

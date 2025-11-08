@@ -201,7 +201,7 @@ const gameCategories = [
   { 
     id: 28, 
     name: 'الفئة 28', 
-    description: 'ممثلين عملوا أكتر من دور في نفس الفيلم',
+    description: 'أفلام حصل فيها جريمة قتل',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
