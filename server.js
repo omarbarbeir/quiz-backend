@@ -34,7 +34,6 @@ const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 
 // Game categories - Numbers 1 to 24 (increased from 12)
-// This will automatically work with any new categories added
 const gameCategories = [
   { 
     id: 1, 
@@ -339,8 +338,9 @@ function initializeCardGame(players) {
     playerHasDrawn: Object.fromEntries(players.map(p => [p.id, false])),
     playerCategories: Object.fromEntries(players.map(p => [p.id, null])),
     skippedPlayers: {},
-    challengeResponses: {}, // NEW: Track challenge responses
-    challengeRespondedPlayers: [] // NEW: Track which players have responded
+    challengeResponses: {},
+    challengeRespondedPlayers: [],
+    winner: null // NEW: Initialize winner as null
   };
 }
 
@@ -658,7 +658,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use skip card - UPDATED: Automatically skip next player
+  // Use skip card
   socket.on('card_game_use_skip', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎭 USE SKIP CARD by player ${playerId} in room ${roomCode}`);
@@ -718,7 +718,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Use joker card - Allow multiple jokers in same turn
+  // Use joker card
   socket.on('card_game_use_joker', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🃏 USE JOKER CARD by player ${playerId} in room ${roomCode}`);
@@ -749,10 +749,6 @@ io.on('connection', (socket) => {
       
       // Put joker card on table (can be taken)
       game.tableCards.push(jokerCard);
-      
-      // Note: Player can continue their turn with other jokers
-      // We don't change playerHasDrawn or currentTurn here
-      // Player must still discard a card to end turn
       
       io.to(roomCode).emit('card_game_state_update', game);
       console.log(`✅ Joker card used by ${playerId}. Player can continue turn.`);
@@ -984,17 +980,17 @@ io.on('connection', (socket) => {
               }
             }
             
-            // Keep turn with same player, they must discard one card
-            // game.playerHasDrawn remains true so they can discard
-            console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
-            console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
-            console.log(`   Player drew 3 new cards from pile`);
-            console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
-            console.log(`   Player must now discard one card`);
-            
-            // Check if player won (reached level 5)
+            // NEW: Check for winner and announce to all players
             if (game.playerLevels[declaredPlayerId] >= 5) {
               console.log(`🎊 ${completedPlayer.name} WON THE GAME! 🎊`);
+              game.winner = declaredPlayerId;
+              
+              // Announce winner to all players
+              io.to(roomCode).emit('card_game_winner', {
+                playerId: declaredPlayerId,
+                winnerName: completedPlayer.name
+              });
+              
               io.to(roomCode).emit('card_game_message', {
                 type: 'game_win',
                 message: `🎉 ${completedPlayer.name} فاز باللعبة! 🎉`,
@@ -1009,14 +1005,17 @@ io.on('connection', (socket) => {
                 playerId: declaredPlayerId
               });
             }
+            
+            console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
+            console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
+            console.log(`   Player drew 3 new cards from pile`);
+            console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
+            console.log(`   Player must now discard one card`);
           }
         } else {
           console.log(`❌ Challenge FAILED: At least one player rejected`);
           
           // NEW: Challenge failed but declaring player keeps their turn
-          // They can continue playing (place cards in circles or discard)
-          // No penalty for failed challenge
-          
           const declaringPlayer = room.players.find(p => p.id === declaredPlayerId);
           if (declaringPlayer) {
             console.log(`🔄 ${declaringPlayer.name} keeps their turn after failed challenge`);
@@ -1056,14 +1055,24 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Reset card game
+  // UPDATED: Reset card game - properly broadcast to all players
   socket.on('card_game_reset', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 RESET CARD GAME in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
+        // Clear any winner state first
+        if (rooms[roomCode].cardGame) {
+          rooms[roomCode].cardGame.winner = null;
+        }
+        
         rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
+        
+        // NEW: Emit reset event to all players first
+        io.to(roomCode).emit('card_game_reset');
+        
+        // Then send the updated game state
         io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
         console.log(`✅ Card game reset successfully in ${roomCode}`);
       } catch (error) {
