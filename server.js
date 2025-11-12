@@ -224,7 +224,7 @@ const gameCategories = [
   { 
     id: 32, 
     name: 'الفئة 32', 
-    description: 'ممثل أو ممثلة عملوا دور دكتور',
+    description: 'ممثل أو ممثلة عملوا دور دكتور (طبيب)',
     rules: 'اجمع ٣ بطاقات'
   },
   { 
@@ -237,6 +237,12 @@ const gameCategories = [
     id: 34, 
     name: 'الفئة 34', 
     description: 'أفلام بطليها بيتجوزوا في نهاية الفيلم',
+    rules: 'اجمع ٣ بطاقات'
+  },
+  { 
+    id: 35, 
+    name: 'الفئة 35', 
+    description: 'فيلم و ٢ ممثلين موجودين فيه',
     rules: 'اجمع ٣ بطاقات'
   },
 ];

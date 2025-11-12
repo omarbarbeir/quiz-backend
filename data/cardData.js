@@ -12,7 +12,716 @@ const cardData = {
       image: '/images/joker.jpg'
     },
     { 
+      id: 'joker-002', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-003', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-004', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-005', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-006', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-007', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-008', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-009', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-010', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-011', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-012', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-013', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-014', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-015', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-016', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-017', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-018', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-019', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-020', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-021', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-022', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-023', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-024', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-025', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-026', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-027', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-028', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-029', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-030', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-031', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-032', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-033', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-034', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-035', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-036', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-037', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-038', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-039', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-040', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-041', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-042', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-043', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-044', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+    { 
+      id: 'joker-045', 
+      type: 'action', 
+      subtype: 'joker', 
+      name: 'جوكر', 
+      description: 'استخدمه كبطاقة ثالثة لإكمال الفئة',
+      image: '/images/joker.jpg'
+    },
+
+
+
+
+    
+    { 
       id: 'skip-001', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-002', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-003', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-004', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-005', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-006', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-007', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-008', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-009', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-010', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-011', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-012', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-013', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-014', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-015', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-016', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-017', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-018', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-019', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-020', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-021', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-022', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-023', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-024', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-025', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-026', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-027', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-028', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-029', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-030', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-031', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-032', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-033', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-034', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-035', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-036', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-037', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-038', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-039', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-040', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-041', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-042', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-043', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-044', 
+      type: 'action', 
+      subtype: 'skip', 
+      name: 'تخطي دور', 
+      description: 'تخطي دور لاعب آخر',
+      image: '/images/skip.jpg'
+    },
+    { 
+      id: 'skip-045', 
       type: 'action', 
       subtype: 'skip', 
       name: 'تخطي دور', 
@@ -431,6 +1140,9 @@ const cardData = {
     { id: 'actor-408', type: 'actor', name: 'يوسف عيد', image: '/images/cards/actors/yousif_eid.jpeg' },
     { id: 'actor-409', type: 'actor', name: 'مها أحمد', image: '/images/cards/actress/maha_ahmad.jpeg' },
     { id: 'actor-410', type: 'actor', name: 'نور', image: '/images/cards/actress/nour.webp' },
+    { id: 'actor-411', type: 'actor', name: 'شيكو', image: '/images/cards/actors/chico.jpg' },
+    { id: 'actor-412', type: 'actor', name: 'أوس أوس', image: '/images/cards/actors/osos.jpg' },
+    { id: 'actor-413', type: 'actor', name: 'أحمد فتحي', image: '/images/cards/actors/ahmed_fathy.webp' },
 
 
 
