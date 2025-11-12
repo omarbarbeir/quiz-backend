@@ -245,6 +245,12 @@ const gameCategories = [
     description: 'فيلم و ٢ ممثلين موجودين فيه',
     rules: 'اجمع ٣ بطاقات'
   },
+  { 
+    id: 36, 
+    name: 'الفئة 36', 
+    description: 'أفلام فيها مشهد في عربية',
+    rules: 'اجمع ٣ بطاقات'
+  },
 ];
 
 const rooms = {};
