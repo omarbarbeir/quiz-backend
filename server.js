@@ -1027,8 +1027,8 @@ io.on('connection', (socket) => {
               console.log(`🎊 ${completedPlayer.name} WON THE GAME! 🎊`);
               game.winner = declaredPlayerId;
               
-              // Announce winner to all players
-              io.to(roomCode).emit('card_game_winner', {
+              // NEW: Emit winner announcement to ALL players
+              io.to(roomCode).emit('card_game_winner_announced', {
                 playerId: declaredPlayerId,
                 winnerName: completedPlayer.name
               });
@@ -1082,6 +1082,35 @@ io.on('connection', (socket) => {
       }
     } else {
       socket.emit('card_game_error', { message: 'Game not found' });
+    }
+  });
+
+  // NEW: Allow any player to reset the game from winner modal
+  socket.on('card_game_reset_any_player', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🔄 RESET CARD GAME by any player in room ${roomCode}`);
+    
+    if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
+      try {
+        // Clear any winner state first
+        if (rooms[roomCode].cardGame) {
+          rooms[roomCode].cardGame.winner = null;
+        }
+        
+        rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
+        
+        // NEW: Emit reset event to all players first
+        io.to(roomCode).emit('card_game_reset');
+        
+        // Then send the updated game state
+        io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
+        console.log(`✅ Card game reset successfully by any player in ${roomCode}`);
+      } catch (error) {
+        console.error('❌ Error resetting card game:', error);
+        socket.emit('card_game_error', { message: 'Failed to reset game: ' + error.message });
+      }
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found or no players' });
     }
   });
 
@@ -1333,4 +1362,5 @@ server.listen(PORT, () => {
   console.log(`🔀 Shuffle system ready - table cards move to draw pile only`);
   console.log(`⏰ Inactivity timeout enabled - players will be disconnected after 5 minutes of inactivity`);
   console.log(`🏆 Win condition enabled - players can now reach level 5 and win the game!`);
+  console.log(`🔄 Any player can now reset the game from winner modal!`);
 });
