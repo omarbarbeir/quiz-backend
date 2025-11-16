@@ -1398,7 +1398,7 @@ const cardData = {
     { id: 'movie-409', type: 'movie', name: 'غش الزوجية', image: '/images/cards/Posters/ghesh_elzawgeya.jpg' },
     { id: 'movie-410', type: 'movie', name: 'سمير أبو النيل', image: '/images/cards/Posters/samir_nile.jpg' },
     { id: 'movie-411', type: 'movie', name: 'علي جثتي', image: '/images/cards/Posters/on_my_dead-body.jpeg' },
-    { id: 'movie-412', type: 'movie', name: 'الحرب العالمبة التالتة', image: '/images/cards/Posters/ww3.jpeg' },
+    { id: 'movie-412', type: 'movie', name: 'الحرب العالمية التالتة', image: '/images/cards/Posters/ww3.jpeg' },
     { id: 'movie-413', type: 'movie', name: 'الجزيرة ٢', image: '/images/cards/Posters/jazira2.jpg' },
     { id: 'movie-414', type: 'movie', name: 'الفيل الأزرق ٢', image: '/images/cards/Posters/blue_elephant2.jpeg' },
     { id: 'movie-415', type: 'movie', name: 'الفيل الأزرق ١', image: '/images/cards/Posters/blue_elephant1.jpeg' },
