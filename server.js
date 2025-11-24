@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
   res.send('Quiz Game Server Running');
 });
 
-// Socket.IO config
+// CRITICAL FIX: Use EXACT same Socket.IO config as old working code
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -33,7 +33,7 @@ const io = new Server(server, {
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 
-// Game categories
+// Game categories - Numbers 1 to 24 (increased from 12)
 const gameCategories = [
   { 
     id: 1, 
@@ -267,6 +267,8 @@ const gameCategories = [
 
 const rooms = {};
 const pendingActions = {};
+
+// NEW: Track player activity timestamps
 const playerActivity = {};
 
 function generateRoomCode() {
@@ -323,18 +325,23 @@ function getNextNonSkippedPlayer(roomCode, currentPlayerId, skippedPlayers) {
   return nextPlayerId;
 }
 
+// NEW: Update player activity timestamp
 function updatePlayerActivity(socketId) {
   playerActivity[socketId] = Date.now();
+  console.log(`🕐 Updated activity for socket ${socketId}`);
 }
 
+// NEW: Check for inactive players and disconnect them
 function checkInactivePlayers() {
   const now = Date.now();
-  const FIVE_MINUTES = 5 * 60 * 1000;
+  const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
   
   Object.keys(playerActivity).forEach(socketId => {
     const lastActivity = playerActivity[socketId];
     if (now - lastActivity > FIVE_MINUTES) {
-      console.log(`⏰ Disconnecting inactive socket ${socketId}`);
+      console.log(`⏰ Disconnecting inactive socket ${socketId} (last activity: ${new Date(lastActivity).toISOString()})`);
+      
+      // Find the socket and disconnect it
       const socket = io.sockets.sockets.get(socketId);
       if (socket) {
         socket.disconnect(true);
@@ -344,32 +351,27 @@ function checkInactivePlayers() {
   });
 }
 
+// NEW: Start the inactivity checker (runs every minute)
 setInterval(checkInactivePlayers, 60000);
 
+// UPDATED: Use ALL cards from the deck without limiting to 60
 function initializeCardGame(players) {
   console.log('🃏 Initializing card game for players:', players.map(p => p.name));
   
+  // Filter out action cards except joker and skip
   const filteredDeck = cardData.deck.filter(card => 
-    card.type !== 'action' || 
-    card.subtype === 'joker' || 
-    card.subtype === 'skip' ||
-    card.subtype === 'take-give' ||
-    card.subtype === 'show-all' ||
-    card.subtype === 'shake'
+    card.type !== 'action' || card.subtype === 'joker' || card.subtype === 'skip'
   );
   
   console.log(`🃏 Total cards in filtered deck: ${filteredDeck.length}`);
   
+  // Use ALL filtered cards instead of generating a limited deck
   const shuffledDeck = shuffleDeck(filteredDeck);
   const playerHands = {};
   
   players.forEach(player => {
     playerHands[player.id] = shuffledDeck.splice(0, 5);
-    console.log(`   Dealt 5 cards to ${player.name}:`, playerHands[player.id].map(card => ({ 
-      name: card.name, 
-      type: card.type, 
-      subtype: card.subtype 
-    })));
+    console.log(`   Dealt 5 cards to ${player.name}`);
   });
 
   console.log(`🃏 Remaining cards in draw pile: ${shuffledDeck.length}`);
@@ -392,17 +394,15 @@ function initializeCardGame(players) {
     skippedPlayers: {},
     challengeResponses: {},
     challengeRespondedPlayers: [],
-    winner: null,
-    activeExchange: null,
-    activeShake: null,
-    shakeSelectedPlayer: null,
-    shakePlacedCards: {}
+    winner: null // NEW: Initialize winner as null
   };
 }
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
+  
+  // NEW: Initialize activity tracking for this socket
   updatePlayerActivity(socket.id);
 
   // Create room
@@ -448,6 +448,7 @@ io.on('connection', (socket) => {
       socket.emit('player_joined', player);
       io.to(roomCode).emit('player_joined', player);
       
+      // Send whiteboard state to new player
       socket.emit('whiteboard_state', rooms[roomCode].whiteboard);
       
       if (rooms[roomCode].cardGame) {
@@ -522,7 +523,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // CARD GAME EVENTS - FIXED INITIALIZATION
+  // CARD GAME EVENTS
   socket.on('card_game_initialize', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎮 CARD GAME INITIALIZE for room: ${roomCode}`);
@@ -647,6 +648,7 @@ io.on('connection', (socket) => {
       game.tableCards.push(card);
       
       game.playerHasDrawn[playerId] = false;
+      
       delete game.skippedPlayers[playerId];
       
       let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
@@ -692,6 +694,7 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // NEW: Skip cards cannot be taken from table
       if (topCard.type === 'action' && topCard.subtype === 'skip') {
         console.log(`❌ Skip cards cannot be taken from table`);
         socket.emit('card_game_error', { message: 'Skip cards cannot be taken from the table' });
@@ -738,14 +741,17 @@ io.on('connection', (socket) => {
 
       const [skipCard] = game.playerHands[playerId].splice(cardIndex, 1);
       
+      // NEW: Automatically skip the next player
       const nextPlayerId = getNextPlayer(roomCode, playerId);
       game.skippedPlayers[nextPlayerId] = true;
       
+      // Put skip card on table (cannot be taken)
       game.tableCards.push(skipCard);
       
       game.playerHasDrawn[playerId] = false;
       delete game.skippedPlayers[playerId];
       
+      // Move turn to player after the skipped one
       let finalNextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
       game.currentTurn = finalNextPlayerId;
       
@@ -766,14 +772,13 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use take-give card - FIXED
-  socket.on('card_game_use_take_give', ({ roomCode, playerId, cardId }) => {
+  // Use joker card
+  socket.on('card_game_use_joker', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
-    console.log(`🔄 USE TAKE-GIVE CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
+    console.log(`🃏 USE JOKER CARD by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
-      const room = rooms[roomCode];
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -789,38 +794,23 @@ io.on('connection', (socket) => {
 
       const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
       if (cardIndex === -1) {
-        console.log(`❌ Take-give card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Take-give card not found in hand' });
+        console.log(`❌ Joker card ${cardId} not found in player's hand`);
+        socket.emit('card_game_error', { message: 'Joker card not found in hand' });
         return;
       }
 
-      const [takeGiveCard] = game.playerHands[playerId].splice(cardIndex, 1);
+      const [jokerCard] = game.playerHands[playerId].splice(cardIndex, 1);
       
-      game.tableCards.push(takeGiveCard);
-      
-      // Reset exchange state properly
-      game.activeExchange = {
-        type: 'take-give',
-        playerId: playerId,
-        card: takeGiveCard,
-        placedCards: {}
-      };
+      // Put joker card on table (can be taken)
+      game.tableCards.push(jokerCard);
       
       io.to(roomCode).emit('card_game_state_update', game);
+      console.log(`✅ Joker card used by ${playerId}. Player can continue turn.`);
       
-      io.to(roomCode).emit('card_game_open_exchange_square', {
-        exchangeType: 'take-give',
-        playerId: playerId,
-        playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
-        actionCard: takeGiveCard
-      });
-      
-      console.log(`✅ Take-give card used by ${playerId}. Card placed on table. Exchange square opened for ALL players.`);
-      
-      const currentPlayer = room.players.find(p => p.id === playerId);
+      const currentPlayer = rooms[roomCode].players.find(p => p.id === playerId);
       io.to(roomCode).emit('card_game_message', {
-        type: 'take_give',
-        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة خد و هات! يمكن للجميع وضع بطاقات للتبادل.`,
+        type: 'joker',
+        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة جوكر!`,
         playerId: playerId
       });
       
@@ -829,446 +819,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use show-all card - FIXED
-  socket.on('card_game_use_show_all', ({ roomCode, playerId, cardId }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 USE SHOW-ALL CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const room = rooms[roomCode];
-      
-      if (game.currentTurn !== playerId) {
-        console.log(`❌ Not player ${playerId}'s turn`);
-        socket.emit('card_game_error', { message: 'Not your turn' });
-        return;
-      }
-
-      if (!game.playerHasDrawn[playerId]) {
-        console.log(`❌ Player ${playerId} must draw a card first`);
-        socket.emit('card_game_error', { message: 'You must draw a card before using action cards' });
-        return;
-      }
-
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Show-all card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Show-all card not found in hand' });
-        return;
-      }
-
-      const [showAllCard] = game.playerHands[playerId].splice(cardIndex, 1);
-      
-      game.tableCards.push(showAllCard);
-      
-      // Reset exchange state properly
-      game.activeExchange = {
-        type: 'show-all',
-        playerId: playerId,
-        card: showAllCard,
-        placedCards: {}
-      };
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      
-      io.to(roomCode).emit('card_game_open_exchange_square', {
-        exchangeType: 'show-all',
-        playerId: playerId,
-        playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
-        actionCard: showAllCard
-      });
-      
-      console.log(`✅ Show-all card used by ${playerId}. Card placed on table. Exchange square opened for ALL players.`);
-      
-      const currentPlayer = room.players.find(p => p.id === playerId);
-      io.to(roomCode).emit('card_game_message', {
-        type: 'show_all',
-        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة كل واحد يطلع اللي معاه! يمكن للجميع وضع بطاقات للتبادل.`,
-        playerId: playerId
-      });
-      
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Use shake card
-  socket.on('card_game_use_shake', ({ roomCode, playerId, cardId }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 USE SHAKE CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const room = rooms[roomCode];
-      
-      if (game.currentTurn !== playerId) {
-        console.log(`❌ Not player ${playerId}'s turn`);
-        socket.emit('card_game_error', { message: 'Not your turn' });
-        return;
-      }
-
-      if (!game.playerHasDrawn[playerId]) {
-        console.log(`❌ Player ${playerId} must draw a card first`);
-        socket.emit('card_game_error', { message: 'You must draw a card before using action cards' });
-        return;
-      }
-
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Shake card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Shake card not found in hand' });
-        return;
-      }
-
-      const [shakeCard] = game.playerHands[playerId].splice(cardIndex, 1);
-      
-      game.tableCards.push(shakeCard);
-      
-      // Reset shake state properly
-      game.activeShake = {
-        playerId: playerId,
-        card: shakeCard,
-        selectedPlayer: null,
-        placedCards: {}
-      };
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      
-      io.to(roomCode).emit('card_game_open_shake_square', {
-        playerId: playerId,
-        playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
-        actionCard: shakeCard
-      });
-      
-      console.log(`✅ Shake card used by ${playerId}. Card placed on table. Shake square opened for ALL players.`);
-      
-      const currentPlayer = room.players.find(p => p.id === playerId);
-      io.to(roomCode).emit('card_game_message', {
-        type: 'shake',
-        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة نفض نفسك! يمكن للجميع وضع بطاقاتهم.`,
-        playerId: playerId
-      });
-      
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Place card in exchange
-  socket.on('card_game_exchange_place_card', ({ roomCode, playerId, cardId }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 PLACE CARD IN EXCHANGE by player ${playerId} in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const room = rooms[roomCode];
-      
-      if (!game.activeExchange) {
-        console.log(`❌ No active exchange`);
-        socket.emit('card_game_error', { message: 'No active exchange' });
-        return;
-      }
-
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Card not found in hand' });
-        return;
-      }
-
-      const [card] = game.playerHands[playerId].splice(cardIndex, 1);
-      
-      if (!game.activeExchange.placedCards[playerId]) {
-        game.activeExchange.placedCards[playerId] = [];
-      }
-      game.activeExchange.placedCards[playerId].push(card);
-      
-      io.to(roomCode).emit('card_game_exchange_card_placed', {
-        playerId: playerId,
-        playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
-        cardCount: game.activeExchange.placedCards[playerId].length,
-        cards: game.activeExchange.placedCards[playerId]
-      });
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Player ${playerId} placed a card in exchange. Total placed: ${Object.values(game.activeExchange.placedCards).flat().length}`);
-      
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Place ALL cards in shake
-  socket.on('card_game_shake_place_all', ({ roomCode, playerId }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 PLACE ALL CARDS IN SHAKE by player ${playerId} in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const room = rooms[roomCode];
-      
-      if (!game.activeShake) {
-        console.log(`❌ No active shake`);
-        socket.emit('card_game_error', { message: 'No active shake' });
-        return;
-      }
-
-      const playerCards = [...game.playerHands[playerId]];
-      
-      if (playerCards.length === 0) {
-        console.log(`❌ Player ${playerId} has no cards to place`);
-        socket.emit('card_game_error', { message: 'ليس لديك بطاقات لوضعها' });
-        return;
-      }
-
-      // Move all player's cards to shake
-      game.playerHands[playerId] = [];
-      
-      if (!game.activeShake.placedCards[playerId]) {
-        game.activeShake.placedCards[playerId] = [];
-      }
-      game.activeShake.placedCards[playerId].push(...playerCards);
-      
-      io.to(roomCode).emit('card_game_shake_all_cards_placed', {
-        playerId: playerId,
-        playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
-        cardCount: playerCards.length,
-        cards: playerCards
-      });
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Player ${playerId} placed ALL ${playerCards.length} cards in shake.`);
-      
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Remove card from exchange
-  socket.on('card_game_exchange_remove_card', ({ roomCode, playerId, cardId }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 REMOVE CARD FROM EXCHANGE by player ${playerId} in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const room = rooms[roomCode];
-      
-      if (!game.activeExchange) {
-        console.log(`❌ No active exchange`);
-        socket.emit('card_game_error', { message: 'No active exchange' });
-        return;
-      }
-
-      if (!game.activeExchange.placedCards[playerId]) {
-        console.log(`❌ Player ${playerId} has no cards in exchange`);
-        socket.emit('card_game_error', { message: 'You have no cards in exchange' });
-        return;
-      }
-
-      const cardIndex = game.activeExchange.placedCards[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Card ${cardId} not found in player's exchange cards`);
-        socket.emit('card_game_error', { message: 'Card not found in exchange' });
-        return;
-      }
-
-      const [card] = game.activeExchange.placedCards[playerId].splice(cardIndex, 1);
-      
-      game.playerHands[playerId].push(card);
-      
-      if (game.activeExchange.placedCards[playerId].length === 0) {
-        delete game.activeExchange.placedCards[playerId];
-      }
-      
-      io.to(roomCode).emit('card_game_exchange_card_removed', {
-        playerId: playerId,
-        playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
-        cardCount: game.activeExchange.placedCards[playerId] ? game.activeExchange.placedCards[playerId].length : 0,
-        cards: game.activeExchange.placedCards[playerId] || []
-      });
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Player ${playerId} removed a card from exchange. Remaining placed: ${Object.values(game.activeExchange.placedCards).flat().length}`);
-      
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Complete exchange process - FIXED EXCHANGE LOGIC
-  socket.on('card_game_complete_exchange', ({ roomCode, playerId }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 COMPLETE EXCHANGE by player ${playerId} in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const room = rooms[roomCode];
-      
-      if (!game.activeExchange) {
-        console.log(`❌ No active exchange`);
-        socket.emit('card_game_error', { message: 'No active exchange' });
-        return;
-      }
-
-      const exchangeInitiatorId = game.activeExchange.playerId;
-      const exchangeType = game.activeExchange.type;
-      const placedCards = game.activeExchange.placedCards;
-      
-      console.log(`🔄 Processing ${exchangeType} exchange with players:`, Object.keys(placedCards));
-      
-      if (exchangeType === 'take-give' || exchangeType === 'show-all') {
-        // FIXED: For BOTH take-give AND show-all, exchange cards between players
-        const allPlacedCards = [];
-        const playerCardCounts = {};
-        
-        // Collect all cards and count how many each player placed
-        Object.entries(placedCards).forEach(([playerId, cards]) => {
-          allPlacedCards.push(...cards);
-          playerCardCounts[playerId] = cards.length;
-        });
-        
-        console.log(`🔄 ${exchangeType}: ${allPlacedCards.length} cards from ${Object.keys(placedCards).length} players`);
-        
-        if (allPlacedCards.length > 0) {
-          // Shuffle all placed cards
-          const shuffledCards = shuffleDeck([...allPlacedCards]);
-          
-          console.log(`🔄 Shuffled ${shuffledCards.length} cards for exchange`);
-          
-          // Redistribute cards randomly to players
-          let currentIndex = 0;
-          Object.keys(playerCardCounts).forEach(playerId => {
-            const cardCount = playerCardCounts[playerId];
-            console.log(`🔄 Giving ${cardCount} cards to player ${playerId}`);
-            
-            for (let i = 0; i < cardCount && currentIndex < shuffledCards.length; i++) {
-              game.playerHands[playerId].push(shuffledCards[currentIndex]);
-              currentIndex++;
-            }
-          });
-          
-          console.log(`✅ ${exchangeType} exchange completed: ${allPlacedCards.length} cards redistributed between players`);
-          
-          // Send message about the exchange
-          const currentPlayer = room.players.find(p => p.id === playerId);
-          io.to(roomCode).emit('card_game_message', {
-            type: 'exchange_completed',
-            message: `${currentPlayer?.name || 'لاعب'} أكمل عملية التبادل! تم تبادل ${allPlacedCards.length} بطاقة بين اللاعبين.`,
-            playerId: playerId,
-            exchangeType: exchangeType,
-            totalCards: allPlacedCards.length
-          });
-        }
-      }
-      
-      // Reset exchange state
-      game.activeExchange = null;
-      game.playerHasDrawn[exchangeInitiatorId] = false;
-      delete game.skippedPlayers[exchangeInitiatorId];
-      
-      let nextPlayerId = getNextNonSkippedPlayer(roomCode, exchangeInitiatorId, game.skippedPlayers);
-      game.currentTurn = nextPlayerId;
-      
-      io.to(roomCode).emit('card_game_exchange_completed', {
-        playerId: playerId,
-        exchangeType: exchangeType
-      });
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      
-      console.log(`✅ Exchange completed by ${playerId}. Turn moved from ${exchangeInitiatorId} to ${nextPlayerId}`);
-      
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Complete shake process
-  socket.on('card_game_complete_shake', ({ roomCode, playerId }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 COMPLETE SHAKE by player ${playerId} in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const room = rooms[roomCode];
-      
-      if (!game.activeShake) {
-        console.log(`❌ No active shake`);
-        socket.emit('card_game_error', { message: 'No active shake' });
-        return;
-      }
-
-      const shakeInitiatorId = game.activeShake.playerId;
-      const placedCards = game.activeShake.placedCards;
-      
-      console.log(`🔄 Processing shake with placed cards from players:`, Object.keys(placedCards));
-      
-      // Move all placed cards to table (add to existing table cards, don't clear)
-      const allPlacedCards = Object.values(placedCards).flat();
-      if (allPlacedCards.length > 0) {
-        console.log(`🔄 Adding ${allPlacedCards.length} shaken cards to the table. Table before: ${game.tableCards.length} cards`);
-        game.tableCards.push(...allPlacedCards);
-        console.log(`✅ Shake completed: ${allPlacedCards.length} cards moved to table. Table after: ${game.tableCards.length} cards`);
-        
-        // Give each player 5 new cards from draw pile ONLY
-        Object.keys(placedCards).forEach(playerId => {
-          const placedCount = placedCards[playerId].length;
-          console.log(`🔄 Giving 5 new cards to player ${playerId} who placed ${placedCount} cards. Draw pile: ${game.drawPile.length} cards`);
-          
-          for (let i = 0; i < 5; i++) {
-            if (game.drawPile.length > 0) {
-              const drawnCard = game.drawPile.pop();
-              game.playerHands[playerId].push(drawnCard);
-            } else {
-              console.log(`❌ No cards left in draw pile to give to player ${playerId}`);
-              break;
-            }
-          }
-          console.log(`✅ Player ${playerId} received 5 new cards after losing ${placedCount} cards. Now has ${game.playerHands[playerId].length} cards`);
-        });
-      }
-      
-      // Reset shake state
-      game.activeShake = null;
-      game.playerHasDrawn[shakeInitiatorId] = false;
-      delete game.skippedPlayers[shakeInitiatorId];
-      
-      let nextPlayerId = getNextNonSkippedPlayer(roomCode, shakeInitiatorId, game.skippedPlayers);
-      game.currentTurn = nextPlayerId;
-      
-      io.to(roomCode).emit('card_game_shake_completed', {
-        playerId: playerId,
-        totalCards: allPlacedCards.length
-      });
-      
-      io.to(roomCode).emit('card_game_message', {
-        type: 'shake_completed',
-        message: `تم نفض ${allPlacedCards.length} بطاقة! اللاعبون الذين وضعوا بطاقاتهم حصلوا على 5 بطاقات جديدة.`,
-        playerId: playerId
-      });
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      
-      console.log(`✅ Shake completed by ${playerId}. ${allPlacedCards.length} cards moved to table. Turn moved from ${shakeInitiatorId} to ${nextPlayerId}`);
-      
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Dice roll
+  // UPDATED: Dice roll for categories - Show dice number and category only to player who rolled
   socket.on('card_game_roll_dice', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎲 DICE ROLL by player ${playerId} in room ${roomCode}`);
     
+    // DYNAMIC: Automatically works with any number of categories
     const diceValue = Math.floor(Math.random() * gameCategories.length) + 1;
+    
+    // Find the category with this ID - works with any categories array
     const category = gameCategories.find(cat => cat.id === diceValue);
     
+    // UPDATED: Send dice value ONLY to the player who rolled (not to all players)
     socket.emit('card_game_dice_rolled', { diceValue });
     
+    // NEW: Send category ONLY to the player who rolled
     if (category) {
       socket.emit('card_game_dice_category', { category });
       console.log(`🎯 Player ${playerId} rolled dice: ${diceValue} - Category: ${category.name}`);
+      console.log(`📊 Total categories available: ${gameCategories.length}`);
+    } else {
+      console.log(`❌ Category not found for dice value: ${diceValue}`);
+      console.log(`📊 Available categories:`, gameCategories.map(c => c.id));
     }
   });
 
@@ -1381,11 +953,13 @@ io.on('connection', (socket) => {
         };
         game.challengeInProgress = true;
         
+        // NEW: Initialize challenge tracking
         game.challengeResponses = {};
         game.challengeRespondedPlayers = [];
         
         io.to(roomCode).emit('card_game_state_update', game);
         console.log(`✅ Category declared: Category ${game.playerCategories[playerId]?.id}`);
+        console.log(`🔄 Challenge started. Waiting for responses from other players.`);
       } else {
         console.log(`❌ Not enough valid cards in circles (${filledCircles.length}/3, need at least 2 non-joker cards)`);
         socket.emit('card_game_error', { message: 'Need at least 3 cards in circles with at least 2 non-joker cards' });
@@ -1395,7 +969,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Challenge response
+  // UPDATED: Challenge response - Player who rejects doesn't lose turn
   socket.on('card_game_challenge_response', ({ roomCode, playerId, accept, declaredPlayerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`⚖️ CHALLENGE RESPONSE by player ${playerId}: ${accept ? 'ACCEPT' : 'REJECT'} in room ${roomCode}`);
@@ -1410,15 +984,19 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Track responses
       if (!game.challengeRespondedPlayers.includes(playerId)) {
         game.challengeRespondedPlayers.push(playerId);
         game.challengeResponses[playerId] = accept;
         
         console.log(`📝 Player ${playerId} responded: ${accept ? 'ACCEPT' : 'REJECT'}`);
+        console.log(`📊 Responses so far:`, game.challengeResponses);
         
+        // Send update to show who has responded
         io.to(roomCode).emit('card_game_state_update', game);
       }
 
+      // Check if all players have responded (excluding the declaring player)
       const otherPlayers = room.players.filter(p => p.id !== declaredPlayerId);
       const allResponded = otherPlayers.every(player => 
         game.challengeRespondedPlayers.includes(player.id)
@@ -1427,6 +1005,7 @@ io.on('connection', (socket) => {
       if (allResponded) {
         console.log(`✅ All players have responded. Processing challenge result...`);
         
+        // Check if all players accepted
         const allAccepted = otherPlayers.every(player => 
           game.challengeResponses[player.id] === true
         );
@@ -1443,9 +1022,11 @@ io.on('connection', (socket) => {
             
             game.completedCategories[declaredPlayerId].push(game.playerCategories[declaredPlayerId]);
             
+            // FIXED: Allow progression to level 5 (WIN)
             game.playerLevels[declaredPlayerId] = Math.min(5, game.playerLevels[declaredPlayerId] + 1);
             game.playerCircles[declaredPlayerId] = [null, null, null, null];
             
+            // Give 3 new cards but player must still discard
             for (let i = 0; i < 3; i++) {
               if (game.drawPile.length > 0) {
                 const drawnCard = game.drawPile.pop();
@@ -1453,10 +1034,12 @@ io.on('connection', (socket) => {
               }
             }
             
+            // NEW: Check for winner and announce to all players
             if (game.playerLevels[declaredPlayerId] >= 5) {
               console.log(`🎊 ${completedPlayer.name} WON THE GAME! 🎊`);
               game.winner = declaredPlayerId;
               
+              // NEW: Emit winner announcement to ALL players
               io.to(roomCode).emit('card_game_winner_announced', {
                 playerId: declaredPlayerId,
                 winnerName: completedPlayer.name
@@ -1469,6 +1052,7 @@ io.on('connection', (socket) => {
                 winnerName: completedPlayer.name
               });
             } else {
+              // Send success message for regular level completion
               io.to(roomCode).emit('card_game_message', {
                 type: 'challenge_success',
                 message: `🎉 ${completedPlayer.name} أكمل الفئة بنجاح!`,
@@ -1477,14 +1061,20 @@ io.on('connection', (socket) => {
             }
             
             console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
+            console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
+            console.log(`   Player drew 3 new cards from pile`);
+            console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
+            console.log(`   Player must now discard one card`);
           }
         } else {
           console.log(`❌ Challenge FAILED: At least one player rejected`);
           
+          // NEW: Challenge failed but declaring player keeps their turn
           const declaringPlayer = room.players.find(p => p.id === declaredPlayerId);
           if (declaringPlayer) {
             console.log(`🔄 ${declaringPlayer.name} keeps their turn after failed challenge`);
             
+            // Send failure message
             io.to(roomCode).emit('card_game_message', {
               type: 'challenge_failed',
               message: `❌ ${declaringPlayer.name} لم يكمل الفئة، لكنه يحتفظ بدوره!`,
@@ -1493,6 +1083,7 @@ io.on('connection', (socket) => {
           }
         }
         
+        // End challenge regardless of outcome
         game.challengeInProgress = false;
         game.declaredCategory = null;
         game.challengeResponses = {};
@@ -1506,59 +1097,26 @@ io.on('connection', (socket) => {
     }
   });
 
-  // FIXED: Reset game by any player - PROPERLY RESET EXCHANGE STATES
+  // NEW: Allow any player to reset the game from winner modal
   socket.on('card_game_reset_any_player', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 RESET CARD GAME by any player in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
-        // Properly reset ALL game states including exchange
+        // Clear any winner state first
+        if (rooms[roomCode].cardGame) {
+          rooms[roomCode].cardGame.winner = null;
+        }
+        
         rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
         
-        // Force close any open exchange modals on frontend
+        // NEW: Emit reset event to all players first
         io.to(roomCode).emit('card_game_reset');
-        io.to(roomCode).emit('card_game_exchange_closed');
-        io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
         
+        // Then send the updated game state
+        io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
         console.log(`✅ Card game reset successfully by any player in ${roomCode}`);
-        console.log(`🃏 New game state after reset:`, {
-          drawPile: rooms[roomCode].cardGame.drawPile.length,
-          tableCards: rooms[roomCode].cardGame.tableCards.length,
-          activeExchange: rooms[roomCode].cardGame.activeExchange,
-          activeShake: rooms[roomCode].cardGame.activeShake
-        });
-      } catch (error) {
-        console.error('❌ Error resetting card game:', error);
-        socket.emit('card_game_error', { message: 'Failed to reset game: ' + error.message });
-      }
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found or no players' });
-    }
-  });
-
-  // FIXED: Reset card game - PROPERLY RESET EXCHANGE STATES
-  socket.on('card_game_reset', ({ roomCode }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 RESET CARD GAME in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
-      try {
-        // Properly reset ALL game states including exchange
-        rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
-        
-        // Force close any open exchange modals on frontend
-        io.to(roomCode).emit('card_game_reset');
-        io.to(roomCode).emit('card_game_exchange_closed');
-        io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
-        
-        console.log(`✅ Card game reset successfully in ${roomCode}`);
-        console.log(`🃏 New game state after reset:`, {
-          drawPile: rooms[roomCode].cardGame.drawPile.length,
-          tableCards: rooms[roomCode].cardGame.tableCards.length,
-          activeExchange: rooms[roomCode].cardGame.activeExchange,
-          activeShake: rooms[roomCode].cardGame.activeShake
-        });
       } catch (error) {
         console.error('❌ Error resetting card game:', error);
         socket.emit('card_game_error', { message: 'Failed to reset game: ' + error.message });
@@ -1580,7 +1138,36 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Shuffle deck
+  // UPDATED: Reset card game - properly broadcast to all players
+  socket.on('card_game_reset', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🔄 RESET CARD GAME in room ${roomCode}`);
+    
+    if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
+      try {
+        // Clear any winner state first
+        if (rooms[roomCode].cardGame) {
+          rooms[roomCode].cardGame.winner = null;
+        }
+        
+        rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
+        
+        // NEW: Emit reset event to all players first
+        io.to(roomCode).emit('card_game_reset');
+        
+        // Then send the updated game state
+        io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
+        console.log(`✅ Card game reset successfully in ${roomCode}`);
+      } catch (error) {
+        console.error('❌ Error resetting card game:', error);
+        socket.emit('card_game_error', { message: 'Failed to reset game: ' + error.message });
+      }
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found or no players' });
+    }
+  });
+
+  // UPDATED: Shuffle deck - Only shuffle table cards and draw pile, keep player hands unchanged
   socket.on('card_game_shuffle', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔀 SHUFFLE CARDS (Table + Draw Pile) in room ${roomCode}`);
@@ -1588,6 +1175,7 @@ io.on('connection', (socket) => {
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
       
+      // Combine only table cards and draw pile
       const cardsToShuffle = [...game.drawPile, ...game.tableCards];
       
       if (cardsToShuffle.length === 0) {
@@ -1598,12 +1186,19 @@ io.on('connection', (socket) => {
       
       const shuffled = shuffleDeck(cardsToShuffle);
       
+      // Update draw pile with shuffled cards
       game.drawPile = shuffled;
+      
+      // Clear table cards
       game.tableCards = [];
+      
+      // Player hands remain unchanged
       
       io.to(roomCode).emit('card_game_state_update', game);
       console.log(`✅ Cards shuffled. Table cards moved to draw pile. Draw pile: ${game.drawPile.length} cards, Table: ${game.tableCards.length} cards`);
+      console.log(`   Player hands remain unchanged`);
       
+      // Send message to all players
       io.to(roomCode).emit('card_game_message', {
         type: 'shuffle',
         message: `تم خلط ${shuffled.length} بطاقة من الطاولة والمجموعة!`,
@@ -1673,6 +1268,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected:', socket.id);
     
+    // NEW: Remove from activity tracking
     delete playerActivity[socket.id];
     
     const roomCode = socket.data?.roomCode;
@@ -1693,7 +1289,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Existing quiz game events
+  // Existing quiz game events - ALL UPDATED with activity tracking
   socket.on('buzz', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
@@ -1774,4 +1370,9 @@ server.listen(PORT, () => {
   console.log(`📸 Random photos system ready!`);
   console.log(`🖊️ Whiteboard system ready!`);
   console.log(`🎲 Dice system ready with ${gameCategories.length} categories!`);
+  console.log(`🎯 Private dice rolls enabled - only showing to rolling player`);
+  console.log(`🔀 Shuffle system ready - table cards move to draw pile only`);
+  console.log(`⏰ Inactivity timeout enabled - players will be disconnected after 5 minutes of inactivity`);
+  console.log(`🏆 Win condition enabled - players can now reach level 5 and win the game!`);
+  console.log(`🔄 Any player can now reset the game from winner modal!`);
 });
