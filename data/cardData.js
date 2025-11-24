@@ -572,361 +572,361 @@ const cardData = {
 
 
 
-    {
-      id: "exchange-001",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-002",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-003",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-004",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-005",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-006",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-007",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-008",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-009",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-010",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-011",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-012",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-013",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-014",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-015",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-016",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-017",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-018",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-019",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-020",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-021",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-022",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-023",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-024",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
-    {
-      id: "exchange-025",
-      name: "خد و هات",
-      type: "action",
-      subtype: "take-give",
-      image: "/images/give-take.jpg" // You'll need to add this image
-    },
+    // {
+    //   id: "exchange-001",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-002",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-003",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-004",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-005",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-006",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-007",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-008",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-009",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-010",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-011",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-012",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-013",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-014",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-015",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-016",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-017",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-018",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-019",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-020",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-021",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-022",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-023",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-024",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "exchange-025",
+    //   name: "خد و هات",
+    //   type: "action",
+    //   subtype: "take-give",
+    //   image: "/images/give-take.jpg" // You'll need to add this image
+    // },
 
 
 
 
     
-    {
-      id: "change-001", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-002", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-003", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-004", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-005", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-006", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-007", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-008", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-009", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-010", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-011", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-012", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-013", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-014", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-015", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-016", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-017", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-018", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-019", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-020", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-021", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-022", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-023", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-024", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
-    {
-      id: "change-025", 
-      name: "كل واحد يطلع اللي معاه",
-      type: "action",
-      subtype: "show-all",
-      image: "/images/take-all.jpg" // You'll need to add this image
-    },
+    // {
+    //   id: "change-001", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-002", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-003", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-004", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-005", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-006", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-007", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-008", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-009", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-010", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-011", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-012", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-013", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-014", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-015", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-016", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-017", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-018", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-019", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-020", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-021", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-022", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-023", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-024", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
+    // {
+    //   id: "change-025", 
+    //   name: "كل واحد يطلع اللي معاه",
+    //   type: "action",
+    //   subtype: "show-all",
+    //   image: "/images/take-all.jpg" // You'll need to add this image
+    // },
 
 
 

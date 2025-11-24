@@ -892,7 +892,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use shake card - FIXED TO NOT CLEAR TABLE
+  // Use shake card
   socket.on('card_game_use_shake', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 USE SHAKE CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
@@ -998,7 +998,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Place ALL cards in shake - FIXED
+  // Place ALL cards in shake
   socket.on('card_game_shake_place_all', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 PLACE ALL CARDS IN SHAKE by player ${playerId} in room ${roomCode}`);
@@ -1183,7 +1183,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Complete shake process - FIXED TO NOT CLEAR TABLE
+  // Complete shake process
   socket.on('card_game_complete_shake', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 COMPLETE SHAKE by player ${playerId} in room ${roomCode}`);
@@ -1506,19 +1506,53 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Reset game by any player
+  // FIXED: Reset game by any player - PROPERLY RESET EXCHANGE STATES
   socket.on('card_game_reset_any_player', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 RESET CARD GAME by any player in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
-        // Properly reset all game states
+        // Properly reset ALL game states including exchange
         rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
         
+        // Force close any open exchange modals on frontend
         io.to(roomCode).emit('card_game_reset');
+        io.to(roomCode).emit('card_game_exchange_closed');
         io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
+        
         console.log(`✅ Card game reset successfully by any player in ${roomCode}`);
+        console.log(`🃏 New game state after reset:`, {
+          drawPile: rooms[roomCode].cardGame.drawPile.length,
+          tableCards: rooms[roomCode].cardGame.tableCards.length,
+          activeExchange: rooms[roomCode].cardGame.activeExchange,
+          activeShake: rooms[roomCode].cardGame.activeShake
+        });
+      } catch (error) {
+        console.error('❌ Error resetting card game:', error);
+        socket.emit('card_game_error', { message: 'Failed to reset game: ' + error.message });
+      }
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found or no players' });
+    }
+  });
+
+  // FIXED: Reset card game - PROPERLY RESET EXCHANGE STATES
+  socket.on('card_game_reset', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🔄 RESET CARD GAME in room ${roomCode}`);
+    
+    if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
+      try {
+        // Properly reset ALL game states including exchange
+        rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
+        
+        // Force close any open exchange modals on frontend
+        io.to(roomCode).emit('card_game_reset');
+        io.to(roomCode).emit('card_game_exchange_closed');
+        io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
+        
+        console.log(`✅ Card game reset successfully in ${roomCode}`);
         console.log(`🃏 New game state after reset:`, {
           drawPile: rooms[roomCode].cardGame.drawPile.length,
           tableCards: rooms[roomCode].cardGame.tableCards.length,
@@ -1543,34 +1577,6 @@ io.on('connection', (socket) => {
       rooms[roomCode].cardGame = null;
       io.to(roomCode).emit('card_game_exited');
       console.log(`✅ Card game exited in room ${roomCode}`);
-    }
-  });
-
-  // Reset card game
-  socket.on('card_game_reset', ({ roomCode }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 RESET CARD GAME in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
-      try {
-        // Properly reset all game states
-        rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
-        
-        io.to(roomCode).emit('card_game_reset');
-        io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
-        console.log(`✅ Card game reset successfully in ${roomCode}`);
-        console.log(`🃏 New game state after reset:`, {
-          drawPile: rooms[roomCode].cardGame.drawPile.length,
-          tableCards: rooms[roomCode].cardGame.tableCards.length,
-          activeExchange: rooms[roomCode].cardGame.activeExchange,
-          activeShake: rooms[roomCode].cardGame.activeShake
-        });
-      } catch (error) {
-        console.error('❌ Error resetting card game:', error);
-        socket.emit('card_game_error', { message: 'Failed to reset game: ' + error.message });
-      }
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found or no players' });
     }
   });
 
