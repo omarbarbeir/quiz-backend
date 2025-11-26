@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
   res.send('Quiz Game Server Running');
 });
 
-// CRITICAL FIX: Use EXACT same Socket.IO config as old working code
+// Socket.IO config
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -33,7 +33,7 @@ const io = new Server(server, {
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 
-// Game categories - Numbers 1 to 24 (increased from 12)
+// Game categories
 const gameCategories = [
   { 
     id: 1, 
@@ -267,8 +267,6 @@ const gameCategories = [
 
 const rooms = {};
 const pendingActions = {};
-
-// NEW: Track player activity timestamps
 const playerActivity = {};
 
 function generateRoomCode() {
@@ -297,15 +295,21 @@ function getNextPlayer(roomCode, currentPlayerId) {
   const room = rooms[roomCode];
   if (!room || !room.players.length) return null;
   
-  const currentIndex = room.players.findIndex(p => p.id === currentPlayerId);
-  const nextIndex = (currentIndex + 1) % room.players.length;
-  return room.players[nextIndex].id;
+  // Get only non-admin players for turn order
+  const nonAdminPlayers = room.players.filter(p => !p.isAdmin);
+  if (nonAdminPlayers.length === 0) return null;
+  
+  const currentIndex = nonAdminPlayers.findIndex(p => p.id === currentPlayerId);
+  const nextIndex = (currentIndex + 1) % nonAdminPlayers.length;
+  return nonAdminPlayers[nextIndex].id;
 }
 
 function getNextNonSkippedPlayer(roomCode, currentPlayerId, skippedPlayers) {
   let nextPlayerId = getNextPlayer(roomCode, currentPlayerId);
   let skippedCount = 0;
-  const totalPlayers = rooms[roomCode].players.length;
+  const room = rooms[roomCode];
+  const nonAdminPlayers = room.players.filter(p => !p.isAdmin);
+  const totalPlayers = nonAdminPlayers.length;
   
   while (skippedPlayers[nextPlayerId] && skippedCount < totalPlayers) {
     console.log(`⏭️ Skipping ${nextPlayerId} because they are marked as skipped`);
@@ -325,23 +329,18 @@ function getNextNonSkippedPlayer(roomCode, currentPlayerId, skippedPlayers) {
   return nextPlayerId;
 }
 
-// NEW: Update player activity timestamp
 function updatePlayerActivity(socketId) {
   playerActivity[socketId] = Date.now();
-  console.log(`🕐 Updated activity for socket ${socketId}`);
 }
 
-// NEW: Check for inactive players and disconnect them
 function checkInactivePlayers() {
   const now = Date.now();
-  const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const FIVE_MINUTES = 5 * 60 * 1000;
   
   Object.keys(playerActivity).forEach(socketId => {
     const lastActivity = playerActivity[socketId];
     if (now - lastActivity > FIVE_MINUTES) {
-      console.log(`⏰ Disconnecting inactive socket ${socketId} (last activity: ${new Date(lastActivity).toISOString()})`);
-      
-      // Find the socket and disconnect it
+      console.log(`⏰ Disconnecting inactive socket ${socketId}`);
       const socket = io.sockets.sockets.get(socketId);
       if (socket) {
         socket.disconnect(true);
@@ -351,37 +350,51 @@ function checkInactivePlayers() {
   });
 }
 
-// NEW: Start the inactivity checker (runs every minute)
 setInterval(checkInactivePlayers, 60000);
 
-// UPDATED: Use ALL cards from the deck without limiting to 60
 function initializeCardGame(players) {
   console.log('🃏 Initializing card game for players:', players.map(p => p.name));
   
-  // Filter out action cards except joker and skip
   const filteredDeck = cardData.deck.filter(card => 
-    card.type !== 'action' || card.subtype === 'joker' || card.subtype === 'skip'
+    card.type !== 'action' || 
+    card.subtype === 'joker' || 
+    card.subtype === 'skip' ||
+    card.subtype === 'shake'
   );
   
   console.log(`🃏 Total cards in filtered deck: ${filteredDeck.length}`);
   
-  // Use ALL filtered cards instead of generating a limited deck
   const shuffledDeck = shuffleDeck(filteredDeck);
   const playerHands = {};
   
-  players.forEach(player => {
+  // Only deal cards to non-admin players
+  const nonAdminPlayers = players.filter(p => !p.isAdmin);
+  
+  nonAdminPlayers.forEach(player => {
     playerHands[player.id] = shuffledDeck.splice(0, 5);
-    console.log(`   Dealt 5 cards to ${player.name}`);
+    console.log(`   Dealt 5 cards to ${player.name}:`, playerHands[player.id].map(card => ({ 
+      name: card.name, 
+      type: card.type, 
+      subtype: card.subtype 
+    })));
+  });
+
+  // Admin players get empty hands
+  players.filter(p => p.isAdmin).forEach(admin => {
+    playerHands[admin.id] = [];
   });
 
   console.log(`🃏 Remaining cards in draw pile: ${shuffledDeck.length}`);
+
+  // Start with first non-admin player
+  const firstPlayer = nonAdminPlayers[0]?.id || null;
 
   return {
     deck: shuffledDeck,
     drawPile: shuffledDeck,
     tableCards: [],
     playerHands,
-    currentTurn: players[0]?.id,
+    currentTurn: firstPlayer,
     gameStarted: true,
     declaredCategory: null,
     challengeInProgress: false,
@@ -394,15 +407,16 @@ function initializeCardGame(players) {
     skippedPlayers: {},
     challengeResponses: {},
     challengeRespondedPlayers: [],
-    winner: null // NEW: Initialize winner as null
+    winner: null,
+    activeShake: null,
+    shakeSelectedPlayer: null,
+    shakePlacedCards: {}
   };
 }
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
-  
-  // NEW: Initialize activity tracking for this socket
   updatePlayerActivity(socket.id);
 
   // Create room
@@ -411,6 +425,7 @@ io.on('connection', (socket) => {
     const roomCode = generateRoomCode();
     rooms[roomCode] = {
       players: [],
+      admin: socket.id, // Store admin socket ID
       activePlayer: null,
       buzzerLocked: false,
       currentQuestion: null,
@@ -429,7 +444,7 @@ io.on('connection', (socket) => {
     
     socket.emit('room_created', roomCode);
     socket.join(roomCode);
-    console.log(`🏠 Room created: ${roomCode}`);
+    console.log(`🏠 Room created: ${roomCode} by admin ${socket.id}`);
   });
 
   // Join room
@@ -440,7 +455,8 @@ io.on('connection', (socket) => {
     if (rooms[roomCode]) {
       const playerWithSocket = { 
         ...player, 
-        socketId: socket.id
+        socketId: socket.id,
+        isAdmin: socket.id === rooms[roomCode].admin // Check if player is admin
       };
       rooms[roomCode].players.push(playerWithSocket);
       socket.join(roomCode);
@@ -448,7 +464,6 @@ io.on('connection', (socket) => {
       socket.emit('player_joined', player);
       io.to(roomCode).emit('player_joined', player);
       
-      // Send whiteboard state to new player
       socket.emit('whiteboard_state', rooms[roomCode].whiteboard);
       
       if (rooms[roomCode].cardGame) {
@@ -523,7 +538,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // CARD GAME EVENTS
+  // CARD GAME EVENTS - FIXED INITIALIZATION
   socket.on('card_game_initialize', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎮 CARD GAME INITIALIZE for room: ${roomCode}`);
@@ -561,13 +576,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Draw card from pile
+  // Draw card from pile - ADMIN CANNOT PLAY
   socket.on('card_game_draw', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🃏 DRAW CARD by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
       
       if (game.skippedPlayers[playerId]) {
         console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -611,13 +634,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Play card to table
+  // Play card to table - ADMIN CANNOT PLAY
   socket.on('card_game_play_table', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🃏 PLAY TO TABLE by player ${playerId} with card ${cardId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
       
       if (game.skippedPlayers[playerId]) {
         console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -648,7 +679,6 @@ io.on('connection', (socket) => {
       game.tableCards.push(card);
       
       game.playerHasDrawn[playerId] = false;
-      
       delete game.skippedPlayers[playerId];
       
       let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
@@ -661,13 +691,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Take card from table
+  // Take card from table - ADMIN CANNOT PLAY
   socket.on('card_game_take_table', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🃏 TAKE FROM TABLE by player ${playerId} for card ${cardId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
       
       if (game.skippedPlayers[playerId]) {
         console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -694,7 +732,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // NEW: Skip cards cannot be taken from table
       if (topCard.type === 'action' && topCard.subtype === 'skip') {
         console.log(`❌ Skip cards cannot be taken from table`);
         socket.emit('card_game_error', { message: 'Skip cards cannot be taken from the table' });
@@ -712,13 +749,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use skip card
+  // Use skip card - ADMIN CANNOT PLAY
   socket.on('card_game_use_skip', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎭 USE SKIP CARD by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -741,17 +786,14 @@ io.on('connection', (socket) => {
 
       const [skipCard] = game.playerHands[playerId].splice(cardIndex, 1);
       
-      // NEW: Automatically skip the next player
       const nextPlayerId = getNextPlayer(roomCode, playerId);
       game.skippedPlayers[nextPlayerId] = true;
       
-      // Put skip card on table (cannot be taken)
       game.tableCards.push(skipCard);
       
       game.playerHasDrawn[playerId] = false;
       delete game.skippedPlayers[playerId];
       
-      // Move turn to player after the skipped one
       let finalNextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
       game.currentTurn = finalNextPlayerId;
       
@@ -772,13 +814,22 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use joker card
-  socket.on('card_game_use_joker', ({ roomCode, playerId, cardId }) => {
+  // Use shake card - ADMIN CANNOT PLAY - FIXED
+  socket.on('card_game_use_shake', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
-    console.log(`🃏 USE JOKER CARD by player ${playerId} in room ${roomCode}`);
+    console.log(`🔄 USE SHAKE CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const room = rooms[roomCode];
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -794,23 +845,37 @@ io.on('connection', (socket) => {
 
       const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
       if (cardIndex === -1) {
-        console.log(`❌ Joker card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Joker card not found in hand' });
+        console.log(`❌ Shake card ${cardId} not found in player's hand`);
+        socket.emit('card_game_error', { message: 'Shake card not found in hand' });
         return;
       }
 
-      const [jokerCard] = game.playerHands[playerId].splice(cardIndex, 1);
+      const [shakeCard] = game.playerHands[playerId].splice(cardIndex, 1);
       
-      // Put joker card on table (can be taken)
-      game.tableCards.push(jokerCard);
+      game.tableCards.push(shakeCard);
+      
+      // Reset shake state properly
+      game.activeShake = {
+        playerId: playerId,
+        card: shakeCard,
+        selectedPlayer: null,
+        placedCards: {}
+      };
       
       io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Joker card used by ${playerId}. Player can continue turn.`);
       
-      const currentPlayer = rooms[roomCode].players.find(p => p.id === playerId);
+      io.to(roomCode).emit('card_game_open_shake_square', {
+        playerId: playerId,
+        playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
+        actionCard: shakeCard
+      });
+      
+      console.log(`✅ Shake card used by ${playerId}. Card placed on table. Shake square opened for ALL players.`);
+      
+      const currentPlayer = room.players.find(p => p.id === playerId);
       io.to(roomCode).emit('card_game_message', {
-        type: 'joker',
-        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة جوكر!`,
+        type: 'shake',
+        message: `${currentPlayer?.name || 'لاعب'} استخدم بطاقة نفض نفسك! يمكن للاعب واحد فقط وضع بطاقاته.`,
         playerId: playerId
       });
       
@@ -819,38 +884,184 @@ io.on('connection', (socket) => {
     }
   });
 
-  // UPDATED: Dice roll for categories - Show dice number and category only to player who rolled
+  // Place ALL cards in shake - ADMIN CANNOT PLAY - FIXED: Only allow one player to place cards
+  socket.on('card_game_shake_place_all', ({ roomCode, playerId }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🔄 PLACE ALL CARDS IN SHAKE by player ${playerId} in room ${roomCode}`);
+    
+    if (rooms[roomCode] && rooms[roomCode].cardGame) {
+      const game = rooms[roomCode].cardGame;
+      const room = rooms[roomCode];
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
+      
+      if (!game.activeShake) {
+        console.log(`❌ No active shake`);
+        socket.emit('card_game_error', { message: 'No active shake' });
+        return;
+      }
+
+      // Check if any player has already placed cards
+      const anyPlayerPlacedCards = Object.keys(game.activeShake.placedCards).length > 0;
+      if (anyPlayerPlacedCards) {
+        console.log(`❌ Another player has already placed cards in this shake`);
+        socket.emit('card_game_error', { message: 'لاعب آخر وضع بطاقاته بالفعل في هذا النفض' });
+        return;
+      }
+
+      // Get ALL cards from player (hand + circles)
+      const playerHandCards = [...game.playerHands[playerId]];
+      const playerCircleCards = game.playerCircles[playerId].filter(card => card !== null);
+      const allPlayerCards = [...playerHandCards, ...playerCircleCards];
+      
+      if (allPlayerCards.length === 0) {
+        console.log(`❌ Player ${playerId} has no cards to place`);
+        socket.emit('card_game_error', { message: 'ليس لديك بطاقات لوضعها' });
+        return;
+      }
+
+      // Move all player's cards to shake (both hand and circles)
+      game.playerHands[playerId] = [];
+      game.playerCircles[playerId] = [null, null, null, null]; // Clear all circles
+      
+      if (!game.activeShake.placedCards[playerId]) {
+        game.activeShake.placedCards[playerId] = [];
+      }
+      game.activeShake.placedCards[playerId].push(...allPlayerCards);
+      
+      io.to(roomCode).emit('card_game_shake_all_cards_placed', {
+        playerId: playerId,
+        playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
+        cardCount: allPlayerCards.length,
+        cards: allPlayerCards
+      });
+      
+      io.to(roomCode).emit('card_game_state_update', game);
+      console.log(`✅ Player ${playerId} placed ALL ${allPlayerCards.length} cards in shake (hand: ${playerHandCards.length}, circles: ${playerCircleCards.length}).`);
+      
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found' });
+    }
+  });
+
+  // Complete shake process - ADMIN CANNOT PLAY - FIXED
+  socket.on('card_game_complete_shake', ({ roomCode, playerId }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🔄 COMPLETE SHAKE by player ${playerId} in room ${roomCode}`);
+    
+    if (rooms[roomCode] && rooms[roomCode].cardGame) {
+      const game = rooms[roomCode].cardGame;
+      const room = rooms[roomCode];
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
+      
+      if (!game.activeShake) {
+        console.log(`❌ No active shake`);
+        socket.emit('card_game_error', { message: 'No active shake' });
+        return;
+      }
+
+      const shakeInitiatorId = game.activeShake.playerId;
+      const placedCards = game.activeShake.placedCards;
+      
+      console.log(`🔄 Processing shake with placed cards from players:`, Object.keys(placedCards));
+      
+      // Move all placed cards to table (add to existing table cards, don't clear)
+      const allPlacedCards = Object.values(placedCards).flat();
+      if (allPlacedCards.length > 0) {
+        console.log(`🔄 Adding ${allPlacedCards.length} shaken cards to the table. Table before: ${game.tableCards.length} cards`);
+        game.tableCards.push(...allPlacedCards);
+        console.log(`✅ Shake completed: ${allPlacedCards.length} cards moved to table. Table after: ${game.tableCards.length} cards`);
+        
+        // Give each player 5 new cards from draw pile ONLY
+        Object.keys(placedCards).forEach(playerId => {
+          const placedCount = placedCards[playerId].length;
+          console.log(`🔄 Giving 5 new cards to player ${playerId} who placed ${placedCount} cards. Draw pile: ${game.drawPile.length} cards`);
+          
+          for (let i = 0; i < 5; i++) {
+            if (game.drawPile.length > 0) {
+              const drawnCard = game.drawPile.pop();
+              game.playerHands[playerId].push(drawnCard);
+            } else {
+              console.log(`❌ No cards left in draw pile to give to player ${playerId}`);
+              break;
+            }
+          }
+          console.log(`✅ Player ${playerId} received 5 new cards after losing ${placedCount} cards. Now has ${game.playerHands[playerId].length} cards`);
+        });
+      }
+      
+      // Reset shake state
+      game.activeShake = null;
+      game.playerHasDrawn[shakeInitiatorId] = false;
+      delete game.skippedPlayers[shakeInitiatorId];
+      
+      let nextPlayerId = getNextNonSkippedPlayer(roomCode, shakeInitiatorId, game.skippedPlayers);
+      game.currentTurn = nextPlayerId;
+      
+      io.to(roomCode).emit('card_game_shake_completed', {
+        playerId: playerId,
+        totalCards: allPlacedCards.length
+      });
+      
+      io.to(roomCode).emit('card_game_message', {
+        type: 'shake_completed',
+        message: `تم نفض ${allPlacedCards.length} بطاقة! اللاعبون الذين وضعوا بطاقاتهم حصلوا على 5 بطاقات جديدة.`,
+        playerId: playerId
+      });
+      
+      io.to(roomCode).emit('card_game_state_update', game);
+      
+      console.log(`✅ Shake completed by ${playerId}. ${allPlacedCards.length} cards moved to table. Turn moved from ${shakeInitiatorId} to ${nextPlayerId}`);
+      
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found' });
+    }
+  });
+
+  // Dice roll - ADMIN CAN PLAY
   socket.on('card_game_roll_dice', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎲 DICE ROLL by player ${playerId} in room ${roomCode}`);
     
-    // DYNAMIC: Automatically works with any number of categories
     const diceValue = Math.floor(Math.random() * gameCategories.length) + 1;
-    
-    // Find the category with this ID - works with any categories array
     const category = gameCategories.find(cat => cat.id === diceValue);
     
-    // UPDATED: Send dice value ONLY to the player who rolled (not to all players)
     socket.emit('card_game_dice_rolled', { diceValue });
     
-    // NEW: Send category ONLY to the player who rolled
     if (category) {
       socket.emit('card_game_dice_category', { category });
       console.log(`🎯 Player ${playerId} rolled dice: ${diceValue} - Category: ${category.name}`);
-      console.log(`📊 Total categories available: ${gameCategories.length}`);
-    } else {
-      console.log(`❌ Category not found for dice value: ${diceValue}`);
-      console.log(`📊 Available categories:`, gameCategories.map(c => c.id));
     }
   });
 
-  // Move card to circle
+  // Move card to circle - ADMIN CANNOT PLAY
   socket.on('card_game_move_to_circle', ({ roomCode, playerId, circleIndex, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 MOVE TO CIRCLE by player ${playerId}, card ${cardId} to circle ${circleIndex} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -881,13 +1092,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Remove card from circle
+  // Remove card from circle - ADMIN CANNOT PLAY
   socket.on('card_game_remove_from_circle', ({ roomCode, playerId, circleIndex }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 REMOVE FROM CIRCLE by player ${playerId} from circle ${circleIndex} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -917,13 +1136,22 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Declare category
+  // Declare category - ADMIN CANNOT PLAY
   socket.on('card_game_declare', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🏆 DECLARE CATEGORY by player ${playerId} in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
+      const room = rooms[roomCode];
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -944,7 +1172,7 @@ io.on('connection', (socket) => {
       const jokerCards = filledCircles.filter(card => card.type === 'action' && card.subtype === 'joker');
       
       if (nonJokerCards.length >= 2 && filledCircles.length >= 3) {
-        const player = rooms[roomCode].players.find(p => p.id === playerId);
+        const player = room.players.find(p => p.id === playerId);
         game.declaredCategory = {
           playerId,
           playerName: player?.name || 'Unknown',
@@ -953,13 +1181,13 @@ io.on('connection', (socket) => {
         };
         game.challengeInProgress = true;
         
-        // NEW: Initialize challenge tracking
+        // Reset challenge responses
         game.challengeResponses = {};
         game.challengeRespondedPlayers = [];
         
         io.to(roomCode).emit('card_game_state_update', game);
-        console.log(`✅ Category declared: Category ${game.playerCategories[playerId]?.id}`);
-        console.log(`🔄 Challenge started. Waiting for responses from other players.`);
+        console.log(`✅ Category declared by ${playerId}. Waiting for challenge responses.`);
+        
       } else {
         console.log(`❌ Not enough valid cards in circles (${filledCircles.length}/3, need at least 2 non-joker cards)`);
         socket.emit('card_game_error', { message: 'Need at least 3 cards in circles with at least 2 non-joker cards' });
@@ -969,7 +1197,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // UPDATED: Challenge response - Player who rejects doesn't lose turn
+  // Challenge response - FIXED: Working voting modal like old code
   socket.on('card_game_challenge_response', ({ roomCode, playerId, accept, declaredPlayerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`⚖️ CHALLENGE RESPONSE by player ${playerId}: ${accept ? 'ACCEPT' : 'REJECT'} in room ${roomCode}`);
@@ -984,28 +1212,40 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Track responses
+      // Check if player is admin - skip admin voting
+      const respondingPlayer = room.players.find(p => p.id === playerId);
+      if (respondingPlayer && respondingPlayer.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot vote in challenges`);
+        socket.emit('card_game_error', { message: 'Admin cannot vote in challenges' });
+        return;
+      }
+
+      if (playerId === declaredPlayerId) {
+        console.log(`❌ Declaring player cannot respond to their own challenge`);
+        socket.emit('card_game_error', { message: 'You cannot respond to your own challenge' });
+        return;
+      }
+
       if (!game.challengeRespondedPlayers.includes(playerId)) {
         game.challengeRespondedPlayers.push(playerId);
         game.challengeResponses[playerId] = accept;
         
         console.log(`📝 Player ${playerId} responded: ${accept ? 'ACCEPT' : 'REJECT'}`);
-        console.log(`📊 Responses so far:`, game.challengeResponses);
         
-        // Send update to show who has responded
         io.to(roomCode).emit('card_game_state_update', game);
       }
 
-      // Check if all players have responded (excluding the declaring player)
-      const otherPlayers = room.players.filter(p => p.id !== declaredPlayerId);
+      // Get non-admin players excluding declarer
+      const nonAdminPlayers = room.players.filter(p => !p.isAdmin);
+      const otherPlayers = nonAdminPlayers.filter(p => p.id !== declaredPlayerId);
+      
       const allResponded = otherPlayers.every(player => 
         game.challengeRespondedPlayers.includes(player.id)
       );
 
       if (allResponded) {
-        console.log(`✅ All players have responded. Processing challenge result...`);
+        console.log(`✅ All non-admin players have responded. Processing challenge result...`);
         
-        // Check if all players accepted
         const allAccepted = otherPlayers.every(player => 
           game.challengeResponses[player.id] === true
         );
@@ -1016,17 +1256,21 @@ io.on('connection', (socket) => {
           if (completedPlayer) {
             const completedCards = game.playerCircles[declaredPlayerId].filter(card => card !== null);
             
+            // Move completed cards to table
             completedCards.forEach(card => {
               game.tableCards.unshift(card);
             });
             
+            // Add to completed categories
             game.completedCategories[declaredPlayerId].push(game.playerCategories[declaredPlayerId]);
             
-            // FIXED: Allow progression to level 5 (WIN)
+            // Increase player level
             game.playerLevels[declaredPlayerId] = Math.min(5, game.playerLevels[declaredPlayerId] + 1);
+            
+            // Clear circles
             game.playerCircles[declaredPlayerId] = [null, null, null, null];
             
-            // Give 3 new cards but player must still discard
+            // Give player 3 new cards from draw pile
             for (let i = 0; i < 3; i++) {
               if (game.drawPile.length > 0) {
                 const drawnCard = game.drawPile.pop();
@@ -1034,12 +1278,12 @@ io.on('connection', (socket) => {
               }
             }
             
-            // NEW: Check for winner and announce to all players
+            console.log(`✅ ${completedPlayer.name} completed category and received 3 new cards.`);
+            
             if (game.playerLevels[declaredPlayerId] >= 5) {
               console.log(`🎊 ${completedPlayer.name} WON THE GAME! 🎊`);
               game.winner = declaredPlayerId;
               
-              // NEW: Emit winner announcement to ALL players
               io.to(roomCode).emit('card_game_winner_announced', {
                 playerId: declaredPlayerId,
                 winnerName: completedPlayer.name
@@ -1052,29 +1296,20 @@ io.on('connection', (socket) => {
                 winnerName: completedPlayer.name
               });
             } else {
-              // Send success message for regular level completion
               io.to(roomCode).emit('card_game_message', {
                 type: 'challenge_success',
                 message: `🎉 ${completedPlayer.name} أكمل الفئة بنجاح!`,
                 playerId: declaredPlayerId
               });
             }
-            
-            console.log(`✅ ${completedPlayer.name} completed category: Category ${game.declaredCategory.category?.id}`);
-            console.log(`   Moved ${completedCards.length} circle cards to BOTTOM of table`);
-            console.log(`   Player drew 3 new cards from pile`);
-            console.log(`   Level: ${game.playerLevels[declaredPlayerId]}`);
-            console.log(`   Player must now discard one card`);
           }
         } else {
           console.log(`❌ Challenge FAILED: At least one player rejected`);
           
-          // NEW: Challenge failed but declaring player keeps their turn
           const declaringPlayer = room.players.find(p => p.id === declaredPlayerId);
           if (declaringPlayer) {
             console.log(`🔄 ${declaringPlayer.name} keeps their turn after failed challenge`);
             
-            // Send failure message
             io.to(roomCode).emit('card_game_message', {
               type: 'challenge_failed',
               message: `❌ ${declaringPlayer.name} لم يكمل الفئة، لكنه يحتفظ بدوره!`,
@@ -1083,11 +1318,16 @@ io.on('connection', (socket) => {
           }
         }
         
-        // End challenge regardless of outcome
+        // Reset challenge state but KEEP THE TURN with declaring player
         game.challengeInProgress = false;
         game.declaredCategory = null;
         game.challengeResponses = {};
         game.challengeRespondedPlayers = [];
+        
+        // IMPORTANT: Turn remains with the declaring player
+        // They must now discard a card to end their turn
+        game.currentTurn = declaredPlayerId;
+        game.playerHasDrawn[declaredPlayerId] = true; // They need to discard
         
         io.to(roomCode).emit('card_game_state_update', game);
         console.log(`✅ Challenge resolved. Current turn remains with: ${game.currentTurn}`);
@@ -1097,24 +1337,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Allow any player to reset the game from winner modal
+  // Reset game by any player
   socket.on('card_game_reset_any_player', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 RESET CARD GAME by any player in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
-        // Clear any winner state first
-        if (rooms[roomCode].cardGame) {
-          rooms[roomCode].cardGame.winner = null;
-        }
-        
+        // Properly reset all game states
         rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
         
-        // NEW: Emit reset event to all players first
         io.to(roomCode).emit('card_game_reset');
-        
-        // Then send the updated game state
         io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
         console.log(`✅ Card game reset successfully by any player in ${roomCode}`);
       } catch (error) {
@@ -1138,24 +1371,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  // UPDATED: Reset card game - properly broadcast to all players
+  // Reset card game
   socket.on('card_game_reset', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 RESET CARD GAME in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
-        // Clear any winner state first
-        if (rooms[roomCode].cardGame) {
-          rooms[roomCode].cardGame.winner = null;
-        }
-        
+        // Properly reset all game states
         rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
         
-        // NEW: Emit reset event to all players first
         io.to(roomCode).emit('card_game_reset');
-        
-        // Then send the updated game state
         io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
         console.log(`✅ Card game reset successfully in ${roomCode}`);
       } catch (error) {
@@ -1167,7 +1393,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // UPDATED: Shuffle deck - Only shuffle table cards and draw pile, keep player hands unchanged
+  // Shuffle deck - ADMIN CAN DO THIS
   socket.on('card_game_shuffle', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔀 SHUFFLE CARDS (Table + Draw Pile) in room ${roomCode}`);
@@ -1175,7 +1401,6 @@ io.on('connection', (socket) => {
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
       
-      // Combine only table cards and draw pile
       const cardsToShuffle = [...game.drawPile, ...game.tableCards];
       
       if (cardsToShuffle.length === 0) {
@@ -1186,19 +1411,12 @@ io.on('connection', (socket) => {
       
       const shuffled = shuffleDeck(cardsToShuffle);
       
-      // Update draw pile with shuffled cards
       game.drawPile = shuffled;
-      
-      // Clear table cards
       game.tableCards = [];
-      
-      // Player hands remain unchanged
       
       io.to(roomCode).emit('card_game_state_update', game);
       console.log(`✅ Cards shuffled. Table cards moved to draw pile. Draw pile: ${game.drawPile.length} cards, Table: ${game.tableCards.length} cards`);
-      console.log(`   Player hands remain unchanged`);
       
-      // Send message to all players
       io.to(roomCode).emit('card_game_message', {
         type: 'shuffle',
         message: `تم خلط ${shuffled.length} بطاقة من الطاولة والمجموعة!`,
@@ -1268,7 +1486,6 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected:', socket.id);
     
-    // NEW: Remove from activity tracking
     delete playerActivity[socket.id];
     
     const roomCode = socket.data?.roomCode;
@@ -1281,6 +1498,12 @@ io.on('connection', (socket) => {
         rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
         console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
         
+        // If admin disconnects, assign new admin
+        if (rooms[roomCode].admin === socket.id && rooms[roomCode].players.length > 0) {
+          rooms[roomCode].admin = rooms[roomCode].players[0].socketId;
+          console.log(`👑 New admin assigned: ${rooms[roomCode].players[0].name}`);
+        }
+        
         if (rooms[roomCode].players.length === 0) {
           delete rooms[roomCode];
           console.log(`🏠 Room ${roomCode} closed (no players)`);
@@ -1289,7 +1512,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Existing quiz game events - ALL UPDATED with activity tracking
+  // Existing quiz game events
   socket.on('buzz', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
@@ -1370,9 +1593,4 @@ server.listen(PORT, () => {
   console.log(`📸 Random photos system ready!`);
   console.log(`🖊️ Whiteboard system ready!`);
   console.log(`🎲 Dice system ready with ${gameCategories.length} categories!`);
-  console.log(`🎯 Private dice rolls enabled - only showing to rolling player`);
-  console.log(`🔀 Shuffle system ready - table cards move to draw pile only`);
-  console.log(`⏰ Inactivity timeout enabled - players will be disconnected after 5 minutes of inactivity`);
-  console.log(`🏆 Win condition enabled - players can now reach level 5 and win the game!`);
-  console.log(`🔄 Any player can now reset the game from winner modal!`);
 });
