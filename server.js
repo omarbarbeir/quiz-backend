@@ -950,7 +950,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Complete shake process - ADMIN CANNOT PLAY - FIXED
+  // Complete shake process - ADMIN CANNOT PLAY - FIXED: Cards go to BOTTOM of table
   socket.on('card_game_complete_shake', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 COMPLETE SHAKE by player ${playerId} in room ${roomCode}`);
@@ -978,12 +978,15 @@ io.on('connection', (socket) => {
       
       console.log(`🔄 Processing shake with placed cards from players:`, Object.keys(placedCards));
       
-      // Move all placed cards to table (add to existing table cards, don't clear)
+      // Move all placed cards to table (add to BOTTOM of table cards, not top)
       const allPlacedCards = Object.values(placedCards).flat();
       if (allPlacedCards.length > 0) {
-        console.log(`🔄 Adding ${allPlacedCards.length} shaken cards to the table. Table before: ${game.tableCards.length} cards`);
-        game.tableCards.push(...allPlacedCards);
-        console.log(`✅ Shake completed: ${allPlacedCards.length} cards moved to table. Table after: ${game.tableCards.length} cards`);
+        console.log(`🔄 Adding ${allPlacedCards.length} shaken cards to the BOTTOM of table. Table before: ${game.tableCards.length} cards`);
+        
+        // CHANGED: Use unshift instead of push to add cards to the beginning (bottom) of the table
+        game.tableCards.unshift(...allPlacedCards);
+        
+        console.log(`✅ Shake completed: ${allPlacedCards.length} cards moved to BOTTOM of table. Table after: ${game.tableCards.length} cards`);
         
         // Give each player 5 new cards from draw pile ONLY
         Object.keys(placedCards).forEach(playerId => {
@@ -1024,7 +1027,7 @@ io.on('connection', (socket) => {
       
       io.to(roomCode).emit('card_game_state_update', game);
       
-      console.log(`✅ Shake completed by ${playerId}. ${allPlacedCards.length} cards moved to table. Turn moved from ${shakeInitiatorId} to ${nextPlayerId}`);
+      console.log(`✅ Shake completed by ${playerId}. ${allPlacedCards.length} cards moved to BOTTOM of table. Turn moved from ${shakeInitiatorId} to ${nextPlayerId}`);
       
     } else {
       socket.emit('card_game_error', { message: 'Game not found' });
@@ -1280,10 +1283,12 @@ io.on('connection', (socket) => {
             
             console.log(`✅ ${completedPlayer.name} completed category and received 3 new cards.`);
             
+            // FIXED: Check for winner and announce to ALL players
             if (game.playerLevels[declaredPlayerId] >= 5) {
               console.log(`🎊 ${completedPlayer.name} WON THE GAME! 🎊`);
               game.winner = declaredPlayerId;
               
+              // FIXED: Announce winner to ALL players including the winner
               io.to(roomCode).emit('card_game_winner_announced', {
                 playerId: declaredPlayerId,
                 winnerName: completedPlayer.name
@@ -1337,19 +1342,23 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Reset game by any player
+  // Reset game by any player - FIXED: Properly reset winner state and emit to all
   socket.on('card_game_reset_any_player', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 RESET CARD GAME by any player in room ${roomCode}`);
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
-        // Properly reset all game states
-        rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
+        // Properly reset all game states including winner
+        const newGameState = initializeCardGame(rooms[roomCode].players);
+        rooms[roomCode].cardGame = newGameState;
         
+        // FIXED: Emit reset event first to clear winner state on clients
         io.to(roomCode).emit('card_game_reset');
-        io.to(roomCode).emit('card_game_state_update', rooms[roomCode].cardGame);
-        console.log(`✅ Card game reset successfully by any player in ${roomCode}`);
+        
+        // Then send the new game state
+        io.to(roomCode).emit('card_game_state_update', newGameState);
+        console.log(`✅ Card game reset successfully by any player in ${roomCode}. All players notified.`);
       } catch (error) {
         console.error('❌ Error resetting card game:', error);
         socket.emit('card_game_error', { message: 'Failed to reset game: ' + error.message });
