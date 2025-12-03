@@ -1004,14 +1004,14 @@ io.on('connection', (socket) => {
         message: 'اختر بطاقة من يدك أو دوائرك للتبادل'
       });
       
-      // Notify other players to wait
-      socket.to(roomCode).emit('card_game_exchange_waiting', {
+      // Notify other players to wait AND SHOW THEIR CARDS
+      socket.to(roomCode).emit('card_game_exchange_waiting_with_cards', {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
-        message: 'بانتظار اختيار اللاعب لبطاقته'
+        message: 'بانتظار اختيار اللاعب لبطاقته - يمكنك رؤية بطاقاتك لكن لا يمكنك الاختيار حتى يختار اللاعب الآخر'
       });
       
-      console.log(`✅ Exchange card used by ${playerId}. Waiting for initiator to choose a card.`);
+      console.log(`✅ Exchange card used by ${playerId}. Waiting for initiator to choose a card. Other players can see their cards.`);
       
       const currentPlayer = room.players.find(p => p.id === playerId);
       io.to(roomCode).emit('card_game_message', {
@@ -1025,7 +1025,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Use collective exchange card - NOW SAME AS REGULAR EXCHANGE
+  // NEW: Use collective exchange card - SAME AS REGULAR EXCHANGE
   socket.on('card_game_use_collective_exchange', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 USE COLLECTIVE EXCHANGE CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
@@ -1087,14 +1087,14 @@ io.on('connection', (socket) => {
         message: 'اختر بطاقة من يدك أو دوائرك للتبادل الجماعي'
       });
       
-      // Notify other players to wait
-      socket.to(roomCode).emit('card_game_collective_exchange_waiting', {
+      // Notify other players to wait AND SHOW THEIR CARDS
+      socket.to(roomCode).emit('card_game_collective_exchange_waiting_with_cards', {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
-        message: 'بانتظار اختيار اللاعب لبطاقته'
+        message: 'بانتظار اختيار اللاعب لبطاقته - يمكنك رؤية بطاقاتك لكن لا يمكنك الاختيار حتى يختار اللاعب الآخر'
       });
       
-      console.log(`✅ Collective exchange card used by ${playerId}. Waiting for initiator to choose a card.`);
+      console.log(`✅ Collective exchange card used by ${playerId}. Waiting for initiator to choose a card. Other players can see their cards.`);
       
       const currentPlayer = room.players.find(p => p.id === playerId);
       io.to(roomCode).emit('card_game_message', {
@@ -1158,7 +1158,7 @@ io.on('connection', (socket) => {
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
         initiatorCard: selectedCard,
         initiatorSource: cardSource,
-        message: `${room.players.find(p => p.id === playerId)?.name || 'لاعب'} اختار بطاقة. الآن يمكن لأي لاعب آخر اختيار بطاقة للتبادل.`
+        message: `${room.players.find(p => p.id === playerId)?.name || 'لاعب'} اختار بطاقة. الآن يمكن للاعب الآخر اختيار بطاقة للتبادل.`
       });
       
       console.log(`✅ Initiator ${playerId} chose card: ${selectedCard.name} from ${cardSource}. Now waiting for responder.`);
@@ -1218,7 +1218,7 @@ io.on('connection', (socket) => {
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
         initiatorCard: selectedCard,
         initiatorSource: cardSource,
-        message: `${room.players.find(p => p.id === playerId)?.name || 'لاعب'} اختار بطاقة. الآن يمكن لأي لاعب آخر اختيار بطاقة للتبادل.`
+        message: `${room.players.find(p => p.id === playerId)?.name || 'لاعب'} اختار بطاقة. الآن يمكن للاعب الآخر اختيار بطاقة للتبادل.`
       });
       
       console.log(`✅ Collective exchange initiator ${playerId} chose card: ${selectedCard.name} from ${cardSource}. Now waiting for responder.`);
