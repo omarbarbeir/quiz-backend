@@ -444,6 +444,33 @@ function initializeCardGame(players) {
   };
 }
 
+// Helper function to get all available cards from player (hand + circles)
+function getAllPlayerCards(game, playerId) {
+  const handCards = game.playerHands[playerId] || [];
+  const circleCards = (game.playerCircles[playerId] || []).filter(card => card !== null);
+  return [...handCards, ...circleCards];
+}
+
+// Helper function to remove card from player (hand or circle)
+function removeCardFromPlayer(game, playerId, cardId) {
+  // First check hand
+  const handIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
+  if (handIndex !== -1) {
+    const [card] = game.playerHands[playerId].splice(handIndex, 1);
+    return { card, source: 'hand' };
+  }
+  
+  // Check circles
+  const circleIndex = game.playerCircles[playerId].findIndex(c => c && c.id === cardId);
+  if (circleIndex !== -1) {
+    const card = game.playerCircles[playerId][circleIndex];
+    game.playerCircles[playerId][circleIndex] = null;
+    return { card, source: 'circle' };
+  }
+  
+  return null;
+}
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
@@ -960,8 +987,10 @@ io.on('connection', (socket) => {
         initiatorId: playerId,
         card: exchangeCard,
         initiatorCard: null, // Card chosen by initiator
+        initiatorSource: null, // Source of initiator's card (hand/circle)
         responderId: null, // Player who responds to exchange
         responderCard: null, // Card chosen by responder
+        responderSource: null, // Source of responder's card (hand/circle)
         waitingForInitiator: true,
         waitingForResponder: false
       };
@@ -972,7 +1001,7 @@ io.on('connection', (socket) => {
       socket.emit('card_game_exchange_choose_card', {
         initiatorId: playerId,
         actionCard: exchangeCard,
-        message: 'اختر بطاقة من يدك للتبادل'
+        message: 'اختر بطاقة من يدك أو دوائرك للتبادل'
       });
       
       // Notify other players to wait
@@ -1036,13 +1065,15 @@ io.on('connection', (socket) => {
       
       game.tableCards.push(collectiveExchangeCard);
       
-      // Set up collective exchange state - NOW SAME AS REGULAR EXCHANGE
+      // Set up collective exchange state
       game.activeCollectiveExchange = {
         initiatorId: playerId,
         card: collectiveExchangeCard,
         initiatorCard: null, // Card chosen by initiator
+        initiatorSource: null, // Source of initiator's card (hand/circle)
         responderId: null, // Player who responds to exchange
         responderCard: null, // Card chosen by responder
+        responderSource: null, // Source of responder's card (hand/circle)
         waitingForInitiator: true,
         waitingForResponder: false
       };
@@ -1053,7 +1084,7 @@ io.on('connection', (socket) => {
       socket.emit('card_game_collective_exchange_choose_card', {
         initiatorId: playerId,
         actionCard: collectiveExchangeCard,
-        message: 'اختر بطاقة من يدك للتبادل الجماعي'
+        message: 'اختر بطاقة من يدك أو دوائرك للتبادل الجماعي'
       });
       
       // Notify other players to wait
@@ -1077,10 +1108,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // FIXED: Initiator chooses card for exchange
-  socket.on('card_game_exchange_choose_card', ({ roomCode, playerId, cardId }) => {
+  // FIXED: Initiator chooses card for exchange (hand OR circle)
+  socket.on('card_game_exchange_choose_card', ({ roomCode, playerId, cardId, source }) => {
     updatePlayerActivity(socket.id);
-    console.log(`🔄 EXCHANGE CHOOSE CARD by initiator ${playerId} in room ${roomCode}, cardId: ${cardId}`);
+    console.log(`🔄 EXCHANGE CHOOSE CARD by initiator ${playerId} in room ${roomCode}, cardId: ${cardId}, source: ${source}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
@@ -1104,16 +1135,18 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find the selected card in initiator's hand
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Selected card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Selected card not found in hand' });
+      // Find and remove the selected card from hand or circle
+      const removalResult = removeCardFromPlayer(game, playerId, cardId);
+      if (!removalResult) {
+        console.log(`❌ Selected card ${cardId} not found in player's hand or circles`);
+        socket.emit('card_game_error', { message: 'Selected card not found' });
         return;
       }
 
-      const [selectedCard] = game.playerHands[playerId].splice(cardIndex, 1);
+      const { card: selectedCard, source: cardSource } = removalResult;
+      
       game.activeExchange.initiatorCard = selectedCard;
+      game.activeExchange.initiatorSource = cardSource;
       game.activeExchange.waitingForInitiator = false;
       game.activeExchange.waitingForResponder = true;
       
@@ -1124,20 +1157,21 @@ io.on('connection', (socket) => {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
         initiatorCard: selectedCard,
+        initiatorSource: cardSource,
         message: `${room.players.find(p => p.id === playerId)?.name || 'لاعب'} اختار بطاقة. الآن يمكن لأي لاعب آخر اختيار بطاقة للتبادل.`
       });
       
-      console.log(`✅ Initiator ${playerId} chose card: ${selectedCard.name}. Now waiting for responder.`);
+      console.log(`✅ Initiator ${playerId} chose card: ${selectedCard.name} from ${cardSource}. Now waiting for responder.`);
       
     } else {
       socket.emit('card_game_error', { message: 'Game not found' });
     }
   });
 
-  // NEW: Initiator chooses card for collective exchange - NOW SAME AS REGULAR EXCHANGE
-  socket.on('card_game_collective_exchange_choose_card', ({ roomCode, playerId, cardId }) => {
+  // NEW: Initiator chooses card for collective exchange (hand OR circle)
+  socket.on('card_game_collective_exchange_choose_card', ({ roomCode, playerId, cardId, source }) => {
     updatePlayerActivity(socket.id);
-    console.log(`🔄 COLLECTIVE EXCHANGE CHOOSE CARD by initiator ${playerId} in room ${roomCode}, cardId: ${cardId}`);
+    console.log(`🔄 COLLECTIVE EXCHANGE CHOOSE CARD by initiator ${playerId} in room ${roomCode}, cardId: ${cardId}, source: ${source}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
@@ -1161,16 +1195,18 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find the selected card in initiator's hand
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Selected card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Selected card not found in hand' });
+      // Find and remove the selected card from hand or circle
+      const removalResult = removeCardFromPlayer(game, playerId, cardId);
+      if (!removalResult) {
+        console.log(`❌ Selected card ${cardId} not found in player's hand or circles`);
+        socket.emit('card_game_error', { message: 'Selected card not found' });
         return;
       }
 
-      const [selectedCard] = game.playerHands[playerId].splice(cardIndex, 1);
+      const { card: selectedCard, source: cardSource } = removalResult;
+      
       game.activeCollectiveExchange.initiatorCard = selectedCard;
+      game.activeCollectiveExchange.initiatorSource = cardSource;
       game.activeCollectiveExchange.waitingForInitiator = false;
       game.activeCollectiveExchange.waitingForResponder = true;
       
@@ -1181,20 +1217,21 @@ io.on('connection', (socket) => {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
         initiatorCard: selectedCard,
+        initiatorSource: cardSource,
         message: `${room.players.find(p => p.id === playerId)?.name || 'لاعب'} اختار بطاقة. الآن يمكن لأي لاعب آخر اختيار بطاقة للتبادل.`
       });
       
-      console.log(`✅ Collective exchange initiator ${playerId} chose card: ${selectedCard.name}. Now waiting for responder.`);
+      console.log(`✅ Collective exchange initiator ${playerId} chose card: ${selectedCard.name} from ${cardSource}. Now waiting for responder.`);
       
     } else {
       socket.emit('card_game_error', { message: 'Game not found' });
     }
   });
 
-  // FIXED: Responder chooses card for exchange - ERROR FIXED
-  socket.on('card_game_exchange_respond', ({ roomCode, playerId, cardId }) => {
+  // FIXED: Responder chooses card for exchange (hand OR circle)
+  socket.on('card_game_exchange_respond', ({ roomCode, playerId, cardId, source }) => {
     updatePlayerActivity(socket.id);
-    console.log(`🔄 EXCHANGE RESPOND by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
+    console.log(`🔄 EXCHANGE RESPOND by player ${playerId} in room ${roomCode}, cardId: ${cardId}, source: ${source}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
@@ -1224,33 +1261,37 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find the selected card in responder's hand
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Selected card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Selected card not found in hand' });
+      // Find and remove the selected card from hand or circle
+      const removalResult = removeCardFromPlayer(game, playerId, cardId);
+      if (!removalResult) {
+        console.log(`❌ Selected card ${cardId} not found in player's hand or circles`);
+        socket.emit('card_game_error', { message: 'Selected card not found' });
         return;
       }
 
-      const [selectedCard] = game.playerHands[playerId].splice(cardIndex, 1);
+      const { card: selectedCard, source: cardSource } = removalResult;
+      
       game.activeExchange.responderId = playerId;
       game.activeExchange.responderCard = selectedCard;
+      game.activeExchange.responderSource = cardSource;
       game.activeExchange.waitingForResponder = false;
       
       // Store exchange data BEFORE resetting activeExchange
       const initiatorId = game.activeExchange.initiatorId;
       const initiatorCard = game.activeExchange.initiatorCard;
+      const initiatorSource = game.activeExchange.initiatorSource;
       const responderId = playerId;
       const responderCard = selectedCard;
+      const responderSource = cardSource;
 
       const initiatorPlayer = room.players.find(p => p.id === initiatorId);
       const responderPlayer = room.players.find(p => p.id === responderId);
       
-      // Perform the exchange
+      // Perform the exchange - cards go to HAND of the other player
       game.playerHands[responderId].push(initiatorCard);
       game.playerHands[initiatorId].push(responderCard);
       
-      console.log(`🔄 Exchange completed: ${responderId} gave "${responderCard.name}" and received "${initiatorCard.name}" from ${initiatorId}`);
+      console.log(`🔄 Exchange completed: ${responderId} gave "${responderCard.name}" from ${responderSource} and received "${initiatorCard.name}" from ${initiatorId}'s ${initiatorSource}`);
       
       // Reset exchange state - DO THIS BEFORE USING THE STORED VARIABLES
       const oldExchange = game.activeExchange;
@@ -1269,7 +1310,9 @@ io.on('connection', (socket) => {
         responderId: responderId,
         responderName: responderPlayer?.name || 'لاعب',
         initiatorCard: initiatorCard,
-        responderCard: responderCard
+        responderCard: responderCard,
+        initiatorSource: initiatorSource,
+        responderSource: responderSource
       });
       
       io.to(roomCode).emit('card_game_message', {
@@ -1288,10 +1331,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Responder chooses card for collective exchange - NOW SAME AS REGULAR EXCHANGE
-  socket.on('card_game_collective_exchange_respond', ({ roomCode, playerId, cardId }) => {
+  // NEW: Responder chooses card for collective exchange (hand OR circle)
+  socket.on('card_game_collective_exchange_respond', ({ roomCode, playerId, cardId, source }) => {
     updatePlayerActivity(socket.id);
-    console.log(`🔄 COLLECTIVE EXCHANGE RESPOND by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
+    console.log(`🔄 COLLECTIVE EXCHANGE RESPOND by player ${playerId} in room ${roomCode}, cardId: ${cardId}, source: ${source}`);
     
     if (rooms[roomCode] && rooms[roomCode].cardGame) {
       const game = rooms[roomCode].cardGame;
@@ -1321,36 +1364,39 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find the selected card in responder's hand
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Selected card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Selected card not found in hand' });
+      // Find and remove the selected card from hand or circle
+      const removalResult = removeCardFromPlayer(game, playerId, cardId);
+      if (!removalResult) {
+        console.log(`❌ Selected card ${cardId} not found in player's hand or circles`);
+        socket.emit('card_game_error', { message: 'Selected card not found' });
         return;
       }
 
-      const [selectedCard] = game.playerHands[playerId].splice(cardIndex, 1);
+      const { card: selectedCard, source: cardSource } = removalResult;
+      
       game.activeCollectiveExchange.responderId = playerId;
       game.activeCollectiveExchange.responderCard = selectedCard;
+      game.activeCollectiveExchange.responderSource = cardSource;
       game.activeCollectiveExchange.waitingForResponder = false;
       
       // Store exchange data BEFORE resetting activeCollectiveExchange
       const initiatorId = game.activeCollectiveExchange.initiatorId;
       const initiatorCard = game.activeCollectiveExchange.initiatorCard;
+      const initiatorSource = game.activeCollectiveExchange.initiatorSource;
       const responderId = playerId;
       const responderCard = selectedCard;
+      const responderSource = cardSource;
 
       const initiatorPlayer = room.players.find(p => p.id === initiatorId);
       const responderPlayer = room.players.find(p => p.id === responderId);
       
-      // Perform the exchange
+      // Perform the exchange - cards go to HAND of the other player
       game.playerHands[responderId].push(initiatorCard);
       game.playerHands[initiatorId].push(responderCard);
       
-      console.log(`🔄 Collective exchange completed: ${responderId} gave "${responderCard.name}" and received "${initiatorCard.name}" from ${initiatorId}`);
+      console.log(`🔄 Collective exchange completed: ${responderId} gave "${responderCard.name}" from ${responderSource} and received "${initiatorCard.name}" from ${initiatorId}'s ${initiatorSource}`);
       
-      // Reset collective exchange state - DO THIS BEFORE USING THE STORED VARIABLES
-      const oldCollectiveExchange = game.activeCollectiveExchange;
+      // Reset collective exchange state
       game.activeCollectiveExchange = null;
       
       // Update game state
@@ -1366,7 +1412,9 @@ io.on('connection', (socket) => {
         responderId: responderId,
         responderName: responderPlayer?.name || 'لاعب',
         initiatorCard: initiatorCard,
-        responderCard: responderCard
+        responderCard: responderCard,
+        initiatorSource: initiatorSource,
+        responderSource: responderSource
       });
       
       io.to(roomCode).emit('card_game_message', {
@@ -1407,9 +1455,22 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Return initiator's card to hand if they had chosen one
+      // Return initiator's card to hand or circle if they had chosen one
       if (game.activeExchange.initiatorCard) {
-        game.playerHands[playerId].push(game.activeExchange.initiatorCard);
+        const initiatorSource = game.activeExchange.initiatorSource;
+        if (initiatorSource === 'circle') {
+          // Find empty circle slot
+          const emptyCircleIndex = game.playerCircles[playerId].findIndex(card => card === null);
+          if (emptyCircleIndex !== -1) {
+            game.playerCircles[playerId][emptyCircleIndex] = game.activeExchange.initiatorCard;
+          } else {
+            // No empty circle, put in hand
+            game.playerHands[playerId].push(game.activeExchange.initiatorCard);
+          }
+        } else {
+          // Return to hand
+          game.playerHands[playerId].push(game.activeExchange.initiatorCard);
+        }
       }
 
       const initiatorPlayer = room.players.find(p => p.id === playerId);
@@ -1442,7 +1503,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Cancel collective exchange - NOW SAME AS REGULAR EXCHANGE
+  // NEW: Cancel collective exchange
   socket.on('card_game_collective_exchange_cancel', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`❌ COLLECTIVE EXCHANGE CANCELLED by player ${playerId} in room ${roomCode}`);
@@ -1464,9 +1525,22 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Return initiator's card to hand if they had chosen one
+      // Return initiator's card to hand or circle if they had chosen one
       if (game.activeCollectiveExchange.initiatorCard) {
-        game.playerHands[playerId].push(game.activeCollectiveExchange.initiatorCard);
+        const initiatorSource = game.activeCollectiveExchange.initiatorSource;
+        if (initiatorSource === 'circle') {
+          // Find empty circle slot
+          const emptyCircleIndex = game.playerCircles[playerId].findIndex(card => card === null);
+          if (emptyCircleIndex !== -1) {
+            game.playerCircles[playerId][emptyCircleIndex] = game.activeCollectiveExchange.initiatorCard;
+          } else {
+            // No empty circle, put in hand
+            game.playerHands[playerId].push(game.activeCollectiveExchange.initiatorCard);
+          }
+        } else {
+          // Return to hand
+          game.playerHands[playerId].push(game.activeCollectiveExchange.initiatorCard);
+        }
       }
 
       const initiatorPlayer = room.players.find(p => p.id === playerId);
