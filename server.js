@@ -397,11 +397,17 @@ function initializeCardGame(players) {
   const nonAdminPlayers = players.filter(p => !p.isAdmin);
   
   nonAdminPlayers.forEach(player => {
-    playerHands[player.id] = shuffledDeck.splice(0, 5);
+    // Track original hand index for each card
+    const handCards = shuffledDeck.splice(0, 5);
+    handCards.forEach((card, index) => {
+      card.originalHandIndex = index; // Track original position in hand
+    });
+    playerHands[player.id] = handCards;
     console.log(`   Dealt 5 cards to ${player.name}:`, playerHands[player.id].map(card => ({ 
       name: card.name, 
       type: card.type, 
-      subtype: card.subtype 
+      subtype: card.subtype,
+      originalHandIndex: card.originalHandIndex
     })));
   });
 
@@ -444,11 +450,36 @@ function initializeCardGame(players) {
   };
 }
 
-// Helper function to get all available cards from player (hand + circles)
-function getAllPlayerCards(game, playerId) {
+// Helper function to get all available cards from player (hand + circles) MAINTAINING ORIGINAL ORDER
+function getAllPlayerCardsInOrder(game, playerId) {
   const handCards = game.playerHands[playerId] || [];
   const circleCards = (game.playerCircles[playerId] || []).filter(card => card !== null);
-  return [...handCards, ...circleCards];
+  
+  // Create an array that maintains the original order from hand
+  const allCards = [];
+  
+  // First, add all hand cards with their current order
+  handCards.forEach((card, index) => {
+    card.currentPosition = index;
+    card.source = 'hand';
+    allCards.push({...card});
+  });
+  
+  // Add circle cards, maintaining their original hand index
+  circleCards.forEach(card => {
+    card.source = 'circle';
+    allCards.push({...card});
+  });
+  
+  // Sort by originalHandIndex to maintain the original order from hand
+  // Cards without originalHandIndex (jokers, etc) will go to the end
+  allCards.sort((a, b) => {
+    const aIndex = a.originalHandIndex !== undefined ? a.originalHandIndex : 999;
+    const bIndex = b.originalHandIndex !== undefined ? b.originalHandIndex : 999;
+    return aIndex - bIndex;
+  });
+  
+  return allCards;
 }
 
 // Helper function to remove card from player (hand or circle)
@@ -681,6 +712,8 @@ io.on('connection', (socket) => {
       }
 
       const drawnCard = game.drawPile.pop();
+      // Set original hand index for the new card
+      drawnCard.originalHandIndex = game.playerHands[playerId].length;
       game.playerHands[playerId].push(drawnCard);
       game.playerHasDrawn[playerId] = true;
       
@@ -796,6 +829,8 @@ io.on('connection', (socket) => {
       }
 
       const [card] = game.tableCards.splice(-1, 1);
+      // Set original hand index for the taken card
+      card.originalHandIndex = game.playerHands[playerId].length;
       game.playerHands[playerId].push(card);
       game.playerHasDrawn[playerId] = true;
       
@@ -997,14 +1032,18 @@ io.on('connection', (socket) => {
       
       io.to(roomCode).emit('card_game_state_update', game);
       
+      // Get all player cards in order for display
+      const playerCardsInOrder = getAllPlayerCardsInOrder(game, playerId);
+      
       // Only initiator chooses first
       socket.emit('card_game_exchange_choose_card', {
         initiatorId: playerId,
         actionCard: exchangeCard,
+        playerCards: playerCardsInOrder, // Send ordered cards
         message: 'اختر بطاقة من يدك أو دوائرك للتبادل'
       });
       
-      // Notify other players to wait AND SHOW THEIR CARDS
+      // Notify other players to wait AND SHOW THEIR CARDS IN ORDER
       socket.to(roomCode).emit('card_game_exchange_waiting_with_cards', {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
@@ -1080,14 +1119,18 @@ io.on('connection', (socket) => {
       
       io.to(roomCode).emit('card_game_state_update', game);
       
+      // Get all player cards in order for display
+      const playerCardsInOrder = getAllPlayerCardsInOrder(game, playerId);
+      
       // Only initiator chooses first
       socket.emit('card_game_collective_exchange_choose_card', {
         initiatorId: playerId,
         actionCard: collectiveExchangeCard,
+        playerCards: playerCardsInOrder, // Send ordered cards
         message: 'اختر بطاقة من يدك أو دوائرك للتبادل الجماعي'
       });
       
-      // Notify other players to wait AND SHOW THEIR CARDS
+      // Notify other players to wait AND SHOW THEIR CARDS IN ORDER
       socket.to(roomCode).emit('card_game_collective_exchange_waiting_with_cards', {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
@@ -1288,6 +1331,10 @@ io.on('connection', (socket) => {
       const responderPlayer = room.players.find(p => p.id === responderId);
       
       // Perform the exchange - cards go to HAND of the other player
+      // Set original hand index for exchanged cards
+      responderCard.originalHandIndex = game.playerHands[initiatorId].length;
+      initiatorCard.originalHandIndex = game.playerHands[responderId].length;
+      
       game.playerHands[responderId].push(initiatorCard);
       game.playerHands[initiatorId].push(responderCard);
       
@@ -1391,6 +1438,10 @@ io.on('connection', (socket) => {
       const responderPlayer = room.players.find(p => p.id === responderId);
       
       // Perform the exchange - cards go to HAND of the other player
+      // Set original hand index for exchanged cards
+      responderCard.originalHandIndex = game.playerHands[initiatorId].length;
+      initiatorCard.originalHandIndex = game.playerHands[responderId].length;
+      
       game.playerHands[responderId].push(initiatorCard);
       game.playerHands[initiatorId].push(responderCard);
       
@@ -1574,6 +1625,98 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Move card to circle - ADMIN CANNOT PLAY
+  socket.on('card_game_move_to_circle', ({ roomCode, playerId, circleIndex, cardId }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🔄 MOVE TO CIRCLE by player ${playerId}, card ${cardId} to circle ${circleIndex} in room ${roomCode}`);
+    
+    if (rooms[roomCode] && rooms[roomCode].cardGame) {
+      const game = rooms[roomCode].cardGame;
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
+      
+      if (game.currentTurn !== playerId) {
+        console.log(`❌ Not player ${playerId}'s turn`);
+        socket.emit('card_game_error', { message: 'Not your turn' });
+        return;
+      }
+
+      if (!game.playerHasDrawn[playerId]) {
+        console.log(`❌ Player ${playerId} must draw a card first`);
+        socket.emit('card_game_error', { message: 'You must draw a card before placing cards in circles' });
+        return;
+      }
+
+      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
+      if (cardIndex === -1) {
+        console.log(`❌ Card ${cardId} not found in player's hand`);
+        socket.emit('card_game_error', { message: 'Card not found in hand' });
+        return;
+      }
+
+      const [card] = game.playerHands[playerId].splice(cardIndex, 1);
+      // Preserve the original hand index when moving to circle
+      game.playerCircles[playerId][circleIndex] = card;
+      
+      io.to(roomCode).emit('card_game_state_update', game);
+      console.log(`✅ Card moved to circle ${circleIndex}`);
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found' });
+    }
+  });
+
+  // Remove card from circle - ADMIN CANNOT PLAY
+  socket.on('card_game_remove_from_circle', ({ roomCode, playerId, circleIndex }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🔄 REMOVE FROM CIRCLE by player ${playerId} from circle ${circleIndex} in room ${roomCode}`);
+    
+    if (rooms[roomCode] && rooms[roomCode].cardGame) {
+      const game = rooms[roomCode].cardGame;
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      // Admin cannot play
+      if (player && player.isAdmin) {
+        console.log(`❌ Admin ${playerId} cannot play`);
+        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
+        return;
+      }
+      
+      if (game.currentTurn !== playerId) {
+        console.log(`❌ Not player ${playerId}'s turn`);
+        socket.emit('card_game_error', { message: 'Not your turn' });
+        return;
+      }
+
+      if (!game.playerHasDrawn[playerId]) {
+        console.log(`❌ Player ${playerId} must draw a card first`);
+        socket.emit('card_game_error', { message: 'You must draw a card before modifying circles' });
+        return;
+      }
+
+      const card = game.playerCircles[playerId][circleIndex];
+      
+      if (card) {
+        game.playerCircles[playerId][circleIndex] = null;
+        // Set original hand index when returning to hand
+        card.originalHandIndex = game.playerHands[playerId].length;
+        game.playerHands[playerId].push(card);
+        
+        io.to(roomCode).emit('card_game_state_update', game);
+        console.log(`✅ Card removed from circle ${circleIndex}`);
+      } else {
+        socket.emit('card_game_error', { message: 'No card in circle' });
+      }
+    } else {
+      socket.emit('card_game_error', { message: 'Game not found' });
+    }
+  });
+
   // Place ALL cards in shake - ADMIN CANNOT PLAY
   socket.on('card_game_shake_place_all', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
@@ -1697,6 +1840,7 @@ io.on('connection', (socket) => {
           for (let i = 0; i < 5; i++) {
             if (game.drawPile.length > 0) {
               const drawnCard = game.drawPile.pop();
+              drawnCard.originalHandIndex = i; // Set original hand index for new cards
               game.playerHands[playerId].push(drawnCard);
             } else {
               console.log(`❌ No cards left in draw pile to give to player ${playerId}`);
@@ -1748,95 +1892,6 @@ io.on('connection', (socket) => {
     if (category) {
       socket.emit('card_game_dice_category', { category });
       console.log(`🎯 Player ${playerId} rolled dice: ${diceValue} - Category: ${category.name}`);
-    }
-  });
-
-  // Move card to circle - ADMIN CANNOT PLAY
-  socket.on('card_game_move_to_circle', ({ roomCode, playerId, circleIndex, cardId }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 MOVE TO CIRCLE by player ${playerId}, card ${cardId} to circle ${circleIndex} in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const player = rooms[roomCode].players.find(p => p.id === playerId);
-      
-      // Admin cannot play
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
-      
-      if (game.currentTurn !== playerId) {
-        console.log(`❌ Not player ${playerId}'s turn`);
-        socket.emit('card_game_error', { message: 'Not your turn' });
-        return;
-      }
-
-      if (!game.playerHasDrawn[playerId]) {
-        console.log(`❌ Player ${playerId} must draw a card first`);
-        socket.emit('card_game_error', { message: 'You must draw a card before placing cards in circles' });
-        return;
-      }
-
-      const cardIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
-      if (cardIndex === -1) {
-        console.log(`❌ Card ${cardId} not found in player's hand`);
-        socket.emit('card_game_error', { message: 'Card not found in hand' });
-        return;
-      }
-
-      const [card] = game.playerHands[playerId].splice(cardIndex, 1);
-      game.playerCircles[playerId][circleIndex] = card;
-      
-      io.to(roomCode).emit('card_game_state_update', game);
-      console.log(`✅ Card moved to circle ${circleIndex}`);
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
-    }
-  });
-
-  // Remove card from circle - ADMIN CANNOT PLAY
-  socket.on('card_game_remove_from_circle', ({ roomCode, playerId, circleIndex }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🔄 REMOVE FROM CIRCLE by player ${playerId} from circle ${circleIndex} in room ${roomCode}`);
-    
-    if (rooms[roomCode] && rooms[roomCode].cardGame) {
-      const game = rooms[roomCode].cardGame;
-      const player = rooms[roomCode].players.find(p => p.id === playerId);
-      
-      // Admin cannot play
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
-      
-      if (game.currentTurn !== playerId) {
-        console.log(`❌ Not player ${playerId}'s turn`);
-        socket.emit('card_game_error', { message: 'Not your turn' });
-        return;
-      }
-
-      if (!game.playerHasDrawn[playerId]) {
-        console.log(`❌ Player ${playerId} must draw a card first`);
-        socket.emit('card_game_error', { message: 'You must draw a card before modifying circles' });
-        return;
-      }
-
-      const card = game.playerCircles[playerId][circleIndex];
-      
-      if (card) {
-        game.playerCircles[playerId][circleIndex] = null;
-        game.playerHands[playerId].push(card);
-        
-        io.to(roomCode).emit('card_game_state_update', game);
-        console.log(`✅ Card removed from circle ${circleIndex}`);
-      } else {
-        socket.emit('card_game_error', { message: 'No card in circle' });
-      }
-    } else {
-      socket.emit('card_game_error', { message: 'Game not found' });
     }
   });
 
@@ -1978,6 +2033,7 @@ io.on('connection', (socket) => {
             for (let i = 0; i < 3; i++) {
               if (game.drawPile.length > 0) {
                 const drawnCard = game.drawPile.pop();
+                drawnCard.originalHandIndex = i; // Set original hand index
                 game.playerHands[declaredPlayerId].push(drawnCard);
               }
             }

@@ -527,6 +527,46 @@ const cardData = {
       description: 'تبادل بطاقة مع لاعب آخر',
       image: '/images/give-take.jpg'
     },
+    {
+      id: 'exchange-026',
+      type: 'action',
+      subtype: 'exchange',
+      name: 'هات و خد',
+      description: 'تبادل بطاقة مع لاعب آخر',
+      image: '/images/give-take.jpg'
+    },
+    {
+      id: 'exchange-027',
+      type: 'action',
+      subtype: 'exchange',
+      name: 'هات و خد',
+      description: 'تبادل بطاقة مع لاعب آخر',
+      image: '/images/give-take.jpg'
+    },
+    {
+      id: 'exchange-028',
+      type: 'action',
+      subtype: 'exchange',
+      name: 'هات و خد',
+      description: 'تبادل بطاقة مع لاعب آخر',
+      image: '/images/give-take.jpg'
+    },
+    {
+      id: 'exchange-029',
+      type: 'action',
+      subtype: 'exchange',
+      name: 'هات و خد',
+      description: 'تبادل بطاقة مع لاعب آخر',
+      image: '/images/give-take.jpg'
+    },
+    {
+      id: 'exchange-030',
+      type: 'action',
+      subtype: 'exchange',
+      name: 'هات و خد',
+      description: 'تبادل بطاقة مع لاعب آخر',
+      image: '/images/give-take.jpg'
+    },
 
 
 
@@ -724,6 +764,46 @@ const cardData = {
     },
     {
       id: 'collective-exchange-025',
+      type: 'action',
+      subtype: 'collective_exchange',
+      name: 'كل واحد يطلع باللي معاه',
+      description: 'تبادل جماعي مع جميع اللاعبين',
+      image: '/images/take-all.jpg'
+    },
+    {
+      id: 'collective-exchange-026',
+      type: 'action',
+      subtype: 'collective_exchange',
+      name: 'كل واحد يطلع باللي معاه',
+      description: 'تبادل جماعي مع جميع اللاعبين',
+      image: '/images/take-all.jpg'
+    },
+    {
+      id: 'collective-exchange-027',
+      type: 'action',
+      subtype: 'collective_exchange',
+      name: 'كل واحد يطلع باللي معاه',
+      description: 'تبادل جماعي مع جميع اللاعبين',
+      image: '/images/take-all.jpg'
+    },
+    {
+      id: 'collective-exchange-028',
+      type: 'action',
+      subtype: 'collective_exchange',
+      name: 'كل واحد يطلع باللي معاه',
+      description: 'تبادل جماعي مع جميع اللاعبين',
+      image: '/images/take-all.jpg'
+    },
+    {
+      id: 'collective-exchange-029',
+      type: 'action',
+      subtype: 'collective_exchange',
+      name: 'كل واحد يطلع باللي معاه',
+      description: 'تبادل جماعي مع جميع اللاعبين',
+      image: '/images/take-all.jpg'
+    },
+    {
+      id: 'collective-exchange-030',
       type: 'action',
       subtype: 'collective_exchange',
       name: 'كل واحد يطلع باللي معاه',
