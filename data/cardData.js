@@ -1389,7 +1389,7 @@ const cardData = {
     { id: 'actor-172', type: 'actor', name: 'عبد الوارث عسر', image: '/images/cards/actors/Abdelwareth_Asar.jpg' },
     { id: 'actor-173', type: 'actor', name: 'عادل أدهم', image: '/images/cards/actors/adel_adham.webp' },
     { id: 'actor-174', type: 'actor', name: 'عدلي كاسب', image: '/images/cards/actors/adli_kaseb.jpg' },
-    { id: 'actor-175', type: 'actor', name: 'غشان مطر', image: '/images/cards/actors/ghassan_matar.jpeg' },
+    { id: 'actor-175', type: 'actor', name: 'غسان مطر', image: '/images/cards/actors/ghassan_matar.jpeg' },
     { id: 'actor-176', type: 'actor', name: 'علاء مرسي', image: '/images/cards/actors/Alaa_Morsi.png' },
     { id: 'actor-177', type: 'actor', name: 'علاء ولي الدين', image: '/images/cards/actors/alaa_waley_eldeen.jpg' },
     { id: 'actor-178', type: 'actor', name: 'علي الكسار', image: '/images/cards/actors/Ali_Al-Kassar.jpg' },
@@ -1407,7 +1407,7 @@ const cardData = {
     { id: 'actor-190', type: 'actor', name: 'غريب محمود', image: '/images/cards/actors/ghareb_mahmoud.jpg' },
     { id: 'actor-191', type: 'actor', name: 'عماد حمدي', image: '/images/cards/actors/Imad_Hamdy.jpg' },
     { id: 'actor-192', type: 'actor', name: 'عثمان محمد علي', image: '/images/cards/actors/osman_mohamed_ali.jpg' },
-    { id: 'actor-193', type: 'actor', name: 'طارق غبد العزيز', image: '/images/cards/actors/Tarek_ebdelazez.jpeg' },
+    { id: 'actor-193', type: 'actor', name: 'طارق عبد العزيز', image: '/images/cards/actors/Tarek_ebdelazez.jpeg' },
     { id: 'actor-194', type: 'actor', name: 'طارق لطفي', image: '/images/cards/actors/Tarek_Lotfy.png' },
     { id: 'actor-195', type: 'actor', name: 'فتحي عبد الوهاب', image: '/images/cards/actors/fathy_abdelwahab.jpg' },
     { id: 'actor-196', type: 'actor', name: 'فريد الأطرش', image: '/images/cards/actors/fared_elatrash.jpg' },
@@ -1547,7 +1547,7 @@ const cardData = {
     { id: 'actor-330', type: 'actor', name: 'هبه مجدي', image: '/images/cards/actress/heba_magdy.jpg' },
     { id: 'actor-331', type: 'actor', name: 'هنا الزاهد', image: '/images/cards/actress/hana_elzahed.jpeg' },
     { id: 'actor-332', type: 'actor', name: 'هنا شيحة', image: '/images/cards/actress/hana_sheha.jpg' },
-    { id: 'actor-333', type: 'actor', name: 'هناء الشربجي', image: '/images/cards/actress/hana_elshorbagy.jpg' },
+    { id: 'actor-333', type: 'actor', name: 'هناء الشوربجي', image: '/images/cards/actress/hana_elshorbagy.jpg' },
     { id: 'actor-334', type: 'actor', name: 'هنادي مهنا', image: '/images/cards/actress/hanady_mehana.jpg' },
     { id: 'actor-335', type: 'actor', name: 'هند رستم', image: '/images/cards/actress/hend_rostom.jpeg' },
     { id: 'actor-336', type: 'actor', name: 'هند صبري', image: '/images/cards/actress/hennd_sabry.jpg' },
@@ -1625,10 +1625,11 @@ const cardData = {
     { id: 'actor-408', type: 'actor', name: 'يوسف عيد', image: '/images/cards/actors/yousif_eid.jpeg' },
     { id: 'actor-409', type: 'actor', name: 'مها أحمد', image: '/images/cards/actress/maha_ahmad.jpeg' },
     { id: 'actor-410', type: 'actor', name: 'نور', image: '/images/cards/actress/nour.webp' },
-    { id: 'actor-410', type: 'actor', name: 'كندا علوش', image: '/images/cards/actress/kinda_alosh.jpeg' },
+    { id: 'actor-410', type: 'actor', name: 'كندة علوش', image: '/images/cards/actress/kinda_alosh.jpeg' },
     { id: 'actor-411', type: 'actor', name: 'شيكو', image: '/images/cards/actors/chico.jpg' },
     { id: 'actor-412', type: 'actor', name: 'أوس أوس', image: '/images/cards/actors/osos.jpg' },
     { id: 'actor-413', type: 'actor', name: 'أحمد فتحي', image: '/images/cards/actors/ahmed_fathy.webp' },
+    { id: 'actor-414', type: 'actor', name: 'محمد عبد الرحمن (توتا)', image: '/images/cards/actors/tota.jpg' },
 
 
 
@@ -1866,7 +1867,7 @@ const cardData = {
     { id: 'movie-231', type: 'movie', name: 'لص بغداد', image: '/images/cards/Posters/Lees_Baghdad.jpg' },
     { id: 'movie-232', type: 'movie', name: 'نادي الرجال السري', image: '/images/cards/Posters/secret_men_club.jpg' },
     { id: 'movie-233', type: 'movie', name: 'الممر', image: '/images/cards/Posters/elmamr.jpg' },
-    { id: 'movie-234', type: 'movie', name: 'محمد حِسن', image: '/images/cards/Posters/mohamed_hesn.jpg' },
+    { id: 'movie-234', type: 'movie', name: 'محمد حِسين', image: '/images/cards/Posters/mohamed_hesn.jpg' },
     { id: 'movie-235', type: 'movie', name: 'كازابلانكا', image: '/images/cards/Posters/casablanca.jpg' },
     { id: 'movie-236', type: 'movie', name: '٥ باب', image: '/images/cards/Posters/OLD/5_bab.jpg' },
     { id: 'movie-237', type: 'movie', name: '٤-٢-٤', image: '/images/cards/Posters/OLD/424.jpg' },
@@ -2070,6 +2071,8 @@ const cardData = {
     { id: 'movie-435', type: 'movie', name: 'قلب أمه', image: '/images/cards/Posters/alb_omoh.jpeg' },
     { id: 'movie-436', type: 'movie', name: 'عجميستا', image: '/images/cards/Posters/agamesta.jpg' },
     { id: 'movie-437', type: 'movie', name: 'لن أبكي أبدًا', image: '/images/cards/Posters/OLD/will_never-cry.jpg.webp' },
+    { id: 'movie-438', type: 'movie', name: 'عمر و سلمي ٢', image: '/images/cards/Posters/omar_salma-2.jpg' },
+    { id: 'movie-439', type: 'movie', name: 'عمر و سلمي ٣', image: '/images/cards/Posters/omar_salma-3.jpg' },
 
 
 
