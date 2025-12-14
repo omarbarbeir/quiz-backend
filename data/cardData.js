@@ -1630,6 +1630,7 @@ const cardData = {
     { id: 'actor-412', type: 'actor', name: 'أوس أوس', image: '/images/cards/actors/osos.jpg' },
     { id: 'actor-413', type: 'actor', name: 'أحمد فتحي', image: '/images/cards/actors/ahmed_fathy.webp' },
     { id: 'actor-414', type: 'actor', name: 'محمد عبد الرحمن (توتا)', image: '/images/cards/actors/tota.jpg' },
+    { id: 'actor-415', type: 'actor', name: 'مصطفي خاطر', image: '/images/cards/actors/mostafa_khater.jpg' },
 
 
 
