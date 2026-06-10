@@ -21,7 +21,6 @@ app.get('/', (req, res) => {
   res.send('Quiz Game Server Running');
 });
 
-// Socket.IO config
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -29,269 +28,61 @@ const io = new Server(server, {
   }
 });
 
-// Import data files
+// Import data files (adjust paths as needed)
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 
-// Game categories
+// Game categories (your full list – unchanged)
 const gameCategories = [
-  { 
-    id: 1, 
-    name: 'الفئة 1', 
-    description: 'أفلام كوميدي',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 2, 
-    name: 'الفئة 2', 
-    description: 'ممثلين غنوا في أفلام',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 3, 
-    name: 'الفئة 3', 
-    description: 'افلام بإسم البطل',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 4, 
-    name: 'الفئة 4', 
-    description: 'افلام رومانسية',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 5, 
-    name: 'الفئة 5', 
-    description: 'ممثلين عملوا أكتر من ٣ أفلام بطولة',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 6, 
-    name: 'الفئة 6', 
-    description: 'ممثلين مثلوا مع عادل إمام',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 7, 
-    name: 'الفئة 7', 
-    description: 'ممثلين مثلوا مع بعض في نفس الفيلم',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 8, 
-    name: 'الفئة 8', 
-    description: 'افلام فيهم حد شرب مخدرات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 9, 
-    name: 'الفئة 9', 
-    description: 'ممثلين كانوا هربانين من البوليس في أي فيلم',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 10, 
-    name: 'الفئة 10', 
-    description: 'افلام اكشن',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 11, 
-    name: 'الفئة 11', 
-    description: 'افلام فيها حد من الابطال مات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 12, 
-    name: 'الفئة 12', 
-    description: 'ممثلين مثلوا دور ظابط',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 13, 
-    name: 'الفئة 13', 
-    description: 'أفلام فيها فرح',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 14, 
-    name: 'الفئة 14', 
-    description: 'ممثلين ليهم مشاهد بيأكلوا فيها',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 15, 
-    name: 'الفئة 15', 
-    description: 'أفلام فيها عصابة',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 16, 
-    name: 'الفئة 16', 
-    description: 'أفلام فيها شخصية بتنتحل شخصية تانيه',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 17, 
-    name: 'الفئة 17', 
-    description: 'أفلام فيها مطاردة عربيات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 18, 
-    name: 'الفئة 18', 
-    description: 'أفلام إسمها من ٣ كلمات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 19, 
-    name: 'الفئة 19', 
-    description: 'ممثلين تقدر تذكر إسم شخصيتهم في فيلم علي الأقل',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 20, 
-    name: 'الفئة 20', 
-    description: 'فيلم ظهر فيه حمام سباحة',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 21, 
-    name: 'الفئة 21', 
-    description: 'أفلام البطل فيها دخل السجن',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 22, 
-    name: 'الفئة 22', 
-    description: 'ممثلين ليهم إخوات في فيلم',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 23, 
-    name: 'الفئة 23', 
-    description: 'ممثلين عملوا إعلان في التليفزيون',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 24, 
-    name: 'الفئة 24', 
-    description: 'أفلام ظهر فيها حيوان',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 25, 
-    name: 'الفئة 25', 
-    description: 'ممثلين تقدر تقول ليهم ٥ أفلام',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 26, 
-    name: 'الفئة 26', 
-    description: 'أفلام تقدر تقول منها ٣ إفيهات',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 27, 
-    name: 'الفئة 27', 
-    description: 'ممثلين عيطوا في أفلام',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 28, 
-    name: 'الفئة 28', 
-    description: 'أفلام حصل فيها جريمة قتل',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 29, 
-    name: 'الفئة 29', 
-    description: 'أفلام تقدر تقول فيها أسماء ٣ شخصيات في الفيلم غير البطل',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 30, 
-    name: 'الفئة 30', 
-    description: 'فيلم إسمه من كلمة واحدة',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 31, 
-    name: 'الفئة 31', 
-    description: 'ممثلات شاركوا في فيلم لأحمد حلمي',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 32, 
-    name: 'الفئة 32', 
-    description: 'ممثل أو ممثلة عملوا دور دكتور (طبيب)',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 33, 
-    name: 'الفئة 33', 
-    description: 'ممثلين اتقبض عليهم في فيلم',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 34, 
-    name: 'الفئة 34', 
-    description: 'أفلام بطليها بيتجوزوا في نهاية الفيلم',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 35, 
-    name: 'الفئة 35', 
-    description: 'فيلم و ٢ ممثلين موجودين فيه',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 36, 
-    name: 'الفئة 36', 
-    description: 'أفلام فيها مشهد في عربية',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 37, 
-    name: 'الفئة 37', 
-    description: 'أفلام فيها البطل بيقتل حد',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 38, 
-    name: 'الفئة 38', 
-    description: 'أفلام بيحصل فيها انفصال بين اتنين (حتي إذا رجعوا بعد كده لبعض عادي)',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 39, 
-    name: 'الفئة 39', 
-    description: 'ممثلين مثلوا مع احمد عز و كريم عبد العزيز (مش لازم يكونوا في نفس الفيلم)',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 40, 
-    name: 'الفئة 40', 
-    description: 'ممثلين مثلوا مع احمد عز و أحمد السقا (مش لازم يكونوا في نفس الفيلم)',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 41, 
-    name: 'الفئة 41', 
-    description: 'فيلم فيه أغنية و تقول جزء من الأغنية',
-    rules: 'اجمع ٣ بطاقات'
-  },
-  { 
-    id: 42, 
-    name: 'الفئة 42', 
-    description: 'ممثل تقدر تقول إسم شخصيته في فيلمين',
-    rules: 'اجمع ٣ بطاقات'
-  },
+  { id: 1, name: 'الفئة 1', description: 'أفلام كوميدي', rules: 'اجمع ٣ بطاقات' },
+  { id: 2, name: 'الفئة 2', description: 'ممثلين غنوا في أفلام', rules: 'اجمع ٣ بطاقات' },
+  { id: 3, name: 'الفئة 3', description: 'افلام بإسم البطل', rules: 'اجمع ٣ بطاقات' },
+  { id: 4, name: 'الفئة 4', description: 'افلام رومانسية', rules: 'اجمع ٣ بطاقات' },
+  { id: 5, name: 'الفئة 5', description: 'ممثلين عملوا أكتر من ٣ أفلام بطولة', rules: 'اجمع ٣ بطاقات' },
+  { id: 6, name: 'الفئة 6', description: 'ممثلين مثلوا مع عادل إمام', rules: 'اجمع ٣ بطاقات' },
+  { id: 7, name: 'الفئة 7', description: 'ممثلين مثلوا مع بعض في نفس الفيلم', rules: 'اجمع ٣ بطاقات' },
+  { id: 8, name: 'الفئة 8', description: 'افلام فيهم حد شرب مخدرات', rules: 'اجمع ٣ بطاقات' },
+  { id: 9, name: 'الفئة 9', description: 'ممثلين كانوا هربانين من البوليس في أي فيلم', rules: 'اجمع ٣ بطاقات' },
+  { id: 10, name: 'الفئة 10', description: 'افلام اكشن', rules: 'اجمع ٣ بطاقات' },
+  { id: 11, name: 'الفئة 11', description: 'افلام فيها حد من الابطال مات', rules: 'اجمع ٣ بطاقات' },
+  { id: 12, name: 'الفئة 12', description: 'ممثلين مثلوا دور ظابط', rules: 'اجمع ٣ بطاقات' },
+  { id: 13, name: 'الفئة 13', description: 'أفلام فيها فرح', rules: 'اجمع ٣ بطاقات' },
+  { id: 14, name: 'الفئة 14', description: 'ممثلين ليهم مشاهد بيأكلوا فيها', rules: 'اجمع ٣ بطاقات' },
+  { id: 15, name: 'الفئة 15', description: 'أفلام فيها عصابة', rules: 'اجمع ٣ بطاقات' },
+  { id: 16, name: 'الفئة 16', description: 'أفلام فيها شخصية بتنتحل شخصية تانيه', rules: 'اجمع ٣ بطاقات' },
+  { id: 17, name: 'الفئة 17', description: 'أفلام فيها مطاردة عربيات', rules: 'اجمع ٣ بطاقات' },
+  { id: 18, name: 'الفئة 18', description: 'أفلام إسمها من ٣ كلمات', rules: 'اجمع ٣ بطاقات' },
+  { id: 19, name: 'الفئة 19', description: 'ممثلين تقدر تذكر إسم شخصيتهم في فيلم علي الأقل', rules: 'اجمع ٣ بطاقات' },
+  { id: 20, name: 'الفئة 20', description: 'فيلم ظهر فيه حمام سباحة', rules: 'اجمع ٣ بطاقات' },
+  { id: 21, name: 'الفئة 21', description: 'أفلام البطل فيها دخل السجن', rules: 'اجمع ٣ بطاقات' },
+  { id: 22, name: 'الفئة 22', description: 'ممثلين ليهم إخوات في فيلم', rules: 'اجمع ٣ بطاقات' },
+  { id: 23, name: 'الفئة 23', description: 'ممثلين عملوا إعلان في التليفزيون', rules: 'اجمع ٣ بطاقات' },
+  { id: 24, name: 'الفئة 24', description: 'أفلام ظهر فيها حيوان', rules: 'اجمع ٣ بطاقات' },
+  { id: 25, name: 'الفئة 25', description: 'ممثلين تقدر تقول ليهم ٥ أفلام', rules: 'اجمع ٣ بطاقات' },
+  { id: 26, name: 'الفئة 26', description: 'أفلام تقدر تقول منها ٣ إفيهات', rules: 'اجمع ٣ بطاقات' },
+  { id: 27, name: 'الفئة 27', description: 'ممثلين عيطوا في أفلام', rules: 'اجمع ٣ بطاقات' },
+  { id: 28, name: 'الفئة 28', description: 'أفلام حصل فيها جريمة قتل', rules: 'اجمع ٣ بطاقات' },
+  { id: 29, name: 'الفئة 29', description: 'أفلام تقدر تقول فيها أسماء ٣ شخصيات في الفيلم غير البطل', rules: 'اجمع ٣ بطاقات' },
+  { id: 30, name: 'الفئة 30', description: 'فيلم إسمه من كلمة واحدة', rules: 'اجمع ٣ بطاقات' },
+  { id: 31, name: 'الفئة 31', description: 'ممثلات شاركوا في فيلم لأحمد حلمي', rules: 'اجمع ٣ بطاقات' },
+  { id: 32, name: 'الفئة 32', description: 'ممثل أو ممثلة عملوا دور دكتور (طبيب)', rules: 'اجمع ٣ بطاقات' },
+  { id: 33, name: 'الفئة 33', description: 'ممثلين اتقبض عليهم في فيلم', rules: 'اجمع ٣ بطاقات' },
+  { id: 34, name: 'الفئة 34', description: 'أفلام بطليها بيتجوزوا في نهاية الفيلم', rules: 'اجمع ٣ بطاقات' },
+  { id: 35, name: 'الفئة 35', description: 'فيلم و ٢ ممثلين موجودين فيه', rules: 'اجمع ٣ بطاقات' },
+  { id: 36, name: 'الفئة 36', description: 'أفلام فيها مشهد في عربية', rules: 'اجمع ٣ بطاقات' },
+  { id: 37, name: 'الفئة 37', description: 'أفلام فيها البطل بيقتل حد', rules: 'اجمع ٣ بطاقات' },
+  { id: 38, name: 'الفئة 38', description: 'أفلام بيحصل فيها انفصال بين اتنين (حتي إذا رجعوا بعد كده لبعض عادي)', rules: 'اجمع ٣ بطاقات' },
+  { id: 39, name: 'الفئة 39', description: 'ممثلين مثلوا مع احمد عز و كريم عبد العزيز (مش لازم يكونوا في نفس الفيلم)', rules: 'اجمع ٣ بطاقات' },
+  { id: 40, name: 'الفئة 40', description: 'ممثلين مثلوا مع احمد عز و أحمد السقا (مش لازم يكونوا في نفس الفيلم)', rules: 'اجمع ٣ بطاقات' },
+  { id: 41, name: 'الفئة 41', description: 'فيلم فيه أغنية و تقول جزء من الأغنية', rules: 'اجمع ٣ بطاقات' },
+  { id: 42, name: 'الفئة 42', description: 'ممثل تقدر تقول إسم شخصيته في فيلمين', rules: 'اجمع ٣ بطاقات' },
 ];
 
 const rooms = {};
 const pendingActions = {};
 const playerActivity = {};
+
+const playerColorPalette = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -319,7 +110,6 @@ function getNextPlayer(roomCode, currentPlayerId) {
   const room = rooms[roomCode];
   if (!room || !room.players.length) return null;
   
-  // Get only non-admin players for turn order
   const nonAdminPlayers = room.players.filter(p => !p.isAdmin);
   if (nonAdminPlayers.length === 0) return null;
   
@@ -393,14 +183,12 @@ function initializeCardGame(players) {
   const shuffledDeck = shuffleDeck(filteredDeck);
   const playerHands = {};
   
-  // Only deal cards to non-admin players
   const nonAdminPlayers = players.filter(p => !p.isAdmin);
   
   nonAdminPlayers.forEach(player => {
-    // Track original hand index for each card
     const handCards = shuffledDeck.splice(0, 5);
     handCards.forEach((card, index) => {
-      card.originalHandIndex = index; // Track original position in hand
+      card.originalHandIndex = index;
     });
     playerHands[player.id] = handCards;
     console.log(`   Dealt 5 cards to ${player.name}:`, playerHands[player.id].map(card => ({ 
@@ -411,14 +199,12 @@ function initializeCardGame(players) {
     })));
   });
 
-  // Admin players get empty hands
   players.filter(p => p.isAdmin).forEach(admin => {
     playerHands[admin.id] = [];
   });
 
   console.log(`🃏 Remaining cards in draw pile: ${shuffledDeck.length}`);
 
-  // Start with first non-admin player
   const firstPlayer = nonAdminPlayers[0]?.id || null;
 
   return {
@@ -450,29 +236,23 @@ function initializeCardGame(players) {
   };
 }
 
-// Helper function to get all available cards from player (hand + circles) MAINTAINING ORIGINAL ORDER
 function getAllPlayerCardsInOrder(game, playerId) {
   const handCards = game.playerHands[playerId] || [];
   const circleCards = (game.playerCircles[playerId] || []).filter(card => card !== null);
   
-  // Create an array that maintains the original order from hand
   const allCards = [];
   
-  // First, add all hand cards with their current order
   handCards.forEach((card, index) => {
     card.currentPosition = index;
     card.source = 'hand';
     allCards.push({...card});
   });
   
-  // Add circle cards, maintaining their original hand index
   circleCards.forEach(card => {
     card.source = 'circle';
     allCards.push({...card});
   });
   
-  // Sort by originalHandIndex to maintain the original order from hand
-  // Cards without originalHandIndex (jokers, etc) will go to the end
   allCards.sort((a, b) => {
     const aIndex = a.originalHandIndex !== undefined ? a.originalHandIndex : 999;
     const bIndex = b.originalHandIndex !== undefined ? b.originalHandIndex : 999;
@@ -482,16 +262,13 @@ function getAllPlayerCardsInOrder(game, playerId) {
   return allCards;
 }
 
-// Helper function to remove card from player (hand or circle)
 function removeCardFromPlayer(game, playerId, cardId) {
-  // First check hand
   const handIndex = game.playerHands[playerId].findIndex(c => c.id === cardId);
   if (handIndex !== -1) {
     const [card] = game.playerHands[playerId].splice(handIndex, 1);
     return { card, source: 'hand' };
   }
   
-  // Check circles
   const circleIndex = game.playerCircles[playerId].findIndex(c => c && c.id === cardId);
   if (circleIndex !== -1) {
     const card = game.playerCircles[playerId][circleIndex];
@@ -502,7 +279,100 @@ function removeCardFromPlayer(game, playerId, cardId) {
   return null;
 }
 
+// ===================== SWORD OF KNOWLEDGE HELPERS =====================
+const continentsSOK = [
+  { id: 'africa', name: 'أفريقيا', regions: [
+      { id: 'africa1', name: 'مصر' },
+      { id: 'africa2', name: 'نيجيريا' },
+      { id: 'africa3', name: 'جنوب أفريقيا' },
+      { id: 'africa4', name: 'كينيا' },
+      { id: 'africa5', name: 'الجزائر' },
+    ]
+  },
+  { id: 'asia', name: 'آسيا', regions: [
+      { id: 'asia1', name: 'السعودية' },
+      { id: 'asia2', name: 'الهند' },
+      { id: 'asia3', name: 'اليابان' },
+      { id: 'asia4', name: 'الصين' },
+      { id: 'asia5', name: 'تايلاند' }
+    ]
+  },
+  { id: 'europe', name: 'أوروبا', regions: [
+      { id: 'europe1', name: 'فرنسا' },
+      { id: 'europe2', name: 'ألمانيا' },
+      { id: 'europe3', name: 'إيطاليا' },
+      { id: 'europe4', name: 'إسبانيا' },
+      { id: 'europe5', name: 'البرتغال' },
+    ]
+  },
+  { id: 'americas', name: 'الأمريكيتين', regions: [
+      { id: 'americas1', name: 'أمريكا' },
+      { id: 'americas2', name: 'البرازيل' },
+      { id: 'americas3', name: 'كندا' },
+      { id: 'americas4', name: 'الأرجنتين' },
+      { id: 'americas5', name: 'المكسيك' },
+    ]
+  },
+  { id: 'australia', name: 'أستراليا', regions: [
+      { id: 'aus1', name: 'سيدني' },
+      { id: 'aus2', name: 'ملبورن' },
+      { id: 'aus3', name: 'بريزبن' },
+      { id: 'aus4', name: 'برث' },
+      { id: 'aus5', name: 'كانبيرا' },
+    ]
+  },
+  { id: 'middleeast', name: 'الشرق الأوسط', regions: [
+      { id: 'me1', name: 'الإمارات' },
+      { id: 'me2', name: 'قطر' },
+      { id: 'me3', name: 'الكويت' },
+      { id: 'me4', name: 'عُمان' },
+      { id: 'me5', name: 'البحرين' },
+    ]
+  },
+  { id: 'northasia', name: 'شمال آسيا', regions: [
+      { id: 'na1', name: 'روسيا' },
+      { id: 'na2', name: 'كازاخستان' },
+      { id: 'na3', name: 'منغوليا' },
+      { id: 'na4', name: 'كوريا' },
+      { id: 'na5', name: 'اليابان' },
+    ]
+  },
+  { id: 'southasia', name: 'جنوب آسيا', regions: [
+      { id: 'sa1', name: 'باكستان' },
+      { id: 'sa2', name: 'بنغلاديش' },
+      { id: 'sa3', name: 'سريلانكا' },
+      { id: 'sa4', name: 'نيبال' },
+      { id: 'sa5', name: 'أفغانستان' },
+    ]
+  },
+];
+
+const getNextPlayerSOK = (roomCode, currentPlayerId) => {
+  const room = rooms[roomCode];
+  if (!room) return null;
+  const nonAdmins = room.players.filter(p => !p.isAdmin && !p.eliminated);
+  if (nonAdmins.length === 0) return null;
+  const idx = nonAdmins.findIndex(p => p.id === currentPlayerId);
+  return nonAdmins[(idx + 1) % nonAdmins.length].id;
+};
+
+const sanitizeSOK = (game) => {
+  if (!game) return null;
+  const { timer, pendingAction, duel, currentQuestion, ...safe } = game;
+  return safe;
+};
+
+const getPlayerSocketSOK = (roomCode, playerId) => {
+  const room = rooms[roomCode];
+  if (!room) return null;
+  const player = room.players.find(p => p.id === playerId);
+  if (!player) return null;
+  return io.sockets.sockets.get(player.socketId);
+};
+
+// =====================================================
 // Socket.io connection handling
+// =====================================================
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
   updatePlayerActivity(socket.id);
@@ -541,16 +411,22 @@ io.on('connection', (socket) => {
     console.log(`👤 Player ${player.name} joining room: ${roomCode}`);
     
     if (rooms[roomCode]) {
+      // 🎨 Assign a unique colour
+      const nonAdminPlayers = rooms[roomCode].players.filter(p => !p.isAdmin);
+      const colorIndex = nonAdminPlayers.length % playerColorPalette.length;
+      const assignedColor = player.color || playerColorPalette[colorIndex];
+
       const playerWithSocket = { 
         ...player, 
         socketId: socket.id,
-        isAdmin: socket.id === rooms[roomCode].admin
+        isAdmin: socket.id === rooms[roomCode].admin,
+        color: assignedColor,
       };
       rooms[roomCode].players.push(playerWithSocket);
       socket.join(roomCode);
       
-      socket.emit('player_joined', player);
-      io.to(roomCode).emit('player_joined', player);
+      socket.emit('player_joined', playerWithSocket);
+      io.to(roomCode).emit('player_joined', playerWithSocket);
       
       socket.emit('whiteboard_state', rooms[roomCode].whiteboard);
       
@@ -559,14 +435,14 @@ io.on('connection', (socket) => {
       }
       
       socket.data = { roomCode, playerId: player.id };
-      console.log(`✅ ${player.name} joined room ${roomCode}. Total players: ${rooms[roomCode].players.length}`);
+      console.log(`✅ ${player.name} joined room ${roomCode} (color: ${assignedColor}). Total players: ${rooms[roomCode].players.length}`);
     } else {
       socket.emit('room_not_found');
       console.log(`❌ Room ${roomCode} not found`);
     }
   });
 
-  // WHITEBOARD EVENTS
+  // ===== WHITEBOARD EVENTS (existing) =====
   socket.on('start_drawing', ({ roomCode, startX, startY, color, size }) => {
     updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
@@ -626,7 +502,94 @@ io.on('connection', (socket) => {
     }
   });
 
-  // CARD GAME EVENTS
+  // Grid game – initial state request (per player)
+  socket.on('grid_game_init', ({ roomCode, playerId }) => {
+    if (!rooms[roomCode]) return;
+    if (!rooms[roomCode].gridGames) {
+      rooms[roomCode].gridGames = {};
+    }
+    if (!rooms[roomCode].gridGames[playerId]) {
+      rooms[roomCode].gridGames[playerId] = Array.from({ length: 29 }, () => Array(9).fill(''));
+    }
+    // Send only this player's grid
+    socket.emit('grid_game_state', { grid: rooms[roomCode].gridGames[playerId] });
+  });
+
+  // Grid cell update (per player)
+  socket.on('grid_cell_update', ({ roomCode, playerId, row, col, value }) => {
+    if (!rooms[roomCode]) return;
+    if (!rooms[roomCode].gridGames) {
+      rooms[roomCode].gridGames = {};
+    }
+    if (!rooms[roomCode].gridGames[playerId]) {
+      rooms[roomCode].gridGames[playerId] = Array.from({ length: 29 }, () => Array(9).fill(''));
+    }
+    if (row >= 0 && row < 29 && col >= 0 && col < 9) {
+      rooms[roomCode].gridGames[playerId][row][col] = value;
+      // Send the updated grid back to this player only (private)
+      socket.emit('grid_game_state', { grid: rooms[roomCode].gridGames[playerId] });
+    }
+  });
+
+  // ===== TIC TAC TOE EVENTS =====
+  socket.on('tic_tac_toe_start', ({ roomCode, playerX, playerO }) => {
+    updatePlayerActivity(socket.id);
+    const room = rooms[roomCode];
+    if (!room) return;
+    room.ticTacToe = {
+      board: Array(9).fill(null),
+      turn: 'X',
+      winner: null,
+      playerX,
+      playerO
+    };
+    io.to(roomCode).emit('tic_tac_toe_state', room.ticTacToe);
+  });
+
+  socket.on('tic_tac_toe_move', ({ roomCode, index, playerId }) => {
+    updatePlayerActivity(socket.id);
+    const room = rooms[roomCode];
+    if (!room || !room.ticTacToe) return;
+    const game = room.ticTacToe;
+    if (game.board[index] || game.winner) return;
+
+    const currentPlayer = game.turn === 'X' ? game.playerX : game.playerO;
+    if (currentPlayer.id !== playerId) return; // not this player's turn
+
+    game.board[index] = game.turn;
+
+    // Check winner
+    const lines = [
+      [0,1,2],[3,4,5],[6,7,8], // rows
+      [0,3,6],[1,4,7],[2,5,8], // cols
+      [0,4,8],[2,4,6]          // diags
+    ];
+    for (let line of lines) {
+      const [a,b,c] = line;
+      if (game.board[a] && game.board[a] === game.board[b] && game.board[a] === game.board[c]) {
+        game.winner = game.turn;
+        break;
+      }
+    }
+    if (!game.winner && game.board.every(cell => cell !== null)) {
+      game.winner = 'draw';
+    }
+
+    game.turn = game.turn === 'X' ? 'O' : 'X';
+    io.to(roomCode).emit('tic_tac_toe_state', game);
+  });
+
+  socket.on('tic_tac_toe_reset', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
+    const room = rooms[roomCode];
+    if (!room || !room.ticTacToe) return;
+    room.ticTacToe.board = Array(9).fill(null);
+    room.ticTacToe.turn = 'X';
+    room.ticTacToe.winner = null;
+    io.to(roomCode).emit('tic_tac_toe_state', room.ticTacToe);
+  });
+
+  // ===== CARD GAME EVENTS (all original handlers – unchanged) =====
   socket.on('card_game_initialize', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎮 CARD GAME INITIALIZE for room: ${roomCode}`);
@@ -664,7 +627,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Draw card from pile - ADMIN CANNOT PLAY
+  // Draw card from pile
   socket.on('card_game_draw', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🃏 DRAW CARD by player ${playerId} in room ${roomCode}`);
@@ -673,7 +636,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -712,7 +674,6 @@ io.on('connection', (socket) => {
       }
 
       const drawnCard = game.drawPile.pop();
-      // Set original hand index for the new card
       drawnCard.originalHandIndex = game.playerHands[playerId].length;
       game.playerHands[playerId].push(drawnCard);
       game.playerHasDrawn[playerId] = true;
@@ -724,7 +685,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Play card to table - ADMIN CANNOT PLAY
+  // Play card to table
   socket.on('card_game_play_table', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🃏 PLAY TO TABLE by player ${playerId} with card ${cardId} in room ${roomCode}`);
@@ -733,7 +694,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -781,7 +741,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Take card from table - ADMIN CANNOT PLAY
+  // Take card from table
   socket.on('card_game_take_table', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🃏 TAKE FROM TABLE by player ${playerId} for card ${cardId} in room ${roomCode}`);
@@ -790,7 +750,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -829,7 +788,6 @@ io.on('connection', (socket) => {
       }
 
       const [card] = game.tableCards.splice(-1, 1);
-      // Set original hand index for the taken card
       card.originalHandIndex = game.playerHands[playerId].length;
       game.playerHands[playerId].push(card);
       game.playerHasDrawn[playerId] = true;
@@ -841,7 +799,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use skip card - ADMIN CANNOT PLAY
+  // Use skip card
   socket.on('card_game_use_skip', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎭 USE SKIP CARD by player ${playerId} in room ${roomCode}`);
@@ -850,7 +808,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -906,7 +863,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Use shake card - ADMIN CANNOT PLAY
+  // Use shake card
   socket.on('card_game_use_shake', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 USE SHAKE CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
@@ -916,7 +873,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -946,7 +902,6 @@ io.on('connection', (socket) => {
       
       game.tableCards.push(shakeCard);
       
-      // Reset shake state properly
       game.activeShake = {
         playerId: playerId,
         card: shakeCard,
@@ -977,7 +932,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // FIXED: Use exchange card - ADMIN CANNOT PLAY
+  // Use exchange card
   socket.on('card_game_use_exchange', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 USE EXCHANGE CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
@@ -987,7 +942,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -1017,40 +971,36 @@ io.on('connection', (socket) => {
       
       game.tableCards.push(exchangeCard);
       
-      // Set up exchange state - initiator chooses a card first, then one other player chooses
       game.activeExchange = {
         initiatorId: playerId,
         card: exchangeCard,
-        initiatorCard: null, // Card chosen by initiator
-        initiatorSource: null, // Source of initiator's card (hand/circle)
-        responderId: null, // Player who responds to exchange
-        responderCard: null, // Card chosen by responder
-        responderSource: null, // Source of responder's card (hand/circle)
+        initiatorCard: null,
+        initiatorSource: null,
+        responderId: null,
+        responderCard: null,
+        responderSource: null,
         waitingForInitiator: true,
         waitingForResponder: false
       };
       
       io.to(roomCode).emit('card_game_state_update', game);
       
-      // Get all player cards in order for display
       const playerCardsInOrder = getAllPlayerCardsInOrder(game, playerId);
       
-      // Only initiator chooses first
       socket.emit('card_game_exchange_choose_card', {
         initiatorId: playerId,
         actionCard: exchangeCard,
-        playerCards: playerCardsInOrder, // Send ordered cards
+        playerCards: playerCardsInOrder,
         message: 'اختر بطاقة من يدك أو دوائرك للتبادل'
       });
       
-      // Notify other players to wait AND SHOW THEIR CARDS IN ORDER
       socket.to(roomCode).emit('card_game_exchange_waiting_with_cards', {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
         message: 'بانتظار اختيار اللاعب لبطاقته - يمكنك رؤية بطاقاتك لكن لا يمكنك الاختيار حتى يختار اللاعب الآخر'
       });
       
-      console.log(`✅ Exchange card used by ${playerId}. Waiting for initiator to choose a card. Other players can see their cards.`);
+      console.log(`✅ Exchange card used by ${playerId}. Waiting for initiator to choose a card.`);
       
       const currentPlayer = room.players.find(p => p.id === playerId);
       io.to(roomCode).emit('card_game_message', {
@@ -1064,7 +1014,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Use collective exchange card - SAME AS REGULAR EXCHANGE
+  // Use collective exchange card
   socket.on('card_game_use_collective_exchange', ({ roomCode, playerId, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 USE COLLECTIVE EXCHANGE CARD by player ${playerId} in room ${roomCode}, cardId: ${cardId}`);
@@ -1074,7 +1024,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -1104,40 +1053,36 @@ io.on('connection', (socket) => {
       
       game.tableCards.push(collectiveExchangeCard);
       
-      // Set up collective exchange state
       game.activeCollectiveExchange = {
         initiatorId: playerId,
         card: collectiveExchangeCard,
-        initiatorCard: null, // Card chosen by initiator
-        initiatorSource: null, // Source of initiator's card (hand/circle)
-        responderId: null, // Player who responds to exchange
-        responderCard: null, // Card chosen by responder
-        responderSource: null, // Source of responder's card (hand/circle)
+        initiatorCard: null,
+        initiatorSource: null,
+        responderId: null,
+        responderCard: null,
+        responderSource: null,
         waitingForInitiator: true,
         waitingForResponder: false
       };
       
       io.to(roomCode).emit('card_game_state_update', game);
       
-      // Get all player cards in order for display
       const playerCardsInOrder = getAllPlayerCardsInOrder(game, playerId);
       
-      // Only initiator chooses first
       socket.emit('card_game_collective_exchange_choose_card', {
         initiatorId: playerId,
         actionCard: collectiveExchangeCard,
-        playerCards: playerCardsInOrder, // Send ordered cards
+        playerCards: playerCardsInOrder,
         message: 'اختر بطاقة من يدك أو دوائرك للتبادل الجماعي'
       });
       
-      // Notify other players to wait AND SHOW THEIR CARDS IN ORDER
       socket.to(roomCode).emit('card_game_collective_exchange_waiting_with_cards', {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
         message: 'بانتظار اختيار اللاعب لبطاقته - يمكنك رؤية بطاقاتك لكن لا يمكنك الاختيار حتى يختار اللاعب الآخر'
       });
       
-      console.log(`✅ Collective exchange card used by ${playerId}. Waiting for initiator to choose a card. Other players can see their cards.`);
+      console.log(`✅ Collective exchange card used by ${playerId}. Waiting for initiator to choose a card.`);
       
       const currentPlayer = room.players.find(p => p.id === playerId);
       io.to(roomCode).emit('card_game_message', {
@@ -1151,7 +1096,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // FIXED: Initiator chooses card for exchange (hand OR circle)
+  // Initiator chooses card for exchange
   socket.on('card_game_exchange_choose_card', ({ roomCode, playerId, cardId, source }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 EXCHANGE CHOOSE CARD by initiator ${playerId} in room ${roomCode}, cardId: ${cardId}, source: ${source}`);
@@ -1178,7 +1123,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find and remove the selected card from hand or circle
       const removalResult = removeCardFromPlayer(game, playerId, cardId);
       if (!removalResult) {
         console.log(`❌ Selected card ${cardId} not found in player's hand or circles`);
@@ -1195,7 +1139,6 @@ io.on('connection', (socket) => {
       
       io.to(roomCode).emit('card_game_state_update', game);
       
-      // Notify all players that initiator has chosen
       io.to(roomCode).emit('card_game_exchange_initiator_chosen', {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
@@ -1211,7 +1154,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Initiator chooses card for collective exchange (hand OR circle)
+  // Initiator chooses card for collective exchange
   socket.on('card_game_collective_exchange_choose_card', ({ roomCode, playerId, cardId, source }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 COLLECTIVE EXCHANGE CHOOSE CARD by initiator ${playerId} in room ${roomCode}, cardId: ${cardId}, source: ${source}`);
@@ -1238,7 +1181,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find and remove the selected card from hand or circle
       const removalResult = removeCardFromPlayer(game, playerId, cardId);
       if (!removalResult) {
         console.log(`❌ Selected card ${cardId} not found in player's hand or circles`);
@@ -1255,7 +1197,6 @@ io.on('connection', (socket) => {
       
       io.to(roomCode).emit('card_game_state_update', game);
       
-      // Notify all players that initiator has chosen
       io.to(roomCode).emit('card_game_collective_exchange_initiator_chosen', {
         initiatorId: playerId,
         initiatorName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
@@ -1271,7 +1212,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // FIXED: Responder chooses card for exchange (hand OR circle)
+  // Responder chooses card for exchange
   socket.on('card_game_exchange_respond', ({ roomCode, playerId, cardId, source }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 EXCHANGE RESPOND by player ${playerId} in room ${roomCode}, cardId: ${cardId}, source: ${source}`);
@@ -1304,7 +1245,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find and remove the selected card from hand or circle
       const removalResult = removeCardFromPlayer(game, playerId, cardId);
       if (!removalResult) {
         console.log(`❌ Selected card ${cardId} not found in player's hand or circles`);
@@ -1319,7 +1259,6 @@ io.on('connection', (socket) => {
       game.activeExchange.responderSource = cardSource;
       game.activeExchange.waitingForResponder = false;
       
-      // Store exchange data BEFORE resetting activeExchange
       const initiatorId = game.activeExchange.initiatorId;
       const initiatorCard = game.activeExchange.initiatorCard;
       const initiatorSource = game.activeExchange.initiatorSource;
@@ -1330,8 +1269,6 @@ io.on('connection', (socket) => {
       const initiatorPlayer = room.players.find(p => p.id === initiatorId);
       const responderPlayer = room.players.find(p => p.id === responderId);
       
-      // Perform the exchange - cards go to HAND of the other player
-      // Set original hand index for exchanged cards
       responderCard.originalHandIndex = game.playerHands[initiatorId].length;
       initiatorCard.originalHandIndex = game.playerHands[responderId].length;
       
@@ -1340,11 +1277,8 @@ io.on('connection', (socket) => {
       
       console.log(`🔄 Exchange completed: ${responderId} gave "${responderCard.name}" from ${responderSource} and received "${initiatorCard.name}" from ${initiatorId}'s ${initiatorSource}`);
       
-      // Reset exchange state - DO THIS BEFORE USING THE STORED VARIABLES
-      const oldExchange = game.activeExchange;
       game.activeExchange = null;
       
-      // Update game state
       game.playerHasDrawn[initiatorId] = false;
       delete game.skippedPlayers[initiatorId];
       
@@ -1378,7 +1312,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Responder chooses card for collective exchange (hand OR circle)
+  // Responder chooses card for collective exchange
   socket.on('card_game_collective_exchange_respond', ({ roomCode, playerId, cardId, source }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 COLLECTIVE EXCHANGE RESPOND by player ${playerId} in room ${roomCode}, cardId: ${cardId}, source: ${source}`);
@@ -1411,7 +1345,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find and remove the selected card from hand or circle
       const removalResult = removeCardFromPlayer(game, playerId, cardId);
       if (!removalResult) {
         console.log(`❌ Selected card ${cardId} not found in player's hand or circles`);
@@ -1426,7 +1359,6 @@ io.on('connection', (socket) => {
       game.activeCollectiveExchange.responderSource = cardSource;
       game.activeCollectiveExchange.waitingForResponder = false;
       
-      // Store exchange data BEFORE resetting activeCollectiveExchange
       const initiatorId = game.activeCollectiveExchange.initiatorId;
       const initiatorCard = game.activeCollectiveExchange.initiatorCard;
       const initiatorSource = game.activeCollectiveExchange.initiatorSource;
@@ -1437,8 +1369,6 @@ io.on('connection', (socket) => {
       const initiatorPlayer = room.players.find(p => p.id === initiatorId);
       const responderPlayer = room.players.find(p => p.id === responderId);
       
-      // Perform the exchange - cards go to HAND of the other player
-      // Set original hand index for exchanged cards
       responderCard.originalHandIndex = game.playerHands[initiatorId].length;
       initiatorCard.originalHandIndex = game.playerHands[responderId].length;
       
@@ -1447,10 +1377,8 @@ io.on('connection', (socket) => {
       
       console.log(`🔄 Collective exchange completed: ${responderId} gave "${responderCard.name}" from ${responderSource} and received "${initiatorCard.name}" from ${initiatorId}'s ${initiatorSource}`);
       
-      // Reset collective exchange state
       game.activeCollectiveExchange = null;
       
-      // Update game state
       game.playerHasDrawn[initiatorId] = false;
       delete game.skippedPlayers[initiatorId];
       
@@ -1499,39 +1427,32 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Only initiator can cancel
       if (playerId !== game.activeExchange.initiatorId) {
         console.log(`❌ Only initiator can cancel exchange`);
         socket.emit('card_game_error', { message: 'Only initiator can cancel exchange' });
         return;
       }
 
-      // Return initiator's card to hand or circle if they had chosen one
       if (game.activeExchange.initiatorCard) {
         const initiatorSource = game.activeExchange.initiatorSource;
         if (initiatorSource === 'circle') {
-          // Find empty circle slot
           const emptyCircleIndex = game.playerCircles[playerId].findIndex(card => card === null);
           if (emptyCircleIndex !== -1) {
             game.playerCircles[playerId][emptyCircleIndex] = game.activeExchange.initiatorCard;
           } else {
-            // No empty circle, put in hand
             game.playerHands[playerId].push(game.activeExchange.initiatorCard);
           }
         } else {
-          // Return to hand
           game.playerHands[playerId].push(game.activeExchange.initiatorCard);
         }
       }
 
       const initiatorPlayer = room.players.find(p => p.id === playerId);
       
-      // Reset exchange state
       game.activeExchange = null;
       game.playerHasDrawn[playerId] = false;
       delete game.skippedPlayers[playerId];
       
-      // Turn remains with initiator
       game.currentTurn = playerId;
       
       io.to(roomCode).emit('card_game_exchange_cancelled', {
@@ -1554,7 +1475,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Cancel collective exchange
+  // Cancel collective exchange
   socket.on('card_game_collective_exchange_cancel', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`❌ COLLECTIVE EXCHANGE CANCELLED by player ${playerId} in room ${roomCode}`);
@@ -1569,39 +1490,32 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Only initiator can cancel
       if (playerId !== game.activeCollectiveExchange.initiatorId) {
         console.log(`❌ Only initiator can cancel collective exchange`);
         socket.emit('card_game_error', { message: 'Only initiator can cancel collective exchange' });
         return;
       }
 
-      // Return initiator's card to hand or circle if they had chosen one
       if (game.activeCollectiveExchange.initiatorCard) {
         const initiatorSource = game.activeCollectiveExchange.initiatorSource;
         if (initiatorSource === 'circle') {
-          // Find empty circle slot
           const emptyCircleIndex = game.playerCircles[playerId].findIndex(card => card === null);
           if (emptyCircleIndex !== -1) {
             game.playerCircles[playerId][emptyCircleIndex] = game.activeCollectiveExchange.initiatorCard;
           } else {
-            // No empty circle, put in hand
             game.playerHands[playerId].push(game.activeCollectiveExchange.initiatorCard);
           }
         } else {
-          // Return to hand
           game.playerHands[playerId].push(game.activeCollectiveExchange.initiatorCard);
         }
       }
 
       const initiatorPlayer = room.players.find(p => p.id === playerId);
       
-      // Reset collective exchange state
       game.activeCollectiveExchange = null;
       game.playerHasDrawn[playerId] = false;
       delete game.skippedPlayers[playerId];
       
-      // CHANGED: Move turn to next player instead of keeping it with the initiator
       let nextPlayerId = getNextNonSkippedPlayer(roomCode, playerId, game.skippedPlayers);
       game.currentTurn = nextPlayerId;
       
@@ -1625,7 +1539,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Move card to circle - ADMIN CANNOT PLAY
+  // Move card to circle
   socket.on('card_game_move_to_circle', ({ roomCode, playerId, circleIndex, cardId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 MOVE TO CIRCLE by player ${playerId}, card ${cardId} to circle ${circleIndex} in room ${roomCode}`);
@@ -1634,7 +1548,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -1661,7 +1574,6 @@ io.on('connection', (socket) => {
       }
 
       const [card] = game.playerHands[playerId].splice(cardIndex, 1);
-      // Preserve the original hand index when moving to circle
       game.playerCircles[playerId][circleIndex] = card;
       
       io.to(roomCode).emit('card_game_state_update', game);
@@ -1671,7 +1583,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Remove card from circle - ADMIN CANNOT PLAY
+  // Remove card from circle
   socket.on('card_game_remove_from_circle', ({ roomCode, playerId, circleIndex }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 REMOVE FROM CIRCLE by player ${playerId} from circle ${circleIndex} in room ${roomCode}`);
@@ -1680,7 +1592,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -1703,7 +1614,6 @@ io.on('connection', (socket) => {
       
       if (card) {
         game.playerCircles[playerId][circleIndex] = null;
-        // Set original hand index when returning to hand
         card.originalHandIndex = game.playerHands[playerId].length;
         game.playerHands[playerId].push(card);
         
@@ -1717,7 +1627,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Place ALL cards in shake - ADMIN CANNOT PLAY
+  // Place ALL cards in shake
   socket.on('card_game_shake_place_all', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 PLACE ALL CARDS IN SHAKE by player ${playerId} in room ${roomCode}`);
@@ -1727,7 +1637,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -1740,7 +1649,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Check if any player has already placed cards
       const anyPlayerPlacedCards = Object.keys(game.activeShake.placedCards).length > 0;
       if (anyPlayerPlacedCards) {
         console.log(`❌ Another player has already placed cards in this shake`);
@@ -1748,7 +1656,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Get ALL cards from player (hand + circles)
       const playerHandCards = [...game.playerHands[playerId]];
       const playerCircleCards = game.playerCircles[playerId].filter(card => card !== null);
       const allPlayerCards = [...playerHandCards, ...playerCircleCards];
@@ -1759,16 +1666,14 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Move all player's cards to shake (both hand and circles)
       game.playerHands[playerId] = [];
-      game.playerCircles[playerId] = [null, null, null, null]; // Clear all circles
+      game.playerCircles[playerId] = [null, null, null, null];
       
       if (!game.activeShake.placedCards[playerId]) {
         game.activeShake.placedCards[playerId] = [];
       }
       game.activeShake.placedCards[playerId].push(...allPlayerCards);
       
-      // NEW: Enable completion for the initiator
       game.activeShake.canComplete = true;
       
       io.to(roomCode).emit('card_game_shake_all_cards_placed', {
@@ -1776,7 +1681,7 @@ io.on('connection', (socket) => {
         playerName: room.players.find(p => p.id === playerId)?.name || 'لاعب',
         cardCount: allPlayerCards.length,
         cards: allPlayerCards,
-        canComplete: true // NEW: Notify that completion is now possible
+        canComplete: true
       });
       
       io.to(roomCode).emit('card_game_state_update', game);
@@ -1787,7 +1692,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Complete shake process - ADMIN CANNOT PLAY
+  // Complete shake process
   socket.on('card_game_complete_shake', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔄 COMPLETE SHAKE by player ${playerId} in room ${roomCode}`);
@@ -1797,7 +1702,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -1810,7 +1714,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // NEW: Check if completion is allowed
       if (!game.activeShake.canComplete) {
         console.log(`❌ Cannot complete shake - no player has placed cards yet`);
         socket.emit('card_game_error', { message: 'لا يمكن إكمال النفض حتى يضع أحد اللاعبين بطاقاته' });
@@ -1822,17 +1725,14 @@ io.on('connection', (socket) => {
       
       console.log(`🔄 Processing shake with placed cards from players:`, Object.keys(placedCards));
       
-      // Move all placed cards to table (add to BOTTOM of table cards, not top)
       const allPlacedCards = Object.values(placedCards).flat();
       if (allPlacedCards.length > 0) {
         console.log(`🔄 Adding ${allPlacedCards.length} shaken cards to the BOTTOM of table. Table before: ${game.tableCards.length} cards`);
         
-        // Use unshift instead of push to add cards to the beginning (bottom) of the table
         game.tableCards.unshift(...allPlacedCards);
         
         console.log(`✅ Shake completed: ${allPlacedCards.length} cards moved to BOTTOM of table. Table after: ${game.tableCards.length} cards`);
         
-        // Give each player 5 new cards from draw pile ONLY
         Object.keys(placedCards).forEach(playerId => {
           const placedCount = placedCards[playerId].length;
           console.log(`🔄 Giving 5 new cards to player ${playerId} who placed ${placedCount} cards. Draw pile: ${game.drawPile.length} cards`);
@@ -1840,7 +1740,7 @@ io.on('connection', (socket) => {
           for (let i = 0; i < 5; i++) {
             if (game.drawPile.length > 0) {
               const drawnCard = game.drawPile.pop();
-              drawnCard.originalHandIndex = i; // Set original hand index for new cards
+              drawnCard.originalHandIndex = i;
               game.playerHands[playerId].push(drawnCard);
             } else {
               console.log(`❌ No cards left in draw pile to give to player ${playerId}`);
@@ -1851,7 +1751,6 @@ io.on('connection', (socket) => {
         });
       }
       
-      // Reset shake state
       game.activeShake = null;
       game.playerHasDrawn[shakeInitiatorId] = false;
       delete game.skippedPlayers[shakeInitiatorId];
@@ -1879,7 +1778,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Dice roll - ADMIN CAN PLAY
+  // Dice roll
   socket.on('card_game_roll_dice', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🎲 DICE ROLL by player ${playerId} in room ${roomCode}`);
@@ -1895,7 +1794,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Declare category - ADMIN CANNOT PLAY
+  // Declare category
   socket.on('card_game_declare', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     console.log(`🏆 DECLARE CATEGORY by player ${playerId} in room ${roomCode}`);
@@ -1905,7 +1804,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      // Admin cannot play
       if (player && player.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot play`);
         socket.emit('card_game_error', { message: 'Admin cannot play the game' });
@@ -1940,7 +1838,6 @@ io.on('connection', (socket) => {
         };
         game.challengeInProgress = true;
         
-        // Reset challenge responses
         game.challengeResponses = {};
         game.challengeRespondedPlayers = [];
         
@@ -1971,7 +1868,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Check if player is admin - skip admin voting
       const respondingPlayer = room.players.find(p => p.id === playerId);
       if (respondingPlayer && respondingPlayer.isAdmin) {
         console.log(`❌ Admin ${playerId} cannot vote in challenges`);
@@ -1994,7 +1890,6 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('card_game_state_update', game);
       }
 
-      // Get non-admin players excluding declarer
       const nonAdminPlayers = room.players.filter(p => !p.isAdmin);
       const otherPlayers = nonAdminPlayers.filter(p => p.id !== declaredPlayerId);
       
@@ -2015,37 +1910,30 @@ io.on('connection', (socket) => {
           if (completedPlayer) {
             const completedCards = game.playerCircles[declaredPlayerId].filter(card => card !== null);
             
-            // Move completed cards to table
             completedCards.forEach(card => {
               game.tableCards.unshift(card);
             });
             
-            // Add to completed categories
             game.completedCategories[declaredPlayerId].push(game.playerCategories[declaredPlayerId]);
             
-            // Increase player level
             game.playerLevels[declaredPlayerId] = Math.min(5, game.playerLevels[declaredPlayerId] + 1);
             
-            // Clear circles
             game.playerCircles[declaredPlayerId] = [null, null, null, null];
             
-            // Give player 3 new cards from draw pile
             for (let i = 0; i < 3; i++) {
               if (game.drawPile.length > 0) {
                 const drawnCard = game.drawPile.pop();
-                drawnCard.originalHandIndex = i; // Set original hand index
+                drawnCard.originalHandIndex = i;
                 game.playerHands[declaredPlayerId].push(drawnCard);
               }
             }
             
             console.log(`✅ ${completedPlayer.name} completed category and received 3 new cards.`);
             
-            // Check for winner and announce to ALL players
             if (game.playerLevels[declaredPlayerId] >= 5) {
               console.log(`🎊 ${completedPlayer.name} WON THE GAME! 🎊`);
               game.winner = declaredPlayerId;
               
-              // Announce winner to ALL players including the winner
               io.to(roomCode).emit('card_game_winner_announced', {
                 playerId: declaredPlayerId,
                 winnerName: completedPlayer.name
@@ -2080,16 +1968,13 @@ io.on('connection', (socket) => {
           }
         }
         
-        // Reset challenge state but KEEP THE TURN with declaring player
         game.challengeInProgress = false;
         game.declaredCategory = null;
         game.challengeResponses = {};
         game.challengeRespondedPlayers = [];
         
-        // IMPORTANT: Turn remains with the declaring player
-        // They must now discard a card to end their turn
         game.currentTurn = declaredPlayerId;
-        game.playerHasDrawn[declaredPlayerId] = true; // They need to discard
+        game.playerHasDrawn[declaredPlayerId] = true;
         
         io.to(roomCode).emit('card_game_state_update', game);
         console.log(`✅ Challenge resolved. Current turn remains with: ${game.currentTurn}`);
@@ -2106,14 +1991,11 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
-        // Properly reset all game states including winner
         const newGameState = initializeCardGame(rooms[roomCode].players);
         rooms[roomCode].cardGame = newGameState;
         
-        // Emit reset event first to clear winner state on clients
         io.to(roomCode).emit('card_game_reset');
         
-        // Then send the new game state
         io.to(roomCode).emit('card_game_state_update', newGameState);
         console.log(`✅ Card game reset successfully by any player in ${roomCode}. All players notified.`);
       } catch (error) {
@@ -2144,7 +2026,6 @@ io.on('connection', (socket) => {
     
     if (rooms[roomCode] && rooms[roomCode].players.length > 0) {
       try {
-        // Properly reset all game states
         rooms[roomCode].cardGame = initializeCardGame(rooms[roomCode].players);
         
         io.to(roomCode).emit('card_game_reset');
@@ -2159,7 +2040,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Shuffle deck - ADMIN CAN DO THIS
+  // Shuffle deck
   socket.on('card_game_shuffle', ({ roomCode }) => {
     updatePlayerActivity(socket.id);
     console.log(`🔀 SHUFFLE CARDS (Table + Draw Pile) in room ${roomCode}`);
@@ -2194,7 +2075,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Random photos question handler
+  // Random photos question handler (existing)
   socket.on('play_random_question', ({ roomCode, subcategoryId }) => {
     updatePlayerActivity(socket.id);
     console.log(`📸 PLAY RANDOM QUESTION for subcategory: ${subcategoryId} in room: ${roomCode}`);
@@ -2248,37 +2129,748 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Disconnect handler
-  socket.on('disconnect', () => {
-    console.log('🔌 Client disconnected:', socket.id);
-    
-    delete playerActivity[socket.id];
-    
-    const roomCode = socket.data?.roomCode;
-    const playerId = socket.data?.playerId;
-    
-    if (roomCode && rooms[roomCode] && playerId) {
-      const player = rooms[roomCode].players.find(p => p.id === playerId);
-      
-      if (player) {
-        rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
-        console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
-        
-        // If admin disconnects, assign new admin
-        if (rooms[roomCode].admin === socket.id && rooms[roomCode].players.length > 0) {
-          rooms[roomCode].admin = rooms[roomCode].players[0].socketId;
-          console.log(`👑 New admin assigned: ${rooms[roomCode].players[0].name}`);
-        }
-        
-        if (rooms[roomCode].players.length === 0) {
-          delete rooms[roomCode];
-          console.log(`🏠 Room ${roomCode} closed (no players)`);
-        }
-      }
+    // Bingo – initialise per player
+  socket.on('bingo_init', ({ roomCode, playerId }) => {
+    if (!rooms[roomCode]) return;
+    if (!rooms[roomCode].bingoGames) {
+      rooms[roomCode].bingoGames = {};
+    }
+    if (!rooms[roomCode].bingoGames[playerId]) {
+      rooms[roomCode].bingoGames[playerId] = {
+        grid: Array.from({ length: 5 }, () => Array(5).fill('')),
+        marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
+      };
+    }
+    socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
+  });
+
+  // Bingo cell number update
+  socket.on('bingo_cell_update', ({ roomCode, playerId, row, col, value }) => {
+    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
+    if (!rooms[roomCode].bingoGames[playerId]) {
+      rooms[roomCode].bingoGames[playerId] = {
+        grid: Array.from({ length: 5 }, () => Array(5).fill('')),
+        marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
+      };
+    }
+    if (row >= 0 && row < 5 && col >= 0 && col < 5) {
+      rooms[roomCode].bingoGames[playerId].grid[row][col] = value;
+      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
     }
   });
 
-  // Existing quiz game events
+  // Bingo mark toggle
+  socket.on('bingo_mark_update', ({ roomCode, playerId, row, col, marked }) => {
+    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
+    if (!rooms[roomCode].bingoGames[playerId]) {
+      rooms[roomCode].bingoGames[playerId] = {
+        grid: Array.from({ length: 5 }, () => Array(5).fill('')),
+        marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
+      };
+    }
+    if (row >= 0 && row < 5 && col >= 0 && col < 5) {
+      rooms[roomCode].bingoGames[playerId].marks[row][col] = marked;
+      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
+    }
+  });
+
+  socket.on('bingo_reset', ({ roomCode, playerId }) => {
+    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
+    if (rooms[roomCode].bingoGames[playerId]) {
+      rooms[roomCode].bingoGames[playerId] = {
+        grid: Array.from({ length: 5 }, () => Array(5).fill('')),
+        marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
+      };
+      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
+    }
+  });
+
+  // Battleship – init per player
+  socket.on('battleship_init', ({ roomCode, playerId }) => {
+    if (!rooms[roomCode]) return;
+    if (!rooms[roomCode].battleship) {
+      rooms[roomCode].battleship = {};
+    }
+    if (!rooms[roomCode].battleship[playerId]) {
+      rooms[roomCode].battleship[playerId] = {
+        grid: Array.from({ length: 11 }, () => Array(11).fill(null)),
+        placedShips: [],
+      };
+    }
+    socket.emit('battleship_state', rooms[roomCode].battleship[playerId]);
+  });
+
+  // Place a ship
+  socket.on('battleship_place', ({ roomCode, playerId, shipId, positions }) => {
+    if (!rooms[roomCode]?.battleship?.[playerId]) return;
+    const board = rooms[roomCode].battleship[playerId];
+    // Mark grid
+    positions.forEach(({ r, c }) => {
+      if (r >= 0 && r < 11 && c >= 0 && c < 11) {
+        board.grid[r][c] = shipId;
+      }
+    });
+    board.placedShips.push({ shipId, positions });
+    socket.emit('battleship_state', board);
+  });
+
+  // Remove a ship
+  socket.on('battleship_remove', ({ roomCode, playerId, shipId }) => {
+    if (!rooms[roomCode]?.battleship?.[playerId]) return;
+    const board = rooms[roomCode].battleship[playerId];
+    const ship = board.placedShips.find(s => s.shipId === shipId);
+    if (ship) {
+      ship.positions.forEach(({ r, c }) => {
+        if (r >= 0 && r < 11 && c >= 0 && c < 11) {
+          board.grid[r][c] = null;
+        }
+      });
+      board.placedShips = board.placedShips.filter(s => s.shipId !== shipId);
+      socket.emit('battleship_state', board);
+    }
+  });
+
+  // Reset board
+  socket.on('battleship_reset', ({ roomCode, playerId }) => {
+    if (!rooms[roomCode]?.battleship) return;
+    rooms[roomCode].battleship[playerId] = {
+      grid: Array.from({ length: 11 }, () => Array(11).fill(null)),
+      placedShips: [],
+    };
+    socket.emit('battleship_state', rooms[roomCode].battleship[playerId]);
+  });
+
+  // Destroy a single cell of a ship
+  socket.on('battleship_destroy', ({ roomCode, playerId, row, col, shipId }) => {
+    if (!rooms[roomCode]?.battleship?.[playerId]) return;
+    const board = rooms[roomCode].battleship[playerId];
+    if (row >= 0 && row < 11 && col >= 0 && col < 11 && board.grid[row][col] && !board.grid[row][col].startsWith('hit-')) {
+      board.grid[row][col] = `hit-${shipId}`;
+      socket.emit('battleship_state', board);
+    }
+  });
+
+  
+  // ===================== SWORD OF KNOWLEDGE =====================
+  let resolveClaim, askDuelQuestion, resolveDuelRound;
+
+  const MAX_CLAIM_ROUNDS = 4;
+
+  const getNextPlayerSOK = (roomCode, currentPlayerId) => {
+    const room = rooms[roomCode];
+    if (!room) return null;
+    const nonAdmins = room.players.filter(p => !p.isAdmin && !p.eliminated);
+    if (nonAdmins.length === 0) return null;
+    const idx = nonAdmins.findIndex(p => p.id === currentPlayerId);
+    let nextIdx = (idx + 1) % nonAdmins.length;
+    let nextPlayer = nonAdmins[nextIdx];
+    const game = room.sok;
+    if (game && game.skippedPlayers) {
+      let loopCount = 0;
+      while (game.skippedPlayers[nextPlayer.id] && loopCount < nonAdmins.length) {
+        delete game.skippedPlayers[nextPlayer.id];
+        nextIdx = (nextIdx + 1) % nonAdmins.length;
+        nextPlayer = nonAdmins[nextIdx];
+        loopCount++;
+      }
+    }
+    return nextPlayer.id;
+  };
+
+  socket.on('sok_init', ({ roomCode }) => {
+    if (!rooms[roomCode]) return;
+    const room = rooms[roomCode];
+    if (room.sok) {
+      room.sok.players = room.players.filter(p => !p.isAdmin).map(p => ({
+        id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
+      }));
+      socket.emit('sok_state', sanitizeSOK(room.sok));
+      return;
+    }
+
+    const nonAdmins = room.players.filter(p => !p.isAdmin);
+    if (nonAdmins.length === 0) return;
+
+    const shuffledPlayers = [...nonAdmins].sort(() => Math.random() - 0.5);
+    const shuffledContinents = [...continentsSOK].sort(() => Math.random() - 0.5);
+
+    const ownership = {};
+    continentsSOK.forEach(c => {
+      ownership[c.id] = {};
+      c.regions.forEach(r => { ownership[c.id][r.id] = null; });
+    });
+
+    shuffledPlayers.forEach((player, idx) => {
+      if (idx >= shuffledContinents.length) return;
+      const cont = shuffledContinents[idx];
+      ownership[cont.id][cont.regions[0].id] = player.id;
+    });
+
+    const game = {
+      phase: 'claiming',
+      ownership,
+      turn: nonAdmins[0].id,
+      scores: {},
+      players: nonAdmins.map(p => ({
+        id: p.id, name: p.name, color: p.color, eliminated: false
+      })),
+      duel: null,
+      timer: null,
+      pendingAction: null,
+      currentQuestion: null,
+      answersArray: [],
+      roundCount: 0,
+      playedInRound: [],
+      skippedPlayers: {},
+    };
+
+    room.sok = game;
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  });
+
+  // --- Admin restart ---
+  socket.on('sok_reset', ({ roomCode }) => {
+    if (!rooms[roomCode]) return;
+    const room = rooms[roomCode];
+    // Re-init game completely
+    const nonAdmins = room.players.filter(p => !p.isAdmin).map(p => ({
+      ...p, eliminated: false
+    }));
+    // Reset players in room
+    room.players.forEach(p => { p.eliminated = false; });
+    const shuffledPlayers = [...nonAdmins].sort(() => Math.random() - 0.5);
+    const shuffledContinents = [...continentsSOK].sort(() => Math.random() - 0.5);
+
+    const ownership = {};
+    continentsSOK.forEach(c => {
+      ownership[c.id] = {};
+      c.regions.forEach(r => { ownership[c.id][r.id] = null; });
+    });
+
+    shuffledPlayers.forEach((player, idx) => {
+      if (idx >= shuffledContinents.length) return;
+      const cont = shuffledContinents[idx];
+      ownership[cont.id][cont.regions[0].id] = player.id;
+    });
+
+    const game = {
+      phase: 'claiming',
+      ownership,
+      turn: nonAdmins[0].id,
+      scores: {},
+      players: nonAdmins.map(p => ({
+        id: p.id, name: p.name, color: p.color, eliminated: false
+      })),
+      duel: null,
+      timer: null,
+      pendingAction: null,
+      currentQuestion: null,
+      answersArray: [],
+      roundCount: 0,
+      playedInRound: [],
+      skippedPlayers: {},
+    };
+
+    room.sok = game;
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  });
+
+  // --- Claim a region (free circles only, any phase) ---
+  socket.on('sok_claim', ({ roomCode, continentId, regionName, playerId, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game) return;
+    if (game.phase === 'claiming' && game.turn !== playerId) return;
+    if (game.phase === 'attacking' && game.turn !== playerId) return;
+    const cont = continentsSOK.find(c => c.id === continentId);
+    if (!cont) return;
+    const region = cont.regions.find(r => r.id === regionName);
+    if (!region) return;
+    if (game.ownership[continentId][regionName] !== null) return;
+    if (!question) return;
+
+    game.currentQuestion = question;
+    game.answersArray = [];
+    game.pendingAction = { type: 'claim', continentId, regionName, playerId };
+
+    const playerName = rooms[roomCode].players.find(p => p.id === playerId)?.name || '???';
+    const regionObj = cont.regions.find(r => r.id === regionName);
+    io.to(roomCode).emit('sok_claim_start', {
+      playerName,
+      regionName: regionObj?.name || regionName,
+      continentName: cont.name,
+      isEmpty: true,
+    });
+
+    clearTimeout(game.timer);
+    game.timer = setTimeout(() => {
+      const currentGame = rooms[roomCode]?.sok;
+      if (!currentGame || currentGame.currentQuestion !== question) return;
+      io.to(roomCode).emit('sok_question', question);
+      clearTimeout(currentGame.timer);
+      currentGame.timer = setTimeout(() => {
+        resolveClaim(roomCode, continentId, regionName);
+      }, 20000);
+    }, 5000);
+
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  });
+
+  // --- Attack a hub (duel) – any player can attack any enemy hub ---
+  socket.on('sok_attack_hub', ({ roomCode, continentId, regionName, attackerId, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
+    const cont = continentsSOK.find(c => c.id === continentId);
+    if (!cont) return;
+    const region = cont.regions.find(r => r.id === regionName);
+    if (!region) return;
+    const currentOwner = game.ownership[continentId][regionName];
+    if (!currentOwner || currentOwner === attackerId) return;
+    if (!question) return;
+
+    game.phase = 'duel';
+    game.duel = {
+      attackerId,
+      defenderId: currentOwner,
+      scores: { [attackerId]: 0, [currentOwner]: 0 },
+      round: 1,
+      question: null,
+      answers: {},
+      useDelay: true,
+    };
+    game.pendingAction = { type: 'attack_hub', continentId, regionName, attackerId, defenderId: currentOwner };
+
+    const attackerName = rooms[roomCode].players.find(p => p.id === attackerId)?.name || '???';
+    const defenderName = rooms[roomCode].players.find(p => p.id === currentOwner)?.name || '???';
+    const regionObj = cont.regions.find(r => r.id === regionName);
+    io.to(roomCode).emit('sok_duel_start', {
+      attackerName,
+      defenderName,
+      regionName: regionObj?.name || regionName,
+      continentName: cont.name,
+      ownerName: defenderName,
+    });
+
+    const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
+    if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  });
+
+  // --- Attack a base (duel for whole continent) – with foreign circle check ---
+  socket.on('sok_attack_base', ({ roomCode, continentId, attackerId, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
+    const cont = continentsSOK.find(c => c.id === continentId);
+    if (!cont) return;
+    const baseRegionId = cont.regions[0].id;
+    const defenderId = game.ownership[continentId][baseRegionId];
+    if (!defenderId || defenderId === attackerId) return;
+
+    // Check if defender owns any foreign circles (outside their base continent)
+    const defenderHomeContinent = Object.keys(game.ownership).find(cid =>
+      game.ownership[cid][continentsSOK.find(c => c.id === cid).regions[0].id] === defenderId
+    );
+    if (!defenderHomeContinent) return;
+    const foreignOwned = Object.keys(game.ownership).some(cid => {
+      if (cid === defenderHomeContinent) return false;
+      return Object.values(game.ownership[cid]).some(owner => owner === defenderId);
+    });
+    if (foreignOwned) return; // must clear foreign circles first
+
+    // Check attacker owns more than 2 of the defender's base hubs
+    const defenderHubs = cont.regions.filter((r, idx) => idx > 0 && idx <= 4); // indices 1-4
+    const attackerHubCount = defenderHubs.filter(r => game.ownership[continentId][r.id] === attackerId).length;
+    if (attackerHubCount < 3) return;
+
+    game.phase = 'duel';
+    game.duel = {
+      attackerId,
+      defenderId,
+      scores: { [attackerId]: 0, [defenderId]: 0 },
+      round: 1,
+      question: null,
+      answers: {},
+      useDelay: false,
+    };
+    game.pendingAction = { type: 'attack_base', continentId, attackerId, defenderId };
+
+    const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
+    if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  });
+
+  // --- Duel question provided by client ---
+  socket.on('sok_provide_duel_question', ({ roomCode, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'duel' || !game.duel) return;
+    const delay = game.duel.useDelay ? 5000 : 0;
+    askDuelQuestion(roomCode, question, delay);
+  });
+
+  // --- Answer for claiming ---
+  socket.on('sok_claim_answer', ({ roomCode, playerId, answer }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || !game.currentQuestion || (game.phase !== 'claiming' && game.phase !== 'attacking')) return;
+    if (!game.pendingAction || game.pendingAction.type !== 'claim') return;
+    if (game.answersArray.some(a => a.playerId === playerId)) return;
+    game.answersArray.push({ playerId, answer });
+
+    const nonAdmins = rooms[roomCode].players.filter(p => !p.isAdmin && !p.eliminated);
+    const allAnswered = nonAdmins.every(p => game.answersArray.some(a => a.playerId === p.id));
+    if (allAnswered) {
+      clearTimeout(game.timer);
+      resolveClaim(roomCode, game.pendingAction.continentId, game.pendingAction.regionName);
+    }
+  });
+
+  // --- Duel answer ---
+  socket.on('sok_duel_answer', ({ roomCode, playerId, answer }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'duel' || !game.duel) return;
+    if (playerId !== game.duel.attackerId && playerId !== game.duel.defenderId) return;
+    if (game.duel.answers[playerId] !== undefined) return;
+    game.duel.answers[playerId] = answer;
+    if (Object.keys(game.duel.answers).length === 2) {
+      clearTimeout(game.timer);
+      resolveDuelRound(roomCode);
+    }
+  });
+
+  // ========== HELPERS ==========
+  resolveClaim = (roomCode, continentId, regionName) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || !game.currentQuestion) return;
+
+    const q = game.currentQuestion;
+    let winner = null;
+
+    if (q.type === 'numeric') {
+      let bestDiff = Infinity;
+      for (const entry of game.answersArray) {
+        const num = parseFloat(entry.answer);
+        if (isNaN(num)) continue;
+        const diff = Math.abs(num - q.answer);
+        if (diff < bestDiff) { bestDiff = diff; winner = entry.playerId; }
+      }
+    } else if (q.type === 'mcq') {
+      const correctIdx = q.answer;
+      for (const entry of game.answersArray) {
+        if (parseInt(entry.answer?.trim(), 10) === correctIdx) { winner = entry.playerId; break; }
+      }
+    }
+
+    if (winner) {
+      game.ownership[continentId][regionName] = winner;
+      game.scores[winner] = (game.scores[winner] || 0) + 1;
+    } else {
+      const initiatorId = game.pendingAction?.playerId;
+      if (game.phase === 'attacking' && initiatorId) {
+        game.skippedPlayers[initiatorId] = true;
+      }
+    }
+
+    const initiatorId = game.pendingAction?.playerId;
+    const results = {
+      answers: game.answersArray.map(entry => {
+        const p = rooms[roomCode].players.find(pl => pl.id === entry.playerId);
+        return { playerId: entry.playerId, playerName: p?.name || '???', answer: entry.answer, color: p?.color || '#fff' };
+      }),
+      winner,
+      correctAnswer: q.type === 'numeric' ? q.answer : q.options?.[q.answer],
+      correctIndex: q.type === 'mcq' ? q.answer : null,
+      initiatorCorrect: winner === initiatorId,
+    };
+    io.to(roomCode).emit('sok_results', results);
+
+    game.currentQuestion = null;
+    game.pendingAction = null;
+    game.answersArray = [];
+
+    if (game.phase === 'claiming') {
+      game.turn = getNextPlayerSOK(roomCode, game.turn);
+      const currentPlayer = initiatorId;
+      if (!game.playedInRound) game.playedInRound = [];
+      if (currentPlayer && !game.playedInRound.includes(currentPlayer)) {
+        game.playedInRound.push(currentPlayer);
+      }
+      const nonAdmins = rooms[roomCode].players.filter(p => !p.isAdmin && !p.eliminated).map(p => p.id);
+      const allPlayed = nonAdmins.every(pid => game.playedInRound.includes(pid));
+      if (allPlayed) {
+        game.roundCount = (game.roundCount || 0) + 1;
+        game.playedInRound = [];
+        let allClaimed = true;
+        for (const cont of continentsSOK) {
+          for (const reg of cont.regions) {
+            if (game.ownership[cont.id][reg.id] === null) { allClaimed = false; break; }
+          }
+          if (!allClaimed) break;
+        }
+        if (game.roundCount >= MAX_CLAIM_ROUNDS || allClaimed) {
+          game.phase = 'attacking';
+        }
+      }
+    } else if (game.phase === 'attacking') {
+      game.turn = getNextPlayerSOK(roomCode, game.turn);
+    }
+
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+    io.to(roomCode).emit('sok_clear_question');
+  };
+
+  askDuelQuestion = (roomCode, question, delay = 0) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || !game.duel) return;
+
+    const broadcast = () => {
+      const currentGame = rooms[roomCode]?.sok;
+      if (!currentGame || !currentGame.duel || currentGame.duel.pendingQuestion !== question) return;
+      currentGame.duel.question = question;
+      currentGame.duel.answers = {};
+      const attackerSocket = getPlayerSocketSOK(roomCode, currentGame.duel.attackerId);
+      const defenderSocket = getPlayerSocketSOK(roomCode, currentGame.duel.defenderId);
+      if (attackerSocket) attackerSocket.emit('sok_duel_question', question);
+      if (defenderSocket) defenderSocket.emit('sok_duel_question', question);
+      io.to(roomCode).emit('sok_duel_status', { attacker: currentGame.duel.attackerId, defender: currentGame.duel.defenderId, round: currentGame.duel.round });
+      clearTimeout(currentGame.timer);
+      currentGame.timer = setTimeout(() => {
+        const g = rooms[roomCode]?.sok;
+        if (g && g.phase === 'duel' && g.duel) {
+          resolveDuelRound(roomCode);
+        }
+      }, 20000);
+    };
+
+    if (delay > 0) {
+      game.duel.pendingQuestion = question;
+      clearTimeout(game.timer);
+      game.timer = setTimeout(broadcast, delay);
+    } else {
+      broadcast();
+    }
+  };
+
+  resolveDuelRound = (roomCode) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || !game.duel) return;
+    const { attackerId, defenderId, question, answers } = game.duel;
+    let roundWinner = null;
+
+    if (question.type === 'numeric') {
+      let bestDiff = Infinity;
+      for (const [pid, ans] of Object.entries(answers)) {
+        const num = parseFloat(ans);
+        if (isNaN(num)) continue;
+        const diff = Math.abs(num - question.answer);
+        if (diff < bestDiff) { bestDiff = diff; roundWinner = pid; }
+      }
+    } else if (question.type === 'mcq') {
+      const correctIdx = question.answer;
+      if (answers[attackerId] !== undefined && parseInt(answers[attackerId].trim(), 10) === correctIdx) roundWinner = attackerId;
+      else if (answers[defenderId] !== undefined && parseInt(answers[defenderId].trim(), 10) === correctIdx) roundWinner = defenderId;
+    }
+
+    if (roundWinner) game.duel.scores[roundWinner]++;
+
+    io.to(roomCode).emit('sok_duel_round_result', { round: game.duel.round, winner: roundWinner, scores: game.duel.scores });
+
+    if (game.duel.scores[attackerId] >= 2 || game.duel.scores[defenderId] >= 2) {
+      const duelWinner = game.duel.scores[attackerId] >= 2 ? attackerId : defenderId;
+      const duelLoser = duelWinner === attackerId ? defenderId : attackerId;
+
+      if (game.pendingAction.type === 'attack_hub') {
+        if (duelWinner === attackerId) {
+          game.ownership[game.pendingAction.continentId][game.pendingAction.regionName] = attackerId;
+          game.scores[attackerId] = (game.scores[attackerId] || 0) + 1;
+          game.scores[defenderId] = Math.max(0, (game.scores[defenderId] || 1) - 1);
+        }
+      } else if (game.pendingAction.type === 'attack_base') {
+        if (duelWinner === attackerId) {
+          // Transfer all loser's regions to winner
+          for (const cont of continentsSOK) {
+            for (const reg of cont.regions) {
+              if (game.ownership[cont.id][reg.id] === duelLoser) {
+                game.ownership[cont.id][reg.id] = duelWinner;
+                game.scores[duelWinner] = (game.scores[duelWinner] || 0) + 1;
+                game.scores[duelLoser] = Math.max(0, (game.scores[duelLoser] || 1) - 1);
+              }
+            }
+          }
+          const room = rooms[roomCode];
+          const loserPlayer = room.players.find(p => p.id === duelLoser);
+          if (loserPlayer) loserPlayer.eliminated = true;
+          game.players = room.players.filter(p => !p.isAdmin).map(p => ({
+            id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
+          }));
+        }
+      }
+
+      game.duel = null;
+      game.pendingAction = null;
+      game.phase = 'attacking';
+      game.turn = duelWinner;
+
+      const activePlayers = game.players.filter(p => !p.eliminated);
+      if (activePlayers.length === 1) {
+        game.phase = 'ended';
+        io.to(roomCode).emit('sok_game_over', { winner: activePlayers[0].id, name: activePlayers[0].name });
+      }
+    } else {
+      game.duel.round++;
+      game.duel.question = null;
+      game.duel.answers = {};
+      const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
+      if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
+    }
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  };
+
+
+  // ===================== BRACKET (دور الـ١٦) =====================
+  socket.on('bracket_init', ({ roomCode }) => {
+    if (!rooms[roomCode]) return;
+    if (rooms[roomCode].bracket) {
+      socket.emit('bracket_state', rooms[roomCode].bracket);
+      return;
+    }
+    rooms[roomCode].bracket = {
+      rounds: [
+        { matches: [] },  // round of 16
+        { matches: [] },  // quarter
+        { matches: [] },  // semi
+        { matches: [] },  // final
+      ],
+      currentRoundIndex: 0,
+    };
+    socket.emit('bracket_state', rooms[roomCode].bracket);
+  });
+
+  socket.on('bracket_randomize', ({ roomCode, names }) => {
+    if (!rooms[roomCode]) return;
+    const shuffled = [...names].sort(() => Math.random() - 0.5);
+    const matches = [];
+    for (let i = 0; i < 8; i++) {
+      matches.push({
+        team1: shuffled[i * 2] || `فريق ${i * 2 + 1}`,
+        team2: shuffled[i * 2 + 1] || `فريق ${i * 2 + 2}`,
+        votes: {},
+        voters: [],
+        winner: null,
+      });
+    }
+    rooms[roomCode].bracket.rounds[0].matches = matches;
+    rooms[roomCode].bracket.currentRoundIndex = 0;
+    for (let i = 1; i < 4; i++) {
+      rooms[roomCode].bracket.rounds[i].matches = [];
+    }
+    io.to(roomCode).emit('bracket_state', rooms[roomCode].bracket);
+  });
+
+  socket.on('bracket_vote', ({ roomCode, roundIndex, matchIndex, choice, playerId }) => {
+    if (!rooms[roomCode]?.bracket) return;
+    const round = rooms[roomCode].bracket.rounds[roundIndex];
+    if (!round || !round.matches[matchIndex]) return;
+    const match = round.matches[matchIndex];
+    if (match.winner) return;
+    if (!match.votes) match.votes = {};
+    if (!match.voters) match.voters = [];
+    if (match.voters.includes(playerId)) return;
+    match.votes[choice] = (match.votes[choice] || 0) + 1;
+    match.voters.push(playerId);
+    io.to(roomCode).emit('bracket_state', rooms[roomCode].bracket);
+  });
+
+  socket.on('bracket_next_round', ({ roomCode }) => {
+    if (!rooms[roomCode]?.bracket) return;
+    const bracket = rooms[roomCode].bracket;
+    const currentRound = bracket.rounds[bracket.currentRoundIndex];
+
+    // Determine winners by vote count
+    currentRound.matches.forEach(match => {
+      if (!match.winner) {
+        const votes = match.votes || {};
+        const team1Votes = votes[match.team1] || 0;
+        const team2Votes = votes[match.team2] || 0;
+        match.winner = team1Votes >= team2Votes ? match.team1 : match.team2;
+      }
+    });
+
+    // Collect winners in order
+    const winners = currentRound.matches.map(m => m.winner);
+    const nextRoundIndex = bracket.currentRoundIndex + 1;
+    if (nextRoundIndex > 3) return;
+    const nextRound = bracket.rounds[nextRoundIndex];
+    nextRound.matches = [];
+    for (let i = 0; i < winners.length; i += 2) {
+      nextRound.matches.push({
+        team1: winners[i],
+        team2: winners[i + 1],
+        votes: {},
+        voters: [],
+        winner: null,
+      });
+    }
+    bracket.currentRoundIndex = nextRoundIndex;
+    io.to(roomCode).emit('bracket_state', bracket);
+  });
+
+  socket.on('bracket_reset', ({ roomCode }) => {
+    if (!rooms[roomCode]) return;
+    rooms[roomCode].bracket = {
+      rounds: [
+        { matches: [] },
+        { matches: [] },
+        { matches: [] },
+        { matches: [] },
+      ],
+      currentRoundIndex: 0,
+    };
+    io.to(roomCode).emit('bracket_state', rooms[roomCode].bracket);
+  });
+
+  
+
+  // ===== NEW: WHOAMI (unique photo per player) =====
+  socket.on('whoami_start', ({ roomCode, assignments }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🖼️ WHOAMI START in room ${roomCode} with ${assignments.length} assignments`);
+    
+    if (!rooms[roomCode]) return;
+    
+    const room = rooms[roomCode];
+    
+    assignments.forEach(({ playerId, question }) => {
+      const player = room.players.find(p => p.id === playerId);
+      if (player) {
+        io.to(player.socketId).emit('player_photo_question', {
+          playerId,
+          question
+        });
+        console.log(`  ✅ Sent whoami photo to ${player.name}`);
+      }
+    });
+  });
+
+  // ===== NEW: SPY (personalised word) =====
+  socket.on('spy_start', ({ roomCode, assignments }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🕵️ SPY START in room ${roomCode} with ${assignments.length} assignments`);
+    
+    if (!rooms[roomCode]) return;
+    
+    const room = rooms[roomCode];
+    
+    assignments.forEach(({ playerId, question }) => {
+      const player = room.players.find(p => p.id === playerId);
+      if (player) {
+        io.to(player.socketId).emit('player_photo_question', {
+          playerId,
+          question
+        });
+        console.log(`  ✅ Sent spy word to ${player.name}: ${question.text}`);
+      }
+    });
+  });
+
+  // ===== EXISTING QUIZ EVENTS =====
   socket.on('buzz', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
     if (rooms[roomCode]) {
@@ -2330,6 +2922,8 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('player_left', playerId);
       
       if (rooms[roomCode].players.length === 0) {
+        // stop the timer before deleting the room
+        if (rooms[roomCode].timerInterval) clearInterval(rooms[roomCode].timerInterval);
         delete rooms[roomCode];
       }
     }
@@ -2349,6 +2943,67 @@ io.on('connection', (socket) => {
     updatePlayerActivity(socket.id);
     io.to(roomCode).emit('continue_audio', time);
   });
+
+  // ----- TIMER (authoritative on server) -----
+  socket.on('timer_update', ({ roomCode, seconds, running }) => {
+    updatePlayerActivity(socket.id);
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    // Clear any existing timer interval
+    if (room.timerInterval) {
+      clearInterval(room.timerInterval);
+      room.timerInterval = null;
+    }
+
+    room.timerSeconds = seconds;
+    room.timerRunning = running;
+
+    // Broadcast immediately
+    io.to(roomCode).emit('timer_sync', { seconds, running });
+
+    // If running, start server‑side tick
+    if (running) {
+      room.timerInterval = setInterval(() => {
+        room.timerSeconds += 1;
+        io.to(roomCode).emit('timer_sync', {
+          seconds: room.timerSeconds,
+          running: true
+        });
+      }, 1000);
+    }
+  });
+
+  // Disconnect
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
+    
+    delete playerActivity[socket.id];
+    
+    const roomCode = socket.data?.roomCode;
+    const playerId = socket.data?.playerId;
+    
+    if (roomCode && rooms[roomCode] && playerId) {
+      const player = rooms[roomCode].players.find(p => p.id === playerId);
+      
+      if (player) {
+        rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
+        console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
+        
+        if (rooms[roomCode].admin === socket.id && rooms[roomCode].players.length > 0) {
+          rooms[roomCode].admin = rooms[roomCode].players[0].socketId;
+          console.log(`👑 New admin assigned: ${rooms[roomCode].players[0].name}`);
+        }
+        
+        if (rooms[roomCode].players.length === 0) {
+          // 👇 stop the timer before deleting the room
+          if (rooms[roomCode].timerInterval) clearInterval(rooms[roomCode].timerInterval);
+          delete rooms[roomCode];
+          console.log(`🏠 Room ${roomCode} closed (no players)`);
+        }
+      }
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3001;
@@ -2359,4 +3014,6 @@ server.listen(PORT, () => {
   console.log(`📸 Random photos system ready!`);
   console.log(`🖊️ Whiteboard system ready!`);
   console.log(`🎲 Dice system ready with ${gameCategories.length} categories!`);
+  console.log(`🖼️ Whoami (unique photos) system ready!`);
+  console.log(`🕵️ Spy (personalised words) system ready!`);
 });
