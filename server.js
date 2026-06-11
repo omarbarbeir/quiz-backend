@@ -2442,29 +2442,29 @@ const getNextPlayerSOK = (roomCode, currentPlayerId) => {
 // ---------- SOCKET EVENT HANDLERS ----------
 
 socket.on('sok_init', ({ roomCode, playerId, playerName, isAdmin }) => {
-  // 🔽 CREATE ROOM IF IT DOESN'T EXIST YET
+  // 1. CREATE ROOM IF IT DOESN'T EXIST
   if (!rooms[roomCode]) {
     rooms[roomCode] = { players: [], sok: null };
   }
   const room = rooms[roomCode];
 
-  // 🔽 STORE PLAYER INFO ON THE SOCKET (required for duels)
+  // 2. STORE PLAYER INFO ON THE SOCKET (needed for duels)
   socket.data.playerId = playerId;
   socket.data.roomCode = roomCode;
   socket.join(roomCode);
 
-  // 🔽 ADD PLAYER TO THE ROOM LIST IF NOT ALREADY THERE
+  // 3. ADD PLAYER TO ROOM LIST IF NOT ALREADY THERE
   if (!room.players.find(p => p.id === playerId)) {
     room.players.push({
       id: playerId,
       name: playerName,
       isAdmin: isAdmin || false,
-      color: '#ffffff',   // change to your player color logic if needed
+      color: '#ffffff',   // change to your colour logic if needed
       eliminated: false
     });
   }
 
-  // 🔽 IF GAME ALREADY EXISTS, JUST RESEND CURRENT STATE
+  // 4. IF GAME ALREADY EXISTS, JUST RESEND CURRENT STATE
   if (room.sok) {
     room.sok.players = room.players.filter(p => !p.isAdmin).map(p => ({
       id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
@@ -2473,7 +2473,7 @@ socket.on('sok_init', ({ roomCode, playerId, playerName, isAdmin }) => {
     return;
   }
 
-  // 🔽 OTHERWISE, CREATE A BRAND NEW GAME
+  // 5. OTHERWISE, CREATE A BRAND NEW GAME
   const nonAdmins = room.players.filter(p => !p.isAdmin);
   if (nonAdmins.length === 0) return;
 
