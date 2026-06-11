@@ -280,72 +280,72 @@ function removeCardFromPlayer(game, playerId, cardId) {
 }
 
 // ===================== SWORD OF KNOWLEDGE HELPERS =====================
-const continentsSOK = [
-  { id: 'africa', name: 'أفريقيا', regions: [
-      { id: 'africa1', name: 'مصر' },
-      { id: 'africa2', name: 'نيجيريا' },
-      { id: 'africa3', name: 'جنوب أفريقيا' },
-      { id: 'africa4', name: 'كينيا' },
-      { id: 'africa5', name: 'الجزائر' },
-    ]
-  },
-  { id: 'asia', name: 'آسيا', regions: [
-      { id: 'asia1', name: 'السعودية' },
-      { id: 'asia2', name: 'الهند' },
-      { id: 'asia3', name: 'اليابان' },
-      { id: 'asia4', name: 'الصين' },
-      { id: 'asia5', name: 'تايلاند' }
-    ]
-  },
-  { id: 'europe', name: 'أوروبا', regions: [
-      { id: 'europe1', name: 'فرنسا' },
-      { id: 'europe2', name: 'ألمانيا' },
-      { id: 'europe3', name: 'إيطاليا' },
-      { id: 'europe4', name: 'إسبانيا' },
-      { id: 'europe5', name: 'البرتغال' },
-    ]
-  },
-  { id: 'americas', name: 'الأمريكيتين', regions: [
-      { id: 'americas1', name: 'أمريكا' },
-      { id: 'americas2', name: 'البرازيل' },
-      { id: 'americas3', name: 'كندا' },
-      { id: 'americas4', name: 'الأرجنتين' },
-      { id: 'americas5', name: 'المكسيك' },
-    ]
-  },
-  { id: 'australia', name: 'أستراليا', regions: [
-      { id: 'aus1', name: 'سيدني' },
-      { id: 'aus2', name: 'ملبورن' },
-      { id: 'aus3', name: 'بريزبن' },
-      { id: 'aus4', name: 'برث' },
-      { id: 'aus5', name: 'كانبيرا' },
-    ]
-  },
-  { id: 'middleeast', name: 'الشرق الأوسط', regions: [
-      { id: 'me1', name: 'الإمارات' },
-      { id: 'me2', name: 'قطر' },
-      { id: 'me3', name: 'الكويت' },
-      { id: 'me4', name: 'عُمان' },
-      { id: 'me5', name: 'البحرين' },
-    ]
-  },
-  { id: 'northasia', name: 'شمال آسيا', regions: [
-      { id: 'na1', name: 'روسيا' },
-      { id: 'na2', name: 'كازاخستان' },
-      { id: 'na3', name: 'منغوليا' },
-      { id: 'na4', name: 'كوريا' },
-      { id: 'na5', name: 'تركيا' },
-    ]
-  },
-  { id: 'southasia', name: 'جنوب آسيا', regions: [
-      { id: 'sa1', name: 'باكستان' },
-      { id: 'sa2', name: 'بنغلاديش' },
-      { id: 'sa3', name: 'سريلانكا' },
-      { id: 'sa4', name: 'نيبال' },
-      { id: 'sa5', name: 'أفغانستان' },
-    ]
-  },
-];
+  const continentsSOK = [
+    { id: 'africa', name: 'أفريقيا', regions: [
+        { id: 'africa1', name: 'مصر' }, 
+        { id: 'africa2', name: 'نيجيريا' }, 
+        { id: 'africa3', name: 'جنوب أفريقيا' },
+        { id: 'africa4', name: 'كينيا' }, 
+        { id: 'africa5', name: 'الجزائر' }
+      ]
+    },
+    { id: 'asia', name: 'آسيا', regions: [
+        { id: 'asia1', name: 'السعودية' }, 
+        { id: 'asia2', name: 'الهند' }, 
+        { id: 'asia3', name: 'اليابان' },
+        { id: 'asia4', name: 'الصين' }, 
+        { id: 'asia5', name: 'تايلاند' }
+      ]
+    },
+    { id: 'europe', name: 'أوروبا', regions: [
+        { id: 'europe1', name: 'فرنسا' }, 
+        { id: 'europe2', name: 'ألمانيا' }, 
+        { id: 'europe3', name: 'إيطاليا' },
+        { id: 'europe4', name: 'إسبانيا' }, 
+        { id: 'europe5', name: 'البرتغال' }
+      ]
+    },
+    { id: 'americas', name: 'الأمريكيتين', regions: [
+        { id: 'americas1', name: 'أمريكا' }, 
+        { id: 'americas2', name: 'البرازيل' }, 
+        { id: 'americas3', name: 'كندا' },
+        { id: 'americas4', name: 'الأرجنتين' }, 
+        { id: 'americas5', name: 'المكسيك' }
+      ]
+    },
+    { id: 'australia', name: 'أستراليا', regions: [
+        { id: 'aus1', name: 'سيدني' }, 
+        { id: 'aus2', name: 'ملبورن' }, 
+        { id: 'aus3', name: 'بريزبن' },
+        { id: 'aus4', name: 'برث' }, 
+        { id: 'aus5', name: 'كانبيرا' }
+      ]
+    },
+    { id: 'middleeast', name: 'الشرق الأوسط', regions: [
+        { id: 'me1', name: 'الإمارات' }, 
+        { id: 'me2', name: 'قطر' }, 
+        { id: 'me3', name: 'الكويت' },
+        { id: 'me4', name: 'عُمان' }, 
+        { id: 'me5', name: 'البحرين' }
+      ]
+    },
+    { id: 'northasia', name: 'شمال آسيا', regions: [
+        { id: 'na1', name: 'روسيا' }, 
+        { id: 'na2', name: 'كازاخستان' }, 
+        { id: 'na3', name: 'منغوليا' },
+        { id: 'na4', name: 'كوريا' }, 
+        { id: 'na5', name: 'تركيا' }
+      ]
+    },
+    { id: 'southasia', name: 'جنوب آسيا', regions: [
+        { id: 'sa1', name: 'باكستان' }, 
+        { id: 'sa2', name: 'بنغلاديش' }, 
+        { id: 'sa3', name: 'سريلانكا' },
+        { id: 'sa4', name: 'نيبال' }, 
+        { id: 'sa5', name: 'أفغانستان' }
+      ]
+    },
+  ];
 
 const getNextPlayerSOK = (roomCode, currentPlayerId) => {
   const room = rooms[roomCode];
@@ -2276,7 +2276,7 @@ io.on('connection', (socket) => {
   socket.on('battleship_destroy', ({ roomCode, playerId, row, col, shipId }) => {
     if (!rooms[roomCode]?.battleship?.[playerId]) return;
     const board = rooms[roomCode].battleship[playerId];
-    if (row >= 0 && row < 11 && col >= 0 && col < 11 && board.grid[row][col] && !board.grid[row][col].startsWith('hit-')) {
+    if (row >= 1 && row <= 10 && col >= 1 && col <= 10 && board.grid[row][col] && !board.grid[row][col].startsWith('hit-') && board.grid[row][col] !== 'miss') {
       board.grid[row][col] = `hit-${shipId}`;
       socket.emit('battleship_state', board);
     }
