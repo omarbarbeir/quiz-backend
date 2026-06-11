@@ -334,7 +334,7 @@ const continentsSOK = [
       { id: 'na2', name: 'كازاخستان' },
       { id: 'na3', name: 'منغوليا' },
       { id: 'na4', name: 'كوريا' },
-      { id: 'na5', name: 'اليابان' },
+      { id: 'na5', name: 'تركيا' },
     ]
   },
   { id: 'southasia', name: 'جنوب آسيا', regions: [
@@ -2129,7 +2129,7 @@ io.on('connection', (socket) => {
     }
   });
 
-    // Bingo – initialise per player
+  // Bingo – initialise per player
   socket.on('bingo_init', ({ roomCode, playerId }) => {
     if (!rooms[roomCode]) return;
     if (!rooms[roomCode].bingoGames) {
@@ -2181,9 +2181,32 @@ io.on('connection', (socket) => {
         grid: Array.from({ length: 5 }, () => Array(5).fill('')),
         marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
       };
+
+      // ★ Clear shared called numbers
+      if (rooms[roomCode].bingoCalled) {
+        rooms[roomCode].bingoCalled = [];
+        io.to(roomCode).emit('bingo_called_numbers', []);
+      }
       socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
     }
   });
+
+  socket.on('bingo_call_number', ({ roomCode }) => {
+    if (!rooms[roomCode]) return;
+    if (!rooms[roomCode].bingoCalled) {
+      rooms[roomCode].bingoCalled = [];
+    }
+    const called = rooms[roomCode].bingoCalled;
+    // Generate random number 1-25 not already called
+    if (called.length >= 25) return; // all called
+    let num;
+    do {
+      num = Math.floor(Math.random() * 25) + 1;
+    } while (called.includes(num));
+    called.push(num);
+    io.to(roomCode).emit('bingo_called_numbers', called);
+  });
+
 
   // Battleship – init per player
   socket.on('battleship_init', ({ roomCode, playerId }) => {
@@ -2226,6 +2249,15 @@ io.on('connection', (socket) => {
         }
       });
       board.placedShips = board.placedShips.filter(s => s.shipId !== shipId);
+      socket.emit('battleship_state', board);
+    }
+  });
+
+  socket.on('battleship_miss', ({ roomCode, playerId, row, col }) => {
+    if (!rooms[roomCode]?.battleship?.[playerId]) return;
+    const board = rooms[roomCode].battleship[playerId];
+    if (row >= 1 && row <= 10 && col >= 1 && col <= 10 && board.grid[row][col] === null) {
+      board.grid[row][col] = 'miss';
       socket.emit('battleship_state', board);
     }
   });
@@ -2328,16 +2360,12 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   });
 
-  // --- Admin restart ---
+  // --- Admin reset ---
   socket.on('sok_reset', ({ roomCode }) => {
     if (!rooms[roomCode]) return;
     const room = rooms[roomCode];
-    // Re-init game completely
-    const nonAdmins = room.players.filter(p => !p.isAdmin).map(p => ({
-      ...p, eliminated: false
-    }));
-    // Reset players in room
     room.players.forEach(p => { p.eliminated = false; });
+    const nonAdmins = room.players.filter(p => !p.isAdmin).map(p => ({ ...p, eliminated: false }));
     const shuffledPlayers = [...nonAdmins].sort(() => Math.random() - 0.5);
     const shuffledContinents = [...continentsSOK].sort(() => Math.random() - 0.5);
 
@@ -2375,7 +2403,7 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   });
 
-  // --- Claim a region (free circles only, any phase) ---
+  // --- Claim a region ---
   socket.on('sok_claim', ({ roomCode, continentId, regionName, playerId, question }) => {
     const game = rooms[roomCode]?.sok;
     if (!game) return;
@@ -2415,7 +2443,7 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   });
 
-  // --- Attack a hub (duel) – any player can attack any enemy hub ---
+  // --- Attack a hub (duel) ---
   socket.on('sok_attack_hub', ({ roomCode, continentId, regionName, attackerId, question }) => {
     const game = rooms[roomCode]?.sok;
     if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
@@ -2450,12 +2478,11 @@ io.on('connection', (socket) => {
       ownerName: defenderName,
     });
 
-    const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
-    if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
+    askDuelQuestion(roomCode, question, 5000);
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   });
 
-  // --- Attack a base (duel for whole continent) – with foreign circle check ---
+  // --- Attack a base (duel) ---
   socket.on('sok_attack_base', ({ roomCode, continentId, attackerId, question }) => {
     const game = rooms[roomCode]?.sok;
     if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
@@ -2465,7 +2492,6 @@ io.on('connection', (socket) => {
     const defenderId = game.ownership[continentId][baseRegionId];
     if (!defenderId || defenderId === attackerId) return;
 
-    // Check if defender owns any foreign circles (outside their base continent)
     const defenderHomeContinent = Object.keys(game.ownership).find(cid =>
       game.ownership[cid][continentsSOK.find(c => c.id === cid).regions[0].id] === defenderId
     );
@@ -2474,12 +2500,13 @@ io.on('connection', (socket) => {
       if (cid === defenderHomeContinent) return false;
       return Object.values(game.ownership[cid]).some(owner => owner === defenderId);
     });
-    if (foreignOwned) return; // must clear foreign circles first
+    if (foreignOwned) return;
 
-    // Check attacker owns more than 2 of the defender's base hubs
-    const defenderHubs = cont.regions.filter((r, idx) => idx > 0 && idx <= 4); // indices 1-4
+    const defenderHubs = cont.regions.filter((r, idx) => idx > 0 && idx <= 4);
     const attackerHubCount = defenderHubs.filter(r => game.ownership[continentId][r.id] === attackerId).length;
     if (attackerHubCount < 3) return;
+
+    if (!question) return;
 
     game.phase = 'duel';
     game.duel = {
@@ -2493,17 +2520,8 @@ io.on('connection', (socket) => {
     };
     game.pendingAction = { type: 'attack_base', continentId, attackerId, defenderId };
 
-    const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
-    if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
+    askDuelQuestion(roomCode, question, 0);
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-  });
-
-  // --- Duel question provided by client ---
-  socket.on('sok_provide_duel_question', ({ roomCode, question }) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || game.phase !== 'duel' || !game.duel) return;
-    const delay = game.duel.useDelay ? 5000 : 0;
-    askDuelQuestion(roomCode, question, delay);
   });
 
   // --- Answer for claiming ---
@@ -2535,6 +2553,13 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- Attacker provides question for subsequent duel rounds ---
+  socket.on('sok_provide_duel_question', ({ roomCode, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'duel' || !game.duel) return;
+    askDuelQuestion(roomCode, question, 0);
+  });
+
   // ========== HELPERS ==========
   resolveClaim = (roomCode, continentId, regionName) => {
     const game = rooms[roomCode]?.sok;
@@ -2554,7 +2579,7 @@ io.on('connection', (socket) => {
     } else if (q.type === 'mcq') {
       const correctIdx = q.answer;
       for (const entry of game.answersArray) {
-        if (parseInt(entry.answer?.trim(), 10) === correctIdx) { winner = entry.playerId; break; }
+        if (parseInt(entry.answer.trim(), 10) === correctIdx) { winner = entry.playerId; break; }
       }
     }
 
@@ -2622,14 +2647,18 @@ io.on('connection', (socket) => {
 
     const broadcast = () => {
       const currentGame = rooms[roomCode]?.sok;
-      if (!currentGame || !currentGame.duel || currentGame.duel.pendingQuestion !== question) return;
+      if (!currentGame || !currentGame.duel) return;
       currentGame.duel.question = question;
       currentGame.duel.answers = {};
       const attackerSocket = getPlayerSocketSOK(roomCode, currentGame.duel.attackerId);
       const defenderSocket = getPlayerSocketSOK(roomCode, currentGame.duel.defenderId);
       if (attackerSocket) attackerSocket.emit('sok_duel_question', question);
       if (defenderSocket) defenderSocket.emit('sok_duel_question', question);
-      io.to(roomCode).emit('sok_duel_status', { attacker: currentGame.duel.attackerId, defender: currentGame.duel.defenderId, round: currentGame.duel.round });
+      io.to(roomCode).emit('sok_duel_status', {
+        attacker: currentGame.duel.attackerId,
+        defender: currentGame.duel.defenderId,
+        round: currentGame.duel.round
+      });
       clearTimeout(currentGame.timer);
       currentGame.timer = setTimeout(() => {
         const g = rooms[roomCode]?.sok;
@@ -2640,7 +2669,6 @@ io.on('connection', (socket) => {
     };
 
     if (delay > 0) {
-      game.duel.pendingQuestion = question;
       clearTimeout(game.timer);
       game.timer = setTimeout(broadcast, delay);
     } else {
@@ -2670,7 +2698,12 @@ io.on('connection', (socket) => {
 
     if (roundWinner) game.duel.scores[roundWinner]++;
 
-    io.to(roomCode).emit('sok_duel_round_result', { round: game.duel.round, winner: roundWinner, scores: game.duel.scores });
+    io.to(roomCode).emit('sok_duel_round_result', {
+      round: game.duel.round,
+      winner: roundWinner,
+      scores: game.duel.scores,
+      correctAnswer: question.type === 'numeric' ? question.answer : question.options[question.answer],
+    });
 
     if (game.duel.scores[attackerId] >= 2 || game.duel.scores[defenderId] >= 2) {
       const duelWinner = game.duel.scores[attackerId] >= 2 ? attackerId : defenderId;
@@ -2684,7 +2717,6 @@ io.on('connection', (socket) => {
         }
       } else if (game.pendingAction.type === 'attack_base') {
         if (duelWinner === attackerId) {
-          // Transfer all loser's regions to winner
           for (const cont of continentsSOK) {
             for (const reg of cont.regions) {
               if (game.ownership[cont.id][reg.id] === duelLoser) {
@@ -2714,14 +2746,20 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('sok_game_over', { winner: activePlayers[0].id, name: activePlayers[0].name });
       }
     } else {
+      // Next round – ask the attacker for a new question after a 4‑second delay
       game.duel.round++;
       game.duel.question = null;
       game.duel.answers = {};
-      const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
-      if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
+      setTimeout(() => {
+        const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
+        if (attackerSocket) {
+          attackerSocket.emit('sok_request_duel_question');
+        }
+      }, 4000);
     }
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   };
+
 
 
   // ===================== BRACKET (دور الـ١٦) =====================
