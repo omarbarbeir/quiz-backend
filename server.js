@@ -21,16 +21,24 @@ app.get('/', (req, res) => {
   res.send('Quiz Game Server Running');
 });
 
+// const io = new Server(server, {
+//   cors: {
+//     origin: "*",
+//     methods: ["GET", "POST"]
+//   }
+// });
+
+
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET","POST"] },
+  pingTimeout: 600000,      // 10 minutes (in milliseconds)
+  pingInterval: 25000       // send ping every 25 seconds (default)
 });
 
 // Import data files (adjust paths as needed)
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
+const swordOfKnowledgeQuestions = require('../main/project/src/data/swordOfKnowledgeQuestions');
 
 // Game categories (your full list – unchanged)
 const gameCategories = [
@@ -147,24 +155,24 @@ function updatePlayerActivity(socketId) {
   playerActivity[socketId] = Date.now();
 }
 
-function checkInactivePlayers() {
-  const now = Date.now();
-  const FIVE_MINUTES = 5 * 60 * 1000;
+// function checkInactivePlayers() {
+//   const now = Date.now();
+//   const FIVE_MINUTES = 5 * 60 * 1000;
   
-  Object.keys(playerActivity).forEach(socketId => {
-    const lastActivity = playerActivity[socketId];
-    if (now - lastActivity > FIVE_MINUTES) {
-      console.log(`⏰ Disconnecting inactive socket ${socketId}`);
-      const socket = io.sockets.sockets.get(socketId);
-      if (socket) {
-        socket.disconnect(true);
-        delete playerActivity[socketId];
-      }
-    }
-  });
-}
+//   Object.keys(playerActivity).forEach(socketId => {
+//     const lastActivity = playerActivity[socketId];
+//     if (now - lastActivity > FIVE_MINUTES) {
+//       console.log(`⏰ Disconnecting inactive socket ${socketId}`);
+//       const socket = io.sockets.sockets.get(socketId);
+//       if (socket) {
+//         socket.disconnect(true);
+//         delete playerActivity[socketId];
+//       }
+//     }
+//   });
+// }
 
-setInterval(checkInactivePlayers, 60000);
+// setInterval(checkInactivePlayers, 60000);
 
 function initializeCardGame(players) {
   console.log('🃏 Initializing card game for players:', players.map(p => p.name));
@@ -279,96 +287,557 @@ function removeCardFromPlayer(game, playerId, cardId) {
   return null;
 }
 
-// ===================== SWORD OF KNOWLEDGE HELPERS =====================
-const continentsSOK = [
+
+// ===================== SWORD OF KNOWLEDGE – FIXED MODULE =====================
+
+// Define continents data INSIDE the module (no external dependency)
+const SOK_CONTINENTS = [
   { id: 'africa', name: 'أفريقيا', regions: [
-      { id: 'africa1', name: 'مصر' },
-      { id: 'africa2', name: 'نيجيريا' },
-      { id: 'africa3', name: 'جنوب أفريقيا' },
-      { id: 'africa4', name: 'كينيا' },
-      { id: 'africa5', name: 'الجزائر' },
+      { id: 'africa1', name: 'مصر' }, { id: 'africa2', name: 'نيجيريا' }, { id: 'africa3', name: 'جنوب أفريقيا' },
+      { id: 'africa4', name: 'تونس' }, { id: 'africa5', name: 'الجزائر' }
     ]
   },
   { id: 'asia', name: 'آسيا', regions: [
-      { id: 'asia1', name: 'السعودية' },
-      { id: 'asia2', name: 'الهند' },
-      { id: 'asia3', name: 'اليابان' },
-      { id: 'asia4', name: 'الصين' },
-      { id: 'asia5', name: 'تايلاند' }
+      { id: 'asia1', name: 'السعودية' }, { id: 'asia2', name: 'الهند' }, { id: 'asia3', name: 'اليابان' },
+      { id: 'asia4', name: 'الصين' }, { id: 'asia5', name: 'تايلاند' }
     ]
   },
   { id: 'europe', name: 'أوروبا', regions: [
-      { id: 'europe1', name: 'فرنسا' },
-      { id: 'europe2', name: 'ألمانيا' },
-      { id: 'europe3', name: 'إيطاليا' },
-      { id: 'europe4', name: 'إسبانيا' },
-      { id: 'europe5', name: 'البرتغال' },
+      { id: 'europe1', name: 'فرنسا' }, { id: 'europe2', name: 'ألمانيا' }, { id: 'europe3', name: 'إيطاليا' },
+      { id: 'europe4', name: 'إسبانيا' }, { id: 'europe5', name: 'البرتغال' }
     ]
   },
   { id: 'americas', name: 'الأمريكيتين', regions: [
-      { id: 'americas1', name: 'أمريكا' },
-      { id: 'americas2', name: 'البرازيل' },
-      { id: 'americas3', name: 'كندا' },
-      { id: 'americas4', name: 'الأرجنتين' },
-      { id: 'americas5', name: 'المكسيك' },
+      { id: 'americas1', name: 'أمريكا' }, { id: 'americas2', name: 'البرازيل' }, { id: 'americas3', name: 'كندا' },
+      { id: 'americas4', name: 'الأرجنتين' }, { id: 'americas5', name: 'المكسيك' }
     ]
   },
   { id: 'australia', name: 'أستراليا', regions: [
-      { id: 'aus1', name: 'سيدني' },
-      { id: 'aus2', name: 'ملبورن' },
-      { id: 'aus3', name: 'بريزبن' },
-      { id: 'aus4', name: 'برث' },
-      { id: 'aus5', name: 'كانبيرا' },
+      { id: 'aus1', name: 'سيدني' }, { id: 'aus2', name: 'ملبورن' }, { id: 'aus3', name: 'بريزبن' },
+      { id: 'aus4', name: 'برث' }, { id: 'aus5', name: 'كانبيرا' }
     ]
   },
   { id: 'middleeast', name: 'الشرق الأوسط', regions: [
-      { id: 'me1', name: 'الإمارات' },
-      { id: 'me2', name: 'قطر' },
-      { id: 'me3', name: 'الكويت' },
-      { id: 'me4', name: 'عُمان' },
-      { id: 'me5', name: 'البحرين' },
+      { id: 'me1', name: 'الإمارات' }, { id: 'me2', name: 'قطر' }, { id: 'me3', name: 'الكويت' },
+      { id: 'me4', name: 'عُمان' }, { id: 'me5', name: 'البحرين' }
     ]
   },
   { id: 'northasia', name: 'شمال آسيا', regions: [
-      { id: 'na1', name: 'روسيا' },
-      { id: 'na2', name: 'كازاخستان' },
-      { id: 'na3', name: 'منغوليا' },
-      { id: 'na4', name: 'كوريا' },
-      { id: 'na5', name: 'تركيا' },
+      { id: 'na1', name: 'روسيا' }, { id: 'na2', name: 'كازاخستان' }, { id: 'na3', name: 'منغوليا' },
+      { id: 'na4', name: 'كوريا' }, { id: 'na5', name: 'تركيا' }
     ]
   },
   { id: 'southasia', name: 'جنوب آسيا', regions: [
-      { id: 'sa1', name: 'باكستان' },
-      { id: 'sa2', name: 'بنغلاديش' },
-      { id: 'sa3', name: 'سريلانكا' },
-      { id: 'sa4', name: 'نيبال' },
-      { id: 'sa5', name: 'أفغانستان' },
+      { id: 'sa1', name: 'باكستان' }, { id: 'sa2', name: 'بنغلاديش' }, { id: 'sa3', name: 'سريلانكا' },
+      { id: 'sa4', name: 'نيبال' }, { id: 'sa5', name: 'أفغانستان' }
     ]
   },
 ];
 
-const getNextPlayerSOK = (roomCode, currentPlayerId) => {
+const MAX_CLAIM_ROUNDS = 4;
+
+// Helper: sanitize game state for client (removes temporary data)
+function sanitizeSOK(game) {
+  if (!game) return null;
+  const copy = { ...game };
+  delete copy.timer;
+  delete copy.currentQuestion;
+  delete copy.pendingAction;
+  delete copy.answersArray;
+  if (copy.duel) {
+    copy.duel = { ...copy.duel };
+    delete copy.duel.question;
+    delete copy.duel.answers;
+  }
+  // Ensure ownership and players exist
+  if (!copy.ownership) copy.ownership = {};
+  if (!copy.players) copy.players = [];
+  return copy;
+}
+
+// Helper: get next player (skipping eliminated and skipped)
+function getNextPlayerSOK(roomCode, currentPlayerId) {
   const room = rooms[roomCode];
   if (!room) return null;
   const nonAdmins = room.players.filter(p => !p.isAdmin && !p.eliminated);
   if (nonAdmins.length === 0) return null;
   const idx = nonAdmins.findIndex(p => p.id === currentPlayerId);
-  return nonAdmins[(idx + 1) % nonAdmins.length].id;
-};
+  let nextIdx = (idx + 1) % nonAdmins.length;
+  let nextPlayer = nonAdmins[nextIdx];
+  const game = room.sok;
+  if (game && game.skippedPlayers) {
+    let loopCount = 0;
+    while (game.skippedPlayers[nextPlayer.id] && loopCount < nonAdmins.length) {
+      delete game.skippedPlayers[nextPlayer.id];
+      nextIdx = (nextIdx + 1) % nonAdmins.length;
+      nextPlayer = nonAdmins[nextIdx];
+      loopCount++;
+    }
+  }
+  return nextPlayer.id;
+}
 
-const sanitizeSOK = (game) => {
-  if (!game) return null;
-  const { timer, pendingAction, duel, currentQuestion, ...safe } = game;
-  return safe;
-};
-
-const getPlayerSocketSOK = (roomCode, playerId) => {
+// Helper: get player socket by ID
+function getPlayerSocketSOK(roomCode, playerId) {
   const room = rooms[roomCode];
   if (!room) return null;
   const player = room.players.find(p => p.id === playerId);
   if (!player) return null;
   return io.sockets.sockets.get(player.socketId);
-};
+}
+
+// Initialize a new game
+function initSOKGame(room) {
+  console.log('[SOK] initSOKGame called, room.players:', room.players.map(p => ({ name: p.name, isAdmin: p.isAdmin })));
+  
+  const nonAdmins = room.players.filter(p => !p.isAdmin);
+  if (nonAdmins.length === 0) {
+    console.log('[SOK] No non-admin players – game cannot start');
+    return null;
+  }
+
+  // Shuffle players and continents
+  const shuffledPlayers = [...nonAdmins].sort(() => Math.random() - 0.5);
+  const shuffledContinents = [...SOK_CONTINENTS].sort(() => Math.random() - 0.5);
+
+  // Initialize ownership object
+  const ownership = {};
+  for (const cont of SOK_CONTINENTS) {
+    ownership[cont.id] = {};
+    for (const reg of cont.regions) {
+      ownership[cont.id][reg.id] = null;
+    }
+  }
+
+  // Assign random bases to players
+  for (let i = 0; i < shuffledPlayers.length; i++) {
+    if (i >= shuffledContinents.length) break;
+    const player = shuffledPlayers[i];
+    const cont = shuffledContinents[i];
+    ownership[cont.id][cont.regions[0].id] = player.id;
+  }
+
+  // Build players list with elimination flag
+  const gamePlayers = nonAdmins.map(p => ({
+    id: p.id,
+    name: p.name,
+    color: p.color,
+    eliminated: false
+  }));
+
+  const game = {
+    phase: 'claiming',
+    ownership,
+    turn: nonAdmins[0].id,
+    scores: {},
+    players: gamePlayers,
+    duel: null,
+    timer: null,
+    pendingAction: null,
+    currentQuestion: null,
+    answersArray: [],
+    roundCount: 0,
+    playedInRound: [],
+    skippedPlayers: {},
+  };
+  return game;
+}
+
+// This function attaches all socket event handlers for Sword of Knowledge
+function setupSwordOfKnowledge(socket) {
+  // These will be defined as we go (for mutual recursion)
+  let resolveClaim, askDuelQuestion, resolveDuelRound;
+
+  // ========== SOCKET EVENT HANDLERS ==========
+  socket.on('sok_init', ({ roomCode }) => {
+    console.log(`[SOK] sok_init for room ${roomCode}`);
+    const room = rooms[roomCode];
+    if (!room) {
+      console.log(`[SOK] Room ${roomCode} not found`);
+      return;
+    }
+
+    if (room.sok) {
+      // Update existing game's player list (in case of rejoins)
+      room.sok.players = room.players.filter(p => !p.isAdmin).map(p => ({
+        id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
+      }));
+      const state = sanitizeSOK(room.sok);
+      console.log('[SOK] Sending existing state', state);
+      socket.emit('sok_state', state);
+      return;
+    }
+
+    const game = initSOKGame(room);
+    if (!game) {
+      console.log('[SOK] Failed to initialize game');
+      socket.emit('sok_error', { message: 'Could not initialize game' });
+      return;
+    }
+    room.sok = game;
+    const state = sanitizeSOK(room.sok);
+    console.log('[SOK] Sending new state', state);
+    socket.emit('sok_state', state);
+  });
+
+  socket.on('sok_reset', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    room.players.forEach(p => { p.eliminated = false; });
+    const game = initSOKGame(room);
+    if (game) {
+      room.sok = game;
+      io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+    }
+  });
+
+  socket.on('sok_claim', ({ roomCode, continentId, regionName, playerId, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game) return;
+    if ((game.phase === 'claiming' || game.phase === 'attacking') && game.turn !== playerId) return;
+    const cont = SOK_CONTINENTS.find(c => c.id === continentId);
+    if (!cont) return;
+    const region = cont.regions.find(r => r.id === regionName);
+    if (!region || game.ownership[continentId][regionName] !== null) return;
+    if (!question) return;
+
+    game.currentQuestion = question;
+    game.answersArray = [];
+    game.pendingAction = { type: 'claim', continentId, regionName, playerId };
+
+    const playerName = rooms[roomCode].players.find(p => p.id === playerId)?.name || '???';
+    io.to(roomCode).emit('sok_claim_start', {
+      playerName,
+      regionName: region.name,
+      continentName: cont.name,
+      isEmpty: true,
+    });
+
+    clearTimeout(game.timer);
+    game.timer = setTimeout(() => {
+      if (rooms[roomCode]?.sok?.currentQuestion === question) {
+        io.to(roomCode).emit('sok_question', question);
+        clearTimeout(rooms[roomCode].sok.timer);
+        rooms[roomCode].sok.timer = setTimeout(() => {
+          resolveClaim(roomCode, continentId, regionName);
+        }, 20000);
+      }
+    }, 5000);
+
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  });
+
+  socket.on('sok_attack_hub', ({ roomCode, continentId, regionName, attackerId, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
+    const cont = SOK_CONTINENTS.find(c => c.id === continentId);
+    if (!cont) return;
+    const region = cont.regions.find(r => r.id === regionName);
+    if (!region) return;
+    const currentOwner = game.ownership[continentId][regionName];
+    if (!currentOwner || currentOwner === attackerId) return;
+    if (!question) return;
+
+    game.phase = 'duel';
+    game.duel = {
+      attackerId,
+      defenderId: currentOwner,
+      scores: { [attackerId]: 0, [currentOwner]: 0 },
+      round: 1,
+      question: null,
+      answers: {},
+      useDelay: true,
+    };
+    game.pendingAction = { type: 'attack_hub', continentId, regionName, attackerId, defenderId: currentOwner };
+
+    const attackerName = rooms[roomCode].players.find(p => p.id === attackerId)?.name || '???';
+    const defenderName = rooms[roomCode].players.find(p => p.id === currentOwner)?.name || '???';
+    io.to(roomCode).emit('sok_duel_start', {
+      attackerName,
+      defenderName,
+      regionName: region.name,
+      continentName: cont.name,
+      ownerName: defenderName,
+    });
+
+    askDuelQuestion(roomCode, question, 5000);
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  });
+
+  socket.on('sok_attack_base', ({ roomCode, continentId, attackerId, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
+    const cont = SOK_CONTINENTS.find(c => c.id === continentId);
+    if (!cont) return;
+    const baseRegionId = cont.regions[0].id;
+    const defenderId = game.ownership[continentId][baseRegionId];
+    if (!defenderId || defenderId === attackerId) return;
+
+    const defenderHomeContinent = Object.keys(game.ownership).find(cid =>
+      game.ownership[cid][SOK_CONTINENTS.find(c => c.id === cid).regions[0].id] === defenderId
+    );
+    if (!defenderHomeContinent) return;
+    const foreignOwned = Object.keys(game.ownership).some(cid => {
+      if (cid === defenderHomeContinent) return false;
+      return Object.values(game.ownership[cid]).some(owner => owner === defenderId);
+    });
+    if (foreignOwned) return;
+
+    const defenderHubs = cont.regions.filter((_, idx) => idx > 0 && idx <= 4);
+    const attackerHubCount = defenderHubs.filter(r => game.ownership[continentId][r.id] === attackerId).length;
+    if (attackerHubCount < 3) return;
+
+    if (!question) return;
+
+    game.phase = 'duel';
+    game.duel = {
+      attackerId,
+      defenderId,
+      scores: { [attackerId]: 0, [defenderId]: 0 },
+      round: 1,
+      question: null,
+      answers: {},
+      useDelay: false,
+    };
+    game.pendingAction = { type: 'attack_base', continentId, attackerId, defenderId };
+
+    askDuelQuestion(roomCode, question, 0);
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  });
+
+  socket.on('sok_claim_answer', ({ roomCode, playerId, answer }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || !game.currentQuestion || (game.phase !== 'claiming' && game.phase !== 'attacking')) return;
+    if (!game.pendingAction || game.pendingAction.type !== 'claim') return;
+    if (game.answersArray.some(a => a.playerId === playerId)) return;
+    game.answersArray.push({ playerId, answer });
+
+    const nonAdmins = rooms[roomCode].players.filter(p => !p.isAdmin && !p.eliminated);
+    const allAnswered = nonAdmins.every(p => game.answersArray.some(a => a.playerId === p.id));
+    if (allAnswered) {
+      clearTimeout(game.timer);
+      resolveClaim(roomCode, game.pendingAction.continentId, game.pendingAction.regionName);
+    }
+  });
+
+  socket.on('sok_duel_answer', ({ roomCode, playerId, answer }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'duel' || !game.duel) return;
+    if (playerId !== game.duel.attackerId && playerId !== game.duel.defenderId) return;
+    if (game.duel.answers[playerId] !== undefined) return;
+    game.duel.answers[playerId] = answer;
+    if (Object.keys(game.duel.answers).length === 2) {
+      clearTimeout(game.timer);
+      resolveDuelRound(roomCode);
+    }
+  });
+
+  socket.on('sok_provide_duel_question', ({ roomCode, question }) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || game.phase !== 'duel' || !game.duel) return;
+    askDuelQuestion(roomCode, question, 0);
+  });
+
+  // ========== INTERNAL RESOLVERS ==========
+  resolveClaim = (roomCode, continentId, regionName) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || !game.currentQuestion) return;
+
+    const q = game.currentQuestion;
+    let winner = null;
+
+    if (q.type === 'numeric') {
+      let bestDiff = Infinity;
+      for (const entry of game.answersArray) {
+        const num = parseFloat(entry.answer);
+        if (isNaN(num)) continue;
+        const diff = Math.abs(num - q.answer);
+        if (diff < bestDiff) { bestDiff = diff; winner = entry.playerId; }
+      }
+    } else if (q.type === 'mcq') {
+      const correctIdx = q.answer;
+      for (const entry of game.answersArray) {
+        if (parseInt(entry.answer.trim(), 10) === correctIdx) { winner = entry.playerId; break; }
+      }
+    }
+
+    if (winner) {
+      game.ownership[continentId][regionName] = winner;
+      game.scores[winner] = (game.scores[winner] || 0) + 1;
+    } else {
+      const initiatorId = game.pendingAction?.playerId;
+      if (game.phase === 'attacking' && initiatorId) {
+        game.skippedPlayers[initiatorId] = true;
+      }
+    }
+
+    const initiatorId = game.pendingAction?.playerId;
+    const results = {
+      answers: game.answersArray.map(entry => {
+        const p = rooms[roomCode].players.find(pl => pl.id === entry.playerId);
+        return { playerId: entry.playerId, playerName: p?.name || '???', answer: entry.answer, color: p?.color || '#fff' };
+      }),
+      winner,
+      correctAnswer: q.type === 'numeric' ? q.answer : q.options?.[q.answer],
+      correctIndex: q.type === 'mcq' ? q.answer : null,
+      initiatorCorrect: winner === initiatorId,
+    };
+    io.to(roomCode).emit('sok_results', results);
+
+    game.currentQuestion = null;
+    game.pendingAction = null;
+    game.answersArray = [];
+
+    if (game.phase === 'claiming') {
+      game.turn = getNextPlayerSOK(roomCode, game.turn);
+      const currentPlayer = initiatorId;
+      if (!game.playedInRound) game.playedInRound = [];
+      if (currentPlayer && !game.playedInRound.includes(currentPlayer)) {
+        game.playedInRound.push(currentPlayer);
+      }
+      const nonAdmins = rooms[roomCode].players.filter(p => !p.isAdmin && !p.eliminated).map(p => p.id);
+      const allPlayed = nonAdmins.every(pid => game.playedInRound.includes(pid));
+      if (allPlayed) {
+        game.roundCount = (game.roundCount || 0) + 1;
+        game.playedInRound = [];
+        let allClaimed = true;
+        for (const cont of SOK_CONTINENTS) {
+          for (const reg of cont.regions) {
+            if (game.ownership[cont.id][reg.id] === null) { allClaimed = false; break; }
+          }
+          if (!allClaimed) break;
+        }
+        if (game.roundCount >= MAX_CLAIM_ROUNDS || allClaimed) {
+          game.phase = 'attacking';
+          io.to(roomCode).emit('sok_stage_changed', { stage: 'attacking' });
+        }
+      }
+    } else if (game.phase === 'attacking') {
+      game.turn = getNextPlayerSOK(roomCode, game.turn);
+    }
+
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+    io.to(roomCode).emit('sok_clear_question');
+  };
+
+  askDuelQuestion = (roomCode, question, delay = 0) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || !game.duel) return;
+
+    const broadcast = () => {
+      const currentGame = rooms[roomCode]?.sok;
+      if (!currentGame || !currentGame.duel) return;
+      currentGame.duel.question = question;
+      currentGame.duel.answers = {};
+      const attackerSocket = getPlayerSocketSOK(roomCode, currentGame.duel.attackerId);
+      const defenderSocket = getPlayerSocketSOK(roomCode, currentGame.duel.defenderId);
+      if (attackerSocket) attackerSocket.emit('sok_duel_question', question);
+      if (defenderSocket) defenderSocket.emit('sok_duel_question', question);
+      io.to(roomCode).emit('sok_duel_status', {
+        attacker: currentGame.duel.attackerId,
+        defender: currentGame.duel.defenderId,
+        round: currentGame.duel.round
+      });
+      clearTimeout(currentGame.timer);
+      currentGame.timer = setTimeout(() => {
+        const g = rooms[roomCode]?.sok;
+        if (g && g.phase === 'duel' && g.duel) {
+          resolveDuelRound(roomCode);
+        }
+      }, 20000);
+    };
+
+    if (delay > 0) {
+      clearTimeout(game.timer);
+      game.timer = setTimeout(broadcast, delay);
+    } else {
+      broadcast();
+    }
+  };
+
+  resolveDuelRound = (roomCode) => {
+    const game = rooms[roomCode]?.sok;
+    if (!game || !game.duel) return;
+    const { attackerId, defenderId, question, answers } = game.duel;
+    let roundWinner = null;
+
+    if (question.type === 'numeric') {
+      let bestDiff = Infinity;
+      for (const [pid, ans] of Object.entries(answers)) {
+        const num = parseFloat(ans);
+        if (isNaN(num)) continue;
+        const diff = Math.abs(num - question.answer);
+        if (diff < bestDiff) { bestDiff = diff; roundWinner = pid; }
+      }
+    } else if (question.type === 'mcq') {
+      const correctIdx = question.answer;
+      if (answers[attackerId] !== undefined && parseInt(answers[attackerId].trim(), 10) === correctIdx) roundWinner = attackerId;
+      else if (answers[defenderId] !== undefined && parseInt(answers[defenderId].trim(), 10) === correctIdx) roundWinner = defenderId;
+    }
+
+    if (roundWinner) game.duel.scores[roundWinner]++;
+
+    io.to(roomCode).emit('sok_duel_round_result', {
+      round: game.duel.round,
+      winner: roundWinner,
+      scores: game.duel.scores,
+      correctAnswer: question.type === 'numeric' ? question.answer : question.options[question.answer],
+      answers: answers,  // <-- add this line
+    });
+
+    if (game.duel.scores[attackerId] >= 2 || game.duel.scores[defenderId] >= 2) {
+      const duelWinner = game.duel.scores[attackerId] >= 2 ? attackerId : defenderId;
+      const duelLoser = duelWinner === attackerId ? defenderId : attackerId;
+
+      if (game.pendingAction.type === 'attack_hub') {
+        if (duelWinner === attackerId) {
+          game.ownership[game.pendingAction.continentId][game.pendingAction.regionName] = attackerId;
+          game.scores[attackerId] = (game.scores[attackerId] || 0) + 1;
+          game.scores[defenderId] = Math.max(0, (game.scores[defenderId] || 1) - 1);
+        }
+      } else if (game.pendingAction.type === 'attack_base') {
+        if (duelWinner === attackerId) {
+          for (const cont of SOK_CONTINENTS) {
+            for (const reg of cont.regions) {
+              if (game.ownership[cont.id][reg.id] === duelLoser) {
+                game.ownership[cont.id][reg.id] = duelWinner;
+                game.scores[duelWinner] = (game.scores[duelWinner] || 0) + 1;
+                game.scores[duelLoser] = Math.max(0, (game.scores[duelLoser] || 1) - 1);
+              }
+            }
+          }
+          const room = rooms[roomCode];
+          const loserPlayer = room.players.find(p => p.id === duelLoser);
+          if (loserPlayer) loserPlayer.eliminated = true;
+          game.players = room.players.filter(p => !p.isAdmin).map(p => ({
+            id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
+          }));
+        }
+      }
+
+      game.duel = null;
+      game.pendingAction = null;
+      game.phase = 'attacking';
+      game.turn = getNextPlayerSOK(roomCode, attackerId);
+
+      const activePlayers = game.players.filter(p => !p.eliminated);
+      if (activePlayers.length === 1) {
+        game.phase = 'ended';
+        io.to(roomCode).emit('sok_game_over', { winner: activePlayers[0].id, name: activePlayers[0].name });
+      }
+    } else {
+      game.duel.round++;
+      game.duel.question = null;
+      game.duel.answers = {};
+      setTimeout(() => {
+        const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
+        if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
+      }, 500);
+    }
+    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
+  };
+}
+
 
 // =====================================================
 // Socket.io connection handling
@@ -376,6 +845,7 @@ const getPlayerSocketSOK = (roomCode, playerId) => {
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
   updatePlayerActivity(socket.id);
+  setupSwordOfKnowledge(socket);
 
   // Create room
   socket.on('create_room', () => {
@@ -2281,639 +2751,6 @@ io.on('connection', (socket) => {
       socket.emit('battleship_state', board);
     }
   });
-
-  
-  // server/sokHandlers.js
-// =====================================================
-// This module expects to be placed where 'io' and 'rooms'
-// are already defined (e.g. imported or globals).
-// =====================================================
-
-// ---------- DATA (must match client's continentsData) ----------
-const continentsSOK = [
-  {
-    id: 'africa', name: 'أفريقيا',
-    base: { cx: 100, cy: 100 },
-    regions: [
-      { id: 'africa1', name: 'مصر',            cx: 30,  cy: 30 },
-      { id: 'africa2', name: 'نيجيريا',        cx: 170, cy: 30 },
-      { id: 'africa3', name: 'جنوب أفريقيا',   cx: 170, cy: 170 },
-      { id: 'africa4', name: 'كينيا',          cx: 30,  cy: 170 },
-      { id: 'africa5', name: 'الجزائر',        cx: 30,  cy: 30 },
-    ],
-  },
-  {
-    id: 'asia', name: 'آسيا',
-    base: { cx: 100, cy: 100 },
-    regions: [
-      { id: 'asia1', name: 'السعودية', cx: 30,  cy: 30 },
-      { id: 'asia2', name: 'الهند',     cx: 170, cy: 30 },
-      { id: 'asia3', name: 'اليابان',   cx: 170, cy: 170 },
-      { id: 'asia4', name: 'الصين',     cx: 30,  cy: 170 },
-      { id: 'asia5', name: 'تايلاند',     cx: 30,  cy: 30 },
-    ],
-  },
-  {
-    id: 'europe', name: 'أوروبا',
-    base: { cx: 100, cy: 100 },
-    regions: [
-      { id: 'europe1', name: 'فرنسا',    cx: 30,  cy: 30 },
-      { id: 'europe2', name: 'ألمانيا',  cx: 170, cy: 30 },
-      { id: 'europe3', name: 'إيطاليا',  cx: 170, cy: 170 },
-      { id: 'europe4', name: 'إسبانيا',  cx: 30,  cy: 170 },
-      { id: 'europe5', name: 'البرتغال', cx: 30,  cy: 30 },
-    ],
-  },
-  {
-    id: 'americas', name: 'الأمريكيتين',
-    base: { cx: 100, cy: 100 },
-    regions: [
-      { id: 'americas1', name: 'أمريكا', cx: 30,  cy: 30 },
-      { id: 'americas2', name: 'البرازيل',        cx: 170, cy: 30 },
-      { id: 'americas3', name: 'كندا',            cx: 170, cy: 170 },
-      { id: 'americas4', name: 'الأرجنتين',       cx: 30,  cy: 170 },
-      { id: 'americas5', name: 'المكسيك',         cx: 30,  cy: 30 },
-    ],
-  },
-  {
-    id: 'australia', name: 'أستراليا',
-    base: { cx: 100, cy: 100 },
-    regions: [
-      { id: 'aus1', name: 'سيدني',      cx: 30,  cy: 30 },
-      { id: 'aus2', name: 'ملبورن',     cx: 170, cy: 30 },
-      { id: 'aus3', name: 'بريزبن',     cx: 170, cy: 170 },
-      { id: 'aus4', name: 'برث',        cx: 30,  cy: 170 },
-      { id: 'aus5', name: 'كانبيرا',     cx: 30,  cy: 30 },
-    ],
-  },
-  {
-    id: 'middleeast', name: 'الشرق الأوسط',
-    base: { cx: 100, cy: 100 },
-    regions: [
-      { id: 'me1', name: 'الإمارات',    cx: 30,  cy: 30 },
-      { id: 'me2', name: 'قطر',        cx: 170, cy: 30 },
-      { id: 'me3', name: 'الكويت',     cx: 170, cy: 170 },
-      { id: 'me4', name: 'عُمان',      cx: 30,  cy: 170 },
-      { id: 'me5', name: 'البحرين',    cx: 30,  cy: 30 },
-    ],
-  },
-  {
-    id: 'northasia', name: 'شمال آسيا',
-    base: { cx: 100, cy: 100 },
-    regions: [
-      { id: 'na1', name: 'روسيا',      cx: 30,  cy: 30 },
-      { id: 'na2', name: 'كازاخستان',  cx: 170, cy: 30 },
-      { id: 'na3', name: 'منغوليا',    cx: 170, cy: 170 },
-      { id: 'na4', name: 'كوريا',      cx: 30,  cy: 170 },
-      { id: 'na5', name: 'تركيا',    cx: 30,  cy: 30 },
-    ],
-  },
-  {
-    id: 'southasia', name: 'جنوب آسيا',
-    base: { cx: 100, cy: 100 },
-    regions: [
-      { id: 'sa1', name: 'باكستان',    cx: 30,  cy: 30 },
-      { id: 'sa2', name: 'بنغلاديش',   cx: 170, cy: 30 },
-      { id: 'sa3', name: 'سريلانكا',   cx: 170, cy: 170 },
-      { id: 'sa4', name: 'نيبال',      cx: 30,  cy: 170 },
-      { id: 'sa5', name: 'أفغانستان',    cx: 30,  cy: 30 },
-    ],
-  },
-];
-
-// ---------- UTILITIES ----------
-
-// Return the socket instance for a given playerId.
-// Requires that socket.data.playerId has been set when the player joins.
-function getPlayerSocketSOK(roomCode, playerId) {
-  const room = rooms[roomCode];
-  if (!room) return null;
-  // Simple method: iterate over all connected sockets
-  for (let [id, sock] of io.sockets.sockets) {
-    if (sock.data.playerId === playerId && sock.rooms.has(roomCode)) {
-      return sock;
-    }
-  }
-  return null;
-}
-
-// Remove internal, non‑serialisable fields before sending to clients.
-function sanitizeSOK(game) {
-  if (!game) return null;
-  const { timer, currentQuestion, answersArray, pendingAction, playedInRound, ...rest } = game;
-  return {
-    ...rest,
-    duel: game.duel ? {
-      attackerId: game.duel.attackerId,
-      defenderId: game.duel.defenderId,
-      scores: game.duel.scores,
-      round: game.duel.round
-    } : null
-  };
-}
-
-// ---------- GAME LOGIC ----------
-
-let resolveClaim, askDuelQuestion, resolveDuelRound; // will be assigned below
-
-const MAX_CLAIM_ROUNDS = 4;
-
-const getNextPlayerSOK = (roomCode, currentPlayerId) => {
-  const room = rooms[roomCode];
-  if (!room) return null;
-  const nonAdmins = room.players.filter(p => !p.isAdmin && !p.eliminated);
-  if (nonAdmins.length === 0) return null;
-  const idx = nonAdmins.findIndex(p => p.id === currentPlayerId);
-  let nextIdx = (idx + 1) % nonAdmins.length;
-  let nextPlayer = nonAdmins[nextIdx];
-  const game = room.sok;
-  if (game && game.skippedPlayers) {
-    let loopCount = 0;
-    while (game.skippedPlayers[nextPlayer.id] && loopCount < nonAdmins.length) {
-      delete game.skippedPlayers[nextPlayer.id];
-      nextIdx = (nextIdx + 1) % nonAdmins.length;
-      nextPlayer = nonAdmins[nextIdx];
-      loopCount++;
-    }
-  }
-  return nextPlayer.id;
-};
-
-// ---------- SOCKET EVENT HANDLERS ----------
-
-socket.on('sok_init', ({ roomCode, playerId, playerName, isAdmin }) => {
-  // 1. CREATE ROOM IF IT DOESN'T EXIST
-  if (!rooms[roomCode]) {
-    rooms[roomCode] = { players: [], sok: null };
-  }
-  const room = rooms[roomCode];
-
-  // 2. STORE PLAYER INFO ON THE SOCKET (needed for duels)
-  socket.data.playerId = playerId;
-  socket.data.roomCode = roomCode;
-  socket.join(roomCode);
-
-  // 3. ADD PLAYER TO ROOM LIST IF NOT ALREADY THERE
-  if (!room.players.find(p => p.id === playerId)) {
-    room.players.push({
-      id: playerId,
-      name: playerName,
-      isAdmin: isAdmin || false,
-      color: '#ffffff',   // change to your colour logic if needed
-      eliminated: false
-    });
-  }
-
-  // 4. IF GAME ALREADY EXISTS, JUST RESEND CURRENT STATE
-  if (room.sok) {
-    room.sok.players = room.players.filter(p => !p.isAdmin).map(p => ({
-      id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
-    }));
-    socket.emit('sok_state', sanitizeSOK(room.sok));
-    return;
-  }
-
-  // 5. OTHERWISE, CREATE A BRAND NEW GAME
-  const nonAdmins = room.players.filter(p => !p.isAdmin);
-  if (nonAdmins.length === 0) return;
-
-  const shuffledPlayers = [...nonAdmins].sort(() => Math.random() - 0.5);
-  const shuffledContinents = [...continentsSOK].sort(() => Math.random() - 0.5);
-
-  const ownership = {};
-  continentsSOK.forEach(c => {
-    ownership[c.id] = {};
-    c.regions.forEach(r => { ownership[c.id][r.id] = null; });
-  });
-
-  shuffledPlayers.forEach((player, idx) => {
-    if (idx >= shuffledContinents.length) return;
-    const cont = shuffledContinents[idx];
-    ownership[cont.id][cont.regions[0].id] = player.id;
-  });
-
-  const game = {
-    phase: 'claiming',
-    ownership,
-    turn: nonAdmins[0].id,
-    scores: {},
-    players: nonAdmins.map(p => ({
-      id: p.id, name: p.name, color: p.color, eliminated: false
-    })),
-    duel: null,
-    timer: null,
-    pendingAction: null,
-    currentQuestion: null,
-    answersArray: [],
-    roundCount: 0,
-    playedInRound: [],
-    skippedPlayers: {},
-  };
-
-  room.sok = game;
-  io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-});
-
-// Admin reset
-socket.on('sok_reset', ({ roomCode }) => {
-  if (!rooms[roomCode]) return;
-  const room = rooms[roomCode];
-  room.players.forEach(p => { p.eliminated = false; });
-  const nonAdmins = room.players.filter(p => !p.isAdmin).map(p => ({ ...p, eliminated: false }));
-
-  const shuffledPlayers = [...nonAdmins].sort(() => Math.random() - 0.5);
-  const shuffledContinents = [...continentsSOK].sort(() => Math.random() - 0.5);
-
-  const ownership = {};
-  continentsSOK.forEach(c => {
-    ownership[c.id] = {};
-    c.regions.forEach(r => { ownership[c.id][r.id] = null; });
-  });
-
-  shuffledPlayers.forEach((player, idx) => {
-    if (idx >= shuffledContinents.length) return;
-    const cont = shuffledContinents[idx];
-    ownership[cont.id][cont.regions[0].id] = player.id;
-  });
-
-  room.sok = {
-    phase: 'claiming',
-    ownership,
-    turn: nonAdmins[0].id,
-    scores: {},
-    players: nonAdmins.map(p => ({
-      id: p.id, name: p.name, color: p.color, eliminated: false
-    })),
-    duel: null,
-    timer: null,
-    pendingAction: null,
-    currentQuestion: null,
-    answersArray: [],
-    roundCount: 0,
-    playedInRound: [],
-    skippedPlayers: {},
-  };
-  io.to(roomCode).emit('sok_state', sanitizeSOK(room.sok));
-});
-
-// Claim a region
-socket.on('sok_claim', ({ roomCode, continentId, regionName, playerId, question }) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game) return;
-  if (game.phase === 'claiming' && game.turn !== playerId) return;
-  if (game.phase === 'attacking' && game.turn !== playerId) return;
-  const cont = continentsSOK.find(c => c.id === continentId);
-  if (!cont) return;
-  const region = cont.regions.find(r => r.id === regionName);
-  if (!region) return;
-  if (game.ownership[continentId][regionName] !== null) return;
-  if (!question) return;
-
-  game.currentQuestion = question;
-  game.answersArray = [];
-  game.pendingAction = { type: 'claim', continentId, regionName, playerId };
-
-  const playerName = rooms[roomCode].players.find(p => p.id === playerId)?.name || '???';
-  const regionObj = cont.regions.find(r => r.id === regionName);
-  io.to(roomCode).emit('sok_claim_start', {
-    playerName,
-    regionName: regionObj?.name || regionName,
-    continentName: cont.name,
-    isEmpty: true,
-  });
-
-  clearTimeout(game.timer);
-  game.timer = setTimeout(() => {
-    const currentGame = rooms[roomCode]?.sok;
-    if (!currentGame || currentGame.currentQuestion !== question) return;
-    io.to(roomCode).emit('sok_question', question);
-    clearTimeout(currentGame.timer);
-    currentGame.timer = setTimeout(() => {
-      resolveClaim(roomCode, continentId, regionName);
-    }, 20000);
-  }, 5000);
-
-  io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-});
-
-// Attack a hub (duel)
-socket.on('sok_attack_hub', ({ roomCode, continentId, regionName, attackerId, question }) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
-  const cont = continentsSOK.find(c => c.id === continentId);
-  if (!cont) return;
-  const region = cont.regions.find(r => r.id === regionName);
-  if (!region) return;
-  const currentOwner = game.ownership[continentId][regionName];
-  if (!currentOwner || currentOwner === attackerId) return;
-  if (!question) return;
-
-  game.phase = 'duel';
-  game.duel = {
-    attackerId,
-    defenderId: currentOwner,
-    scores: { [attackerId]: 0, [currentOwner]: 0 },
-    round: 1,
-    question: null,
-    answers: {},
-    useDelay: true,
-  };
-  game.pendingAction = { type: 'attack_hub', continentId, regionName, attackerId, defenderId: currentOwner };
-
-  const attackerName = rooms[roomCode].players.find(p => p.id === attackerId)?.name || '???';
-  const defenderName = rooms[roomCode].players.find(p => p.id === currentOwner)?.name || '???';
-  const regionObj = cont.regions.find(r => r.id === regionName);
-  io.to(roomCode).emit('sok_duel_start', {
-    attackerName,
-    defenderName,
-    regionName: regionObj?.name || regionName,
-    continentName: cont.name,
-    ownerName: defenderName,
-  });
-
-  askDuelQuestion(roomCode, question, 5000);
-  io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-});
-
-// Attack a base (duel)
-socket.on('sok_attack_base', ({ roomCode, continentId, attackerId, question }) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
-  const cont = continentsSOK.find(c => c.id === continentId);
-  if (!cont) return;
-  const baseRegionId = cont.regions[0].id;
-  const defenderId = game.ownership[continentId][baseRegionId];
-  if (!defenderId || defenderId === attackerId) return;
-
-  const defenderHomeContinent = Object.keys(game.ownership).find(cid =>
-    game.ownership[cid][continentsSOK.find(c => c.id === cid).regions[0].id] === defenderId
-  );
-  if (!defenderHomeContinent) return;
-  const foreignOwned = Object.keys(game.ownership).some(cid => {
-    if (cid === defenderHomeContinent) return false;
-    return Object.values(game.ownership[cid]).some(owner => owner === defenderId);
-  });
-  if (foreignOwned) return;
-
-  const defenderHubs = cont.regions.filter((r, idx) => idx > 0 && idx <= 4);
-  const attackerHubCount = defenderHubs.filter(r => game.ownership[continentId][r.id] === attackerId).length;
-  if (attackerHubCount < 3) return;
-
-  if (!question) return;
-
-  game.phase = 'duel';
-  game.duel = {
-    attackerId,
-    defenderId,
-    scores: { [attackerId]: 0, [defenderId]: 0 },
-    round: 1,
-    question: null,
-    answers: {},
-    useDelay: false,
-  };
-  game.pendingAction = { type: 'attack_base', continentId, attackerId, defenderId };
-
-  askDuelQuestion(roomCode, question, 0);
-  io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-});
-
-// Answer for claiming
-socket.on('sok_claim_answer', ({ roomCode, playerId, answer }) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game || !game.currentQuestion || (game.phase !== 'claiming' && game.phase !== 'attacking')) return;
-  if (!game.pendingAction || game.pendingAction.type !== 'claim') return;
-  if (game.answersArray.some(a => a.playerId === playerId)) return;
-  game.answersArray.push({ playerId, answer });
-
-  const nonAdmins = rooms[roomCode].players.filter(p => !p.isAdmin && !p.eliminated);
-  const allAnswered = nonAdmins.every(p => game.answersArray.some(a => a.playerId === p.id));
-  if (allAnswered) {
-    clearTimeout(game.timer);
-    resolveClaim(roomCode, game.pendingAction.continentId, game.pendingAction.regionName);
-  }
-});
-
-// Duel answer
-socket.on('sok_duel_answer', ({ roomCode, playerId, answer }) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game || game.phase !== 'duel' || !game.duel) return;
-  if (playerId !== game.duel.attackerId && playerId !== game.duel.defenderId) return;
-  if (game.duel.answers[playerId] !== undefined) return;
-  game.duel.answers[playerId] = answer;
-  if (Object.keys(game.duel.answers).length === 2) {
-    clearTimeout(game.timer);
-    resolveDuelRound(roomCode);
-  }
-});
-
-// Attacker provides question for subsequent duel rounds
-socket.on('sok_provide_duel_question', ({ roomCode, question }) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game || game.phase !== 'duel' || !game.duel) return;
-  askDuelQuestion(roomCode, question, 0);
-});
-
-// ===================== HELPERS =====================
-
-resolveClaim = (roomCode, continentId, regionName) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game || !game.currentQuestion) return;
-
-  const q = game.currentQuestion;
-  let winner = null;
-
-  if (q.type === 'numeric') {
-    let bestDiff = Infinity;
-    for (const entry of game.answersArray) {
-      const num = parseFloat(entry.answer);
-      if (isNaN(num)) continue;
-      const diff = Math.abs(num - q.answer);
-      if (diff < bestDiff) { bestDiff = diff; winner = entry.playerId; }
-    }
-  } else if (q.type === 'mcq') {
-    const correctIdx = q.answer;
-    for (const entry of game.answersArray) {
-      if (parseInt(entry.answer.trim(), 10) === correctIdx) { winner = entry.playerId; break; }
-    }
-  }
-
-  if (winner) {
-    game.ownership[continentId][regionName] = winner;
-    game.scores[winner] = (game.scores[winner] || 0) + 1;
-  } else {
-    const initiatorId = game.pendingAction?.playerId;
-    if (game.phase === 'attacking' && initiatorId) {
-      game.skippedPlayers[initiatorId] = true;
-    }
-  }
-
-  const initiatorId = game.pendingAction?.playerId;
-  const results = {
-    answers: game.answersArray.map(entry => {
-      const p = rooms[roomCode].players.find(pl => pl.id === entry.playerId);
-      return { playerId: entry.playerId, playerName: p?.name || '???', answer: entry.answer, color: p?.color || '#fff' };
-    }),
-    winner,
-    correctAnswer: q.type === 'numeric' ? q.answer : q.options?.[q.answer],
-    correctIndex: q.type === 'mcq' ? q.answer : null,
-    initiatorCorrect: winner === initiatorId,
-  };
-  io.to(roomCode).emit('sok_results', results);
-
-  game.currentQuestion = null;
-  game.pendingAction = null;
-  game.answersArray = [];
-
-  if (game.phase === 'claiming') {
-    game.turn = getNextPlayerSOK(roomCode, game.turn);
-    const currentPlayer = initiatorId;
-    if (!game.playedInRound) game.playedInRound = [];
-    if (currentPlayer && !game.playedInRound.includes(currentPlayer)) {
-      game.playedInRound.push(currentPlayer);
-    }
-    const nonAdmins = rooms[roomCode].players.filter(p => !p.isAdmin && !p.eliminated).map(p => p.id);
-    const allPlayed = nonAdmins.every(pid => game.playedInRound.includes(pid));
-    if (allPlayed) {
-      game.roundCount = (game.roundCount || 0) + 1;
-      game.playedInRound = [];
-      let allClaimed = true;
-      for (const cont of continentsSOK) {
-        for (const reg of cont.regions) {
-          if (game.ownership[cont.id][reg.id] === null) { allClaimed = false; break; }
-        }
-        if (!allClaimed) break;
-      }
-      if (game.roundCount >= MAX_CLAIM_ROUNDS || allClaimed) {
-        game.phase = 'attacking';
-      }
-    }
-  } else if (game.phase === 'attacking') {
-    game.turn = getNextPlayerSOK(roomCode, game.turn);
-  }
-
-  io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-  io.to(roomCode).emit('sok_clear_question');
-};
-
-askDuelQuestion = (roomCode, question, delay = 0) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game || !game.duel) return;
-
-  const broadcast = () => {
-    const currentGame = rooms[roomCode]?.sok;
-    if (!currentGame || !currentGame.duel) return;
-    currentGame.duel.question = question;
-    currentGame.duel.answers = {};
-    const attackerSocket = getPlayerSocketSOK(roomCode, currentGame.duel.attackerId);
-    const defenderSocket = getPlayerSocketSOK(roomCode, currentGame.duel.defenderId);
-    if (attackerSocket) attackerSocket.emit('sok_duel_question', question);
-    if (defenderSocket) defenderSocket.emit('sok_duel_question', question);
-    io.to(roomCode).emit('sok_duel_status', {
-      attacker: currentGame.duel.attackerId,
-      defender: currentGame.duel.defenderId,
-      round: currentGame.duel.round
-    });
-    clearTimeout(currentGame.timer);
-    currentGame.timer = setTimeout(() => {
-      const g = rooms[roomCode]?.sok;
-      if (g && g.phase === 'duel' && g.duel) {
-        resolveDuelRound(roomCode);
-      }
-    }, 20000);
-  };
-
-  if (delay > 0) {
-    clearTimeout(game.timer);
-    game.timer = setTimeout(broadcast, delay);
-  } else {
-    broadcast();
-  }
-};
-
-resolveDuelRound = (roomCode) => {
-  const game = rooms[roomCode]?.sok;
-  if (!game || !game.duel) return;
-  const { attackerId, defenderId, question, answers } = game.duel;
-  let roundWinner = null;
-
-  if (question.type === 'numeric') {
-    let bestDiff = Infinity;
-    for (const [pid, ans] of Object.entries(answers)) {
-      const num = parseFloat(ans);
-      if (isNaN(num)) continue;
-      const diff = Math.abs(num - question.answer);
-      if (diff < bestDiff) { bestDiff = diff; roundWinner = pid; }
-    }
-  } else if (question.type === 'mcq') {
-    const correctIdx = question.answer;
-    if (answers[attackerId] !== undefined && parseInt(answers[attackerId].trim(), 10) === correctIdx) roundWinner = attackerId;
-    else if (answers[defenderId] !== undefined && parseInt(answers[defenderId].trim(), 10) === correctIdx) roundWinner = defenderId;
-  }
-
-  if (roundWinner) game.duel.scores[roundWinner]++;
-
-  io.to(roomCode).emit('sok_duel_round_result', {
-    round: game.duel.round,
-    winner: roundWinner,
-    scores: game.duel.scores,
-    correctAnswer: question.type === 'numeric' ? question.answer : question.options[question.answer],
-  });
-
-  if (game.duel.scores[attackerId] >= 2 || game.duel.scores[defenderId] >= 2) {
-    const duelWinner = game.duel.scores[attackerId] >= 2 ? attackerId : defenderId;
-    const duelLoser = duelWinner === attackerId ? defenderId : attackerId;
-
-    if (game.pendingAction.type === 'attack_hub') {
-      if (duelWinner === attackerId) {
-        game.ownership[game.pendingAction.continentId][game.pendingAction.regionName] = attackerId;
-        game.scores[attackerId] = (game.scores[attackerId] || 0) + 1;
-        game.scores[defenderId] = Math.max(0, (game.scores[defenderId] || 1) - 1);
-      }
-    } else if (game.pendingAction.type === 'attack_base') {
-      if (duelWinner === attackerId) {
-        for (const cont of continentsSOK) {
-          for (const reg of cont.regions) {
-            if (game.ownership[cont.id][reg.id] === duelLoser) {
-              game.ownership[cont.id][reg.id] = duelWinner;
-              game.scores[duelWinner] = (game.scores[duelWinner] || 0) + 1;
-              game.scores[duelLoser] = Math.max(0, (game.scores[duelLoser] || 1) - 1);
-            }
-          }
-        }
-        const room = rooms[roomCode];
-        const loserPlayer = room.players.find(p => p.id === duelLoser);
-        if (loserPlayer) loserPlayer.eliminated = true;
-        game.players = room.players.filter(p => !p.isAdmin).map(p => ({
-          id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
-        }));
-      }
-    }
-
-    game.duel = null;
-    game.pendingAction = null;
-    game.phase = 'attacking';
-    game.turn = duelWinner;
-
-    const activePlayers = game.players.filter(p => !p.eliminated);
-    if (activePlayers.length === 1) {
-      game.phase = 'ended';
-      io.to(roomCode).emit('sok_game_over', { winner: activePlayers[0].id, name: activePlayers[0].name });
-    }
-  } else {
-    // Next round – ask the attacker for a new question after a short delay
-    game.duel.round++;
-    game.duel.question = null;
-    game.duel.answers = {};
-    setTimeout(() => {
-      const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
-      if (attackerSocket) {
-        attackerSocket.emit('sok_request_duel_question');
-      }
-    }, 4000);
-  }
-  io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-};
-
 
 
   // ===================== BRACKET (دور الـ١٦) =====================
