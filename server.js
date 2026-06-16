@@ -2879,6 +2879,7 @@ io.on('connection', (socket) => {
   });
 
   // ===== NEW: SPY (personalised word) =====
+  // 1. تحديث حدث spy_start عشان نحفظ الجاسوس
   socket.on('spy_start', ({ roomCode, assignments }) => {
     updatePlayerActivity(socket.id);
     console.log(`🕵️ SPY START in room ${roomCode} with ${assignments.length} assignments`);
@@ -2886,17 +2887,101 @@ io.on('connection', (socket) => {
     if (!rooms[roomCode]) return;
     
     const room = rooms[roomCode];
+    room.spyVotes = {}; // تصفير التصويتات القديمة
+
+    io.to(roomCode).emit('update_players', room.players);
     
     assignments.forEach(({ playerId, question }) => {
+      // تحديد الجاسوس (بافتراض أن كلمة الجاسوس تحتوي على كلمة Spy أو جاسوس)
+      if (question.text.toLowerCase().includes('spy') || question.text.includes('جاسوس')) {
+        room.spyId = playerId;
+      }
+      
       const player = room.players.find(p => p.id === playerId);
       if (player) {
         io.to(player.socketId).emit('player_photo_question', {
           playerId,
           question
         });
-        console.log(`  ✅ Sent spy word to ${player.name}: ${question.text}`);
       }
     });
+  });
+
+  // 2. أحداث التصويت الجديدة
+  socket.on('start_spy_voting', (roomCode) => {
+    io.to(roomCode).emit('open_spy_voting');
+  });
+
+  socket.on('submit_spy_vote', ({ roomCode, voterId, votedForId }) => {
+    if (rooms[roomCode]) {
+      rooms[roomCode].spyVotes[voterId] = votedForId; // حفظ تصويت اللاعب
+    }
+  });
+
+socket.on('end_spy_voting', (roomCode) => {
+    const room = rooms[roomCode];
+    if (!room || !room.spyId) return;
+
+    const votes = room.spyVotes || {};
+    const spyId = room.spyId;
+    let voteCounts = {}; 
+
+    Object.values(votes).forEach(votedForId => {
+      voteCounts[votedForId] = (voteCounts[votedForId] || 0) + 1;
+    });
+
+    let maxVotes = 0;
+    let accusedId = null;
+    Object.keys(voteCounts).forEach(id => {
+      if (voteCounts[id] > maxVotes) {
+        maxVotes = voteCounts[id];
+        accusedId = id;
+      }
+    });
+
+    const spyCaught = (accusedId === spyId);
+    let correctVoters = [];
+    let roundScores = []; // مصفوفة جديدة لتخزين نقاط الجولة الحالية لكل لاعب
+
+    room.players.forEach(player => {
+      let pointsEarned = 0;
+      
+      if (spyCaught) {
+        // لو الجاسوس اتكشف، اللي صوتوا عليه صح ياخدوا نقطة
+        if (votes[player.id] === spyId) {
+           pointsEarned = 1;
+           correctVoters.push(player.name);
+        }
+      } else {
+        // لو الجاسوس هرب، هو بس اللي ياخد نقطة
+        if (player.id === spyId) {
+           pointsEarned = 1;
+        }
+      }
+
+      if (pointsEarned > 0) {
+         player.score = (player.score || 0) + pointsEarned;
+      }
+
+      // إضافة اللاعب لملخص الجولة
+      roundScores.push({ 
+        name: player.name, 
+        pointsEarned: pointsEarned, 
+        isSpy: player.id === spyId 
+      });
+    });
+
+    io.to(roomCode).emit('spy_voting_results', {
+      spyCaught,
+      spyId,
+      correctVoters,
+      players: room.players, // دي عشان شاشة النتائج
+      roundScores
+    });
+
+    io.to(roomCode).emit('update_players', room.players); 
+
+
   });
 
   // ===== EXISTING QUIZ EVENTS =====
