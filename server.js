@@ -39,6 +39,7 @@ const io = new Server(server, {
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 const swordOfKnowledgeQuestions = require('../main/project/src/data/swordOfKnowledgeQuestions');
+const crimeCases = require('./data/crimeCases');
 
 // Game categories (your full list – unchanged)
 const gameCategories = [
@@ -89,6 +90,7 @@ const gameCategories = [
 const rooms = {};
 const pendingActions = {};
 const playerActivity = {};
+const crimeGameState = {};
 
 const playerColorPalette = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
 
@@ -388,8 +390,7 @@ function getPlayerSocketSOK(roomCode, playerId) {
 
 // Initialize a new game
 function initSOKGame(room) {
-  console.log('[SOK] initSOKGame called, room.players:', room.players.map(p => ({ name: p.name, isAdmin: p.isAdmin })));
-  
+  // Only non‑admin players can play
   const nonAdmins = room.players.filter(p => !p.isAdmin);
   if (nonAdmins.length === 0) {
     console.log('[SOK] No non-admin players – game cannot start');
@@ -400,7 +401,7 @@ function initSOKGame(room) {
   const shuffledPlayers = [...nonAdmins].sort(() => Math.random() - 0.5);
   const shuffledContinents = [...SOK_CONTINENTS].sort(() => Math.random() - 0.5);
 
-  // Initialize ownership object
+  // Initialize ownership
   const ownership = {};
   for (const cont of SOK_CONTINENTS) {
     ownership[cont.id] = {};
@@ -409,7 +410,7 @@ function initSOKGame(room) {
     }
   }
 
-  // Assign random bases to players
+  // Assign bases to players
   for (let i = 0; i < shuffledPlayers.length; i++) {
     if (i >= shuffledContinents.length) break;
     const player = shuffledPlayers[i];
@@ -417,7 +418,7 @@ function initSOKGame(room) {
     ownership[cont.id][cont.regions[0].id] = player.id;
   }
 
-  // Build players list with elimination flag
+  // Build players list (only non‑admins)
   const gamePlayers = nonAdmins.map(p => ({
     id: p.id,
     name: p.name,
@@ -425,7 +426,7 @@ function initSOKGame(room) {
     eliminated: false
   }));
 
-  const game = {
+  return {
     phase: 'claiming',
     ownership,
     turn: nonAdmins[0].id,
@@ -440,7 +441,6 @@ function initSOKGame(room) {
     playedInRound: [],
     skippedPlayers: {},
   };
-  return game;
 }
 
 // This function attaches all socket event handlers for Sword of Knowledge
@@ -2982,6 +2982,165 @@ socket.on('end_spy_voting', (roomCode) => {
     io.to(roomCode).emit('update_players', room.players); 
 
 
+  });
+
+  // ========== CRIME GAME HANDLERS ==========
+
+  // Start a new crime game
+  socket.on('crime_start', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    const randomIndex = Math.floor(Math.random() * crimeCases.length);
+    crimeGameState[roomCode] = {
+      caseIndex: randomIndex,
+      statementsRevealed: false,
+      votes: {},
+      hasVoted: [],
+      votingOpen: false,
+      solutionRevealed: false,
+    };
+    io.to(roomCode).emit('crime_horror_message', { message: 'جاهزين للجرائم' });
+    const adminPlayer = room.players.find(p => p.isAdmin);
+    if (adminPlayer) {
+      io.to(adminPlayer.socketId).emit('crime_admin_data', {
+        headline: crimeCases[randomIndex].headline,
+        description: crimeCases[randomIndex].description,
+        suspects: crimeCases[randomIndex].suspects,
+        solution: crimeCases[randomIndex].solution,
+        image: crimeCases[randomIndex].image || null,
+        totalSuspects: crimeCases[randomIndex].suspects.length,
+      });
+    }
+  });
+
+  // Show crime headline & description
+  socket.on('crime_show_headline', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const caseData = crimeCases[state.caseIndex];
+    io.to(roomCode).emit('crime_headline', {
+      headline: caseData.headline,
+      description: caseData.description
+    });
+  });
+
+  // Show suspects brief (names + relationships)
+  socket.on('crime_show_suspects_brief', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const caseData = crimeCases[state.caseIndex];
+    const brief = caseData.suspects.map(s => ({ name: s.name, relationship: s.relationship }));
+    io.to(roomCode).emit('crime_suspects_brief', { suspects: brief });
+  });
+
+  // Show all statements at once
+  socket.on('crime_show_statements', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const caseData = crimeCases[state.caseIndex];
+    io.to(roomCode).emit('crime_statements_all', { suspects: caseData.suspects });
+  });
+
+  // Show evidence
+  socket.on('crime_show_evidence', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const caseData = crimeCases[state.caseIndex];
+    io.to(roomCode).emit('crime_evidence', { evidence: caseData.evidence || [] });
+  });
+
+  // Show solution parts (each separately)
+  socket.on('crime_show_puzzle', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const caseData = crimeCases[state.caseIndex];
+    const content = caseData.solution?.puzzle || 'لا يوجد تفكيك للغز';
+    io.to(roomCode).emit('crime_solution_part', { part: 'puzzle', content });
+  });
+
+  socket.on('crime_show_clues', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const caseData = crimeCases[state.caseIndex];
+    const content = caseData.solution?.clues || 'لا توجد خيوط';
+    io.to(roomCode).emit('crime_solution_part', { part: 'clues', content });
+  });
+
+  socket.on('crime_show_culprit', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const caseData = crimeCases[state.caseIndex];
+    const content = caseData.solution?.culprit || 'الجاني غير معروف';
+    io.to(roomCode).emit('crime_solution_part', { part: 'culprit', content });
+  });
+
+  // Open voting
+  socket.on('crime_open_voting', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    state.votingOpen = true;
+    state.votes = {};
+    state.hasVoted = [];
+    const suspects = crimeCases[state.caseIndex].suspects.map(s => s.name);
+    suspects.push('لا أعرف الجاني');
+    io.to(roomCode).emit('crime_voting_open', { suspects });
+  });
+
+  // Submit vote
+  socket.on('crime_submit_vote', ({ roomCode, voterId, vote }) => {
+    const state = crimeGameState[roomCode];
+    if (!state || !state.votingOpen) return;
+    if (state.hasVoted.includes(voterId)) return;
+    state.votes[voterId] = vote;
+    state.hasVoted.push(voterId);
+    const room = rooms[roomCode];
+    const totalPlayers = room.players.filter(p => !p.isAdmin).length;
+    if (state.hasVoted.length === totalPlayers) {
+      io.to(roomCode).emit('crime_voting_complete', { votes: state.votes });
+    }
+  });
+
+  // Reveal solution (old single‑button – keep for backward compatibility)
+  socket.on('crime_reveal_solution', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state || state.solutionRevealed) return;
+    if (state.hasVoted.length === 0) return;
+    const caseData = crimeCases[state.caseIndex];
+    state.solutionRevealed = true;
+    io.to(roomCode).emit('crime_solution', { 
+      solution: caseData.solution,
+      image: caseData.image || null,
+      votes: state.votes 
+    });
+  });
+
+  // Next case
+  socket.on('crime_next_case', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const newIndex = Math.floor(Math.random() * crimeCases.length);
+    state.caseIndex = newIndex;
+    state.statementsRevealed = false;
+    state.votes = {};
+    state.hasVoted = [];
+    state.votingOpen = false;
+    state.solutionRevealed = false;
+
+    io.to(roomCode).emit('crime_case_reset');
+    io.to(roomCode).emit('crime_horror_message', { message: 'جاهزين للجرائم' });
+
+    const room = rooms[roomCode];
+    const adminPlayer = room.players.find(p => p.isAdmin);
+    if (adminPlayer) {
+      io.to(adminPlayer.socketId).emit('crime_admin_data', {
+        headline: crimeCases[newIndex].headline,
+        description: crimeCases[newIndex].description,
+        suspects: crimeCases[newIndex].suspects,
+        solution: crimeCases[newIndex].solution,
+        image: crimeCases[newIndex].image || null,
+        totalSuspects: crimeCases[newIndex].suspects.length,
+      });
+    }
   });
 
   // ===== EXISTING QUIZ EVENTS =====
