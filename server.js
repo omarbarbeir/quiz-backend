@@ -2984,6 +2984,8 @@ socket.on('end_spy_voting', (roomCode) => {
 
   });
 
+
+
   // ========== CRIME GAME HANDLERS ==========
 
   // Start a new crime game
@@ -3000,6 +3002,9 @@ socket.on('end_spy_voting', (roomCode) => {
       solutionRevealed: false,
     };
     io.to(roomCode).emit('crime_horror_message', { message: 'جاهزين للجرائم' });
+    io.to(roomCode).emit('crime_solution_data', { solution: crimeCases[randomIndex].solution });
+    io.to(roomCode).emit('crime_suspects_data', { suspects: crimeCases[randomIndex].suspects });
+
     const adminPlayer = room.players.find(p => p.isAdmin);
     if (adminPlayer) {
       io.to(adminPlayer.socketId).emit('crime_admin_data', {
@@ -3049,6 +3054,16 @@ socket.on('end_spy_voting', (roomCode) => {
     io.to(roomCode).emit('crime_evidence', { evidence: caseData.evidence || [] });
   });
 
+  socket.on('crime_show_inspection', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    
+    // افتراض إنك مخزن المعاينة جوه بيانات القضية باسم inspection
+    const inspectionData = crimeCases[state.caseIndex].inspection; 
+    
+    io.to(roomCode).emit('crime_inspection', { inspectionData });
+  });
+
   // Show solution parts (each separately)
   socket.on('crime_show_puzzle', ({ roomCode }) => {
     const state = crimeGameState[roomCode];
@@ -3078,29 +3093,46 @@ socket.on('end_spy_voting', (roomCode) => {
   socket.on('crime_open_voting', ({ roomCode }) => {
     const state = crimeGameState[roomCode];
     if (!state) return;
+
+    // 🔒 التعديل الأول: لو التصويت مفتوح أساساً، متعملش ريستارت وتمسح أصوات الناس!
+    if (state.votingOpen) return; 
+
     state.votingOpen = true;
     state.votes = {};
     state.hasVoted = [];
     const suspects = crimeCases[state.caseIndex].suspects.map(s => s.name);
     suspects.push('لا أعرف الجاني');
+    
     io.to(roomCode).emit('crime_voting_open', { suspects });
   });
 
   // Submit vote
   socket.on('crime_submit_vote', ({ roomCode, voterId, vote }) => {
     const state = crimeGameState[roomCode];
+    
+    // لو اللعبة مش موجودة أو التصويت اتقفل، ارفض الصوت
     if (!state || !state.votingOpen) return;
+    
+    // 🔒 التعديل التاني: حماية مضاعفة، لو اللاعب ده متسجل إنه صوّت، ارفض صوته!
     if (state.hasVoted.includes(voterId)) return;
+
+    // تسجيل الصوت
     state.votes[voterId] = vote;
     state.hasVoted.push(voterId);
+    
     const room = rooms[roomCode];
+    if (!room || !room.players) return; // حماية للسيرفر من الكراش
+
     const totalPlayers = room.players.filter(p => !p.isAdmin).length;
+    
+    // لو كل اللعيبة صوتت، انهي مرحلة التصويت
     if (state.hasVoted.length === totalPlayers) {
+      state.votingOpen = false; // اقفلها في السيرفر كمان عشان محدش يبعت متأخر
       io.to(roomCode).emit('crime_voting_complete', { votes: state.votes });
     }
   });
 
-  // Reveal solution (old single‑button – keep for backward compatibility)
+  // Reveal solution (single‑button – kept for backward compatibility)
   socket.on('crime_reveal_solution', ({ roomCode }) => {
     const state = crimeGameState[roomCode];
     if (!state || state.solutionRevealed) return;
@@ -3112,6 +3144,48 @@ socket.on('end_spy_voting', (roomCode) => {
       image: caseData.image || null,
       votes: state.votes 
     });
+  });
+
+
+  // Give points to players who voted for the correct culprit
+  socket.on('crime_give_points', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state || !state.solutionRevealed) return;
+    const room = rooms[roomCode];
+    if (!room) return;
+    const caseData = crimeCases[state.caseIndex];
+    const culpritText = caseData.solution.culprit || '';
+    // Find which suspect name appears in the culprit text
+    const suspectNames = caseData.suspects.map(s => s.name);
+    const correctSuspect = suspectNames.find(name => culpritText.includes(name));
+    if (!correctSuspect) {
+      // No suspect found in culprit text – cannot award points
+      return;
+    }
+    if (!room.scores) room.scores = {};
+    let anyAwarded = false;
+    for (const [voterId, vote] of Object.entries(state.votes)) {
+      if (vote === correctSuspect) {
+        room.scores[voterId] = (room.scores[voterId] || 0) + 1;
+        anyAwarded = true;
+      }
+    }
+    if (!anyAwarded) return;
+    // Broadcast updated scores
+    io.to(roomCode).emit('crime_scores_update', { scores: room.scores });
+    // Also emit individual score updates if you have a standard event
+    for (const [playerId, score] of Object.entries(room.scores)) {
+      io.to(roomCode).emit('update_score', { playerId, score });
+    }
+  });
+
+  // Client can request current case data (solution & suspects) if missing
+  socket.on('crime_request_data', ({ roomCode }) => {
+    const state = crimeGameState[roomCode];
+    if (!state) return;
+    const caseData = crimeCases[state.caseIndex];
+    socket.emit('crime_solution_data', { solution: caseData.solution });
+    socket.emit('crime_suspects_data', { suspects: caseData.suspects });
   });
 
   // Next case
@@ -3128,6 +3202,8 @@ socket.on('end_spy_voting', (roomCode) => {
 
     io.to(roomCode).emit('crime_case_reset');
     io.to(roomCode).emit('crime_horror_message', { message: 'جاهزين للجرائم' });
+    io.to(roomCode).emit('crime_solution_data', { solution: crimeCases[newIndex].solution });
+    io.to(roomCode).emit('crime_suspects_data', { suspects: crimeCases[newIndex].suspects });
 
     const room = rooms[roomCode];
     const adminPlayer = room.players.find(p => p.isAdmin);
@@ -3142,6 +3218,8 @@ socket.on('end_spy_voting', (roomCode) => {
       });
     }
   });
+
+
 
   // ===== EXISTING QUIZ EVENTS =====
   socket.on('buzz', ({ roomCode, playerId }) => {
