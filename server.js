@@ -3019,14 +3019,42 @@ socket.on('end_spy_voting', (roomCode) => {
   });
 
   // Show crime headline & description
+// Show crime headline & description
   socket.on('crime_show_headline', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
+    let state = crimeGameState[roomCode];
+    
+    // لو اللعبة مش موجودة أو السيرفر عمل ريستارت والبيانات اتمسحت
+    if (!state) {
+      console.log(`⚠️ الغرفة ${roomCode} ليس لها بيانات مسجلة. جاري إنشاء حالة جديدة...`);
+      
+      // إنشاء حالة جديدة كطوق نجاة عشان اللعبة تكمل
+      const randomIndex = Math.floor(Math.random() * crimeCases.length);
+      crimeGameState[roomCode] = {
+        caseIndex: randomIndex,
+        statementsRevealed: false,
+        votes: {},
+        hasVoted: [],
+        votingOpen: false,
+        solutionRevealed: false,
+      };
+      state = crimeGameState[roomCode];
+      
+      // نبلغ الناس في الروم بالبيانات الأساسية الجديدة
+      io.to(roomCode).emit('crime_solution_data', { solution: crimeCases[randomIndex].solution });
+      io.to(roomCode).emit('crime_suspects_data', { suspects: crimeCases[randomIndex].suspects });
+    }
+
     const caseData = crimeCases[state.caseIndex];
-    io.to(roomCode).emit('crime_headline', {
-      headline: caseData.headline,
-      description: caseData.description
-    });
+    
+    // التأكد إن البيانات موجودة فعلاً قبل الإرسال
+    if (caseData) {
+      io.to(roomCode).emit('crime_headline', {
+        headline: caseData.headline,
+        description: caseData.description
+      });
+    } else {
+      console.error("❌ حدث خطأ: لا توجد بيانات قضية بهذا الرقم!");
+    }
   });
 
   // Show suspects brief (names + relationships)
