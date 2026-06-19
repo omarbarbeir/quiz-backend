@@ -3021,7 +3021,9 @@ socket.on('end_spy_voting', (roomCode) => {
   // Show crime headline & description
 // Show crime headline & description
   socket.on('crime_show_headline', ({ roomCode }) => {
+    console.log(`🔔 استلام طلب عرض الجريمة من الغرفة: ${roomCode}`);
     let state = crimeGameState[roomCode];
+    
     
     // لو اللعبة مش موجودة أو السيرفر عمل ريستارت والبيانات اتمسحت
     if (!state) {
