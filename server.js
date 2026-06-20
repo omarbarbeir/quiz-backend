@@ -39,8 +39,7 @@ const io = new Server(server, {
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
 const swordOfKnowledgeQuestions = require('../main/project/src/data/swordOfKnowledgeQuestions');
-const crimeCases = require('./data/crimeCases');
-
+const hangmanWordsData = require('./data/hangmanWords');
 // Game categories (your full list – unchanged)
 const gameCategories = [
   { id: 1, name: 'الفئة 1', description: 'أفلام كوميدي', rules: 'اجمع ٣ بطاقات' },
@@ -90,7 +89,35 @@ const gameCategories = [
 const rooms = {};
 const pendingActions = {};
 const playerActivity = {};
-const crimeGameState = {};
+const hangmanState = {};
+const MAX_ATTEMPTS = 6;
+
+const hangmanWords = Array.isArray(hangmanWordsData) ? hangmanWordsData : (hangmanWordsData.words || []);
+
+
+// دالة ذكية لسحب الكلمة والتلميح بدون ما السيرفر يضرب
+function getRandomWordData() {
+  const randomItem = hangmanWords[Math.floor(Math.random() * hangmanWords.length)];
+  
+  // لو الداتا بالشكل الجديد (كائن فيه word و hint)
+  if (typeof randomItem === 'object' && randomItem !== null) {
+    return { 
+      word: randomItem.word || 'خطأ_في_الكلمة', 
+      hint: randomItem.hint || '' 
+    };
+  } 
+  // لو الداتا لسه فيها كلمات بالطريقة القديمة (نص عادي)
+  else if (typeof randomItem === 'string') {
+    return { 
+      word: randomItem, 
+      hint: 'بدون تلميح' 
+    };
+  }
+  
+  // لو حصل أي تهنيج في الداتا
+  return { word: 'داتا_غير_صالحة', hint: '' };
+}
+
 
 const playerColorPalette = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
 
@@ -2986,240 +3013,113 @@ socket.on('end_spy_voting', (roomCode) => {
 
 
 
-  // ========== CRIME GAME HANDLERS ==========
+  
+  // ===================== HANGMAN GAME =====================
 
-  // Start a new crime game
-  socket.on('crime_start', ({ roomCode }) => {
-    const room = rooms[roomCode];
-    if (!room) return;
-    const randomIndex = Math.floor(Math.random() * crimeCases.length);
-    crimeGameState[roomCode] = {
-      caseIndex: randomIndex,
-      statementsRevealed: false,
-      votes: {},
-      hasVoted: [],
-      votingOpen: false,
-      solutionRevealed: false,
+  function getHangmanState(roomCode) {
+    const state = hangmanState[roomCode];
+    
+    // ضفنا هنا !state.word عشان لو مفيش كلمة ميضربش السيرفر
+    if (!state || !state.word) return null; 
+    
+    const word = state.word;
+    const guessedLetters = state.guessedLetters;
+    
+    const display = word.split('').map(c => {
+      if (c === ' ') return ' ';
+      return guessedLetters.includes(c) ? c : '_';
+    }).join(' ');
+
+    const uniqueRemainingLetters = new Set(
+      word.split('').filter(c => c !== ' ')
+    );
+    guessedLetters.forEach(g => uniqueRemainingLetters.delete(g));
+
+    return {
+      display,
+      guessedLetters,
+      attempts: state.attempts,
+      maxAttempts: state.maxAttempts,
+      gameOver: state.gameOver,
+      won: state.won,
+      word: state.gameOver ? word : '', 
+      hint: state.hint, 
+      remaining: uniqueRemainingLetters.size,
     };
-    io.to(roomCode).emit('crime_horror_message', { message: 'جاهزين للجرائم' });
-    io.to(roomCode).emit('crime_solution_data', { solution: crimeCases[randomIndex].solution });
-    io.to(roomCode).emit('crime_suspects_data', { suspects: crimeCases[randomIndex].suspects });
+  }
 
-    const adminPlayer = room.players.find(p => p.isAdmin);
-    if (adminPlayer) {
-      io.to(adminPlayer.socketId).emit('crime_admin_data', {
-        headline: crimeCases[randomIndex].headline,
-        description: crimeCases[randomIndex].description,
-        suspects: crimeCases[randomIndex].suspects,
-        solution: crimeCases[randomIndex].solution,
-        image: crimeCases[randomIndex].image || null,
-        totalSuspects: crimeCases[randomIndex].suspects.length,
-      });
-    }
-  });
+    socket.on('hangman_get_state', ({ roomCode }) => {
+      if (!roomCode) return;
+      socket.join(roomCode); 
 
-  // Show crime headline & description
-  socket.on('crime_show_headline', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const caseData = crimeCases[state.caseIndex];
-    io.to(roomCode).emit('crime_headline', {
-      headline: caseData.headline,
-      description: caseData.description
+      if (hangmanState[roomCode]) {
+        socket.emit('hangman_state', getHangmanState(roomCode));
+        return;
+      }
+
+      // الاستخدام هنا 👇
+      const randomData = getRandomWordData();
+      
+      hangmanState[roomCode] = {
+        word: randomData.word,
+        hint: randomData.hint,
+        guessedLetters: [],
+        attempts: 0,
+        maxAttempts: MAX_ATTEMPTS,
+        gameOver: false,
+        won: false,
+      };
+      socket.emit('hangman_state', getHangmanState(roomCode));
     });
-  });
 
-  // Show suspects brief (names + relationships)
-  socket.on('crime_show_suspects_brief', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const caseData = crimeCases[state.caseIndex];
-    const brief = caseData.suspects.map(s => ({ name: s.name, relationship: s.relationship }));
-    io.to(roomCode).emit('crime_suspects_brief', { suspects: brief });
-  });
+  socket.on('hangman_guess', ({ roomCode, letter }) => {
+    if (!roomCode) return;
+    const state = hangmanState[roomCode];
+    if (!state || state.gameOver) return;
 
-  // Show all statements at once
-  socket.on('crime_show_statements', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const caseData = crimeCases[state.caseIndex];
-    io.to(roomCode).emit('crime_statements_all', { suspects: caseData.suspects });
-  });
+    const guessed = letter.trim(); 
+    if (guessed.length !== 1) return;
 
-  // Show evidence
-  socket.on('crime_show_evidence', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const caseData = crimeCases[state.caseIndex];
-    io.to(roomCode).emit('crime_evidence', { evidence: caseData.evidence || [] });
-  });
-
-  socket.on('crime_show_inspection', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
+    if (state.guessedLetters.includes(guessed)) return;
     
-    // افتراض إنك مخزن المعاينة جوه بيانات القضية باسم inspection
-    const inspectionData = crimeCases[state.caseIndex].inspection; 
-    
-    io.to(roomCode).emit('crime_inspection', { inspectionData });
-  });
+    state.guessedLetters.push(guessed);
 
-  // Show solution parts (each separately)
-  socket.on('crime_show_puzzle', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const caseData = crimeCases[state.caseIndex];
-    const content = caseData.solution?.puzzle || 'لا يوجد تفكيك للغز';
-    io.to(roomCode).emit('crime_solution_part', { part: 'puzzle', content });
-  });
+    const wordLetters = state.word.split('').filter(c => c !== ' ');
 
-  socket.on('crime_show_clues', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const caseData = crimeCases[state.caseIndex];
-    const content = caseData.solution?.clues || 'لا توجد خيوط';
-    io.to(roomCode).emit('crime_solution_part', { part: 'clues', content });
-  });
-
-  socket.on('crime_show_culprit', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const caseData = crimeCases[state.caseIndex];
-    const content = caseData.solution?.culprit || 'الجاني غير معروف';
-    io.to(roomCode).emit('crime_solution_part', { part: 'culprit', content });
-  });
-
-  // Open voting
-  socket.on('crime_open_voting', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-
-    // 🔒 التعديل الأول: لو التصويت مفتوح أساساً، متعملش ريستارت وتمسح أصوات الناس!
-    if (state.votingOpen) return; 
-
-    state.votingOpen = true;
-    state.votes = {};
-    state.hasVoted = [];
-    const suspects = crimeCases[state.caseIndex].suspects.map(s => s.name);
-    suspects.push('لا أعرف الجاني');
-    
-    io.to(roomCode).emit('crime_voting_open', { suspects });
-  });
-
-  // Submit vote
-  socket.on('crime_submit_vote', ({ roomCode, voterId, vote }) => {
-    const state = crimeGameState[roomCode];
-    
-    // لو اللعبة مش موجودة أو التصويت اتقفل، ارفض الصوت
-    if (!state || !state.votingOpen) return;
-    
-    // 🔒 التعديل التاني: حماية مضاعفة، لو اللاعب ده متسجل إنه صوّت، ارفض صوته!
-    if (state.hasVoted.includes(voterId)) return;
-
-    // تسجيل الصوت
-    state.votes[voterId] = vote;
-    state.hasVoted.push(voterId);
-    
-    const room = rooms[roomCode];
-    if (!room || !room.players) return; // حماية للسيرفر من الكراش
-
-    const totalPlayers = room.players.filter(p => !p.isAdmin).length;
-    
-    // لو كل اللعيبة صوتت، انهي مرحلة التصويت
-    if (state.hasVoted.length === totalPlayers) {
-      state.votingOpen = false; // اقفلها في السيرفر كمان عشان محدش يبعت متأخر
-      io.to(roomCode).emit('crime_voting_complete', { votes: state.votes });
-    }
-  });
-
-  // Reveal solution (single‑button – kept for backward compatibility)
-  socket.on('crime_reveal_solution', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state || state.solutionRevealed) return;
-    if (state.hasVoted.length === 0) return;
-    const caseData = crimeCases[state.caseIndex];
-    state.solutionRevealed = true;
-    io.to(roomCode).emit('crime_solution', { 
-      solution: caseData.solution,
-      image: caseData.image || null,
-      votes: state.votes 
-    });
-  });
-
-
-  // Give points to players who voted for the correct culprit
-  socket.on('crime_give_points', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state || !state.solutionRevealed) return;
-    const room = rooms[roomCode];
-    if (!room) return;
-    const caseData = crimeCases[state.caseIndex];
-    const culpritText = caseData.solution.culprit || '';
-    // Find which suspect name appears in the culprit text
-    const suspectNames = caseData.suspects.map(s => s.name);
-    const correctSuspect = suspectNames.find(name => culpritText.includes(name));
-    if (!correctSuspect) {
-      // No suspect found in culprit text – cannot award points
-      return;
-    }
-    if (!room.scores) room.scores = {};
-    let anyAwarded = false;
-    for (const [voterId, vote] of Object.entries(state.votes)) {
-      if (vote === correctSuspect) {
-        room.scores[voterId] = (room.scores[voterId] || 0) + 1;
-        anyAwarded = true;
+    if (wordLetters.includes(guessed)) {
+      const guessedSet = new Set(state.guessedLetters);
+      const allGuessed = wordLetters.every(c => guessedSet.has(c));
+      if (allGuessed) {
+        state.won = true;
+        state.gameOver = true;
+      }
+    } else {
+      state.attempts += 1;
+      if (state.attempts >= state.maxAttempts) {
+        state.gameOver = true;
+        state.won = false;
       }
     }
-    if (!anyAwarded) return;
-    // Broadcast updated scores
-    io.to(roomCode).emit('crime_scores_update', { scores: room.scores });
-    // Also emit individual score updates if you have a standard event
-    for (const [playerId, score] of Object.entries(room.scores)) {
-      io.to(roomCode).emit('update_score', { playerId, score });
-    }
+    io.to(roomCode).emit('hangman_state', getHangmanState(roomCode));
   });
 
-  // Client can request current case data (solution & suspects) if missing
-  socket.on('crime_request_data', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const caseData = crimeCases[state.caseIndex];
-    socket.emit('crime_solution_data', { solution: caseData.solution });
-    socket.emit('crime_suspects_data', { suspects: caseData.suspects });
+  socket.on('hangman_reset', ({ roomCode }) => {
+    if (!roomCode) return;
+    
+    // الاستخدام هنا 👇
+    const randomData = getRandomWordData();
+    
+    hangmanState[roomCode] = {
+      word: randomData.word,
+      hint: randomData.hint,
+      guessedLetters: [],
+      attempts: 0,
+      maxAttempts: MAX_ATTEMPTS,
+      gameOver: false,
+      won: false,
+    };
+    io.to(roomCode).emit('hangman_state', getHangmanState(roomCode));
   });
-
-  // Next case
-  socket.on('crime_next_case', ({ roomCode }) => {
-    const state = crimeGameState[roomCode];
-    if (!state) return;
-    const newIndex = Math.floor(Math.random() * crimeCases.length);
-    state.caseIndex = newIndex;
-    state.statementsRevealed = false;
-    state.votes = {};
-    state.hasVoted = [];
-    state.votingOpen = false;
-    state.solutionRevealed = false;
-
-    io.to(roomCode).emit('crime_case_reset');
-    io.to(roomCode).emit('crime_horror_message', { message: 'جاهزين للجرائم' });
-    io.to(roomCode).emit('crime_solution_data', { solution: crimeCases[newIndex].solution });
-    io.to(roomCode).emit('crime_suspects_data', { suspects: crimeCases[newIndex].suspects });
-
-    const room = rooms[roomCode];
-    const adminPlayer = room.players.find(p => p.isAdmin);
-    if (adminPlayer) {
-      io.to(adminPlayer.socketId).emit('crime_admin_data', {
-        headline: crimeCases[newIndex].headline,
-        description: crimeCases[newIndex].description,
-        suspects: crimeCases[newIndex].suspects,
-        solution: crimeCases[newIndex].solution,
-        image: crimeCases[newIndex].image || null,
-        totalSuspects: crimeCases[newIndex].suspects.length,
-      });
-    }
-  });
-
-
 
   // ===== EXISTING QUIZ EVENTS =====
   socket.on('buzz', ({ roomCode, playerId }) => {
