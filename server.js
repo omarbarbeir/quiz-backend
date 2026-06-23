@@ -3155,8 +3155,22 @@ function getDialogueNode(suspect, nodeId) {
 
 // 1. بدء القضية وتوزيع البيانات
 socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
+  console.log(`[Mafiosa Radar] Received start request for room: "${roomCode}"`);
+
+  // 1. فحص وجود الغرفة
   const room = rooms[roomCode];
-  if (!room) return;
+  if (!room) {
+    console.log(`[Mafiosa Radar ❌] Room "${roomCode}" not found in server memory!`);
+    socket.emit('mafiosa_error', { message: `الغرفة ${roomCode} غير مسجلة في السيرفر حالياً!` });
+    return;
+  }
+
+  // 2. فحص وجود مصفوفة القضايا نفسها
+  if (!mafiosaCases || mafiosaCases.length === 0) {
+    console.log(`[Mafiosa Radar ❌] mafiosaCases array is empty or not imported!`);
+    socket.emit('mafiosa_error', { message: `ملفات القضايا غير مقروءة في الباك إند!` });
+    return;
+  }
 
   if (!mafiosaState[roomCode] || mafiosaState[roomCode].gameOver) {
     const index = caseIndex !== undefined ? caseIndex : Math.floor(Math.random() * mafiosaCases.length);
@@ -3173,7 +3187,7 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
       accusationPhase: false,
       playerPoints: playerPoints,
       investigatedSuspects: {}, 
-      dialogueStates: {} // تهيئة كائن حفظ عقد الحوارات
+      dialogueStates: {} 
     };
     roomVotes[roomCode] = {}; 
   }
@@ -3181,7 +3195,8 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
   const currentState = mafiosaState[roomCode];
   const caseData = mafiosaCases[currentState.caseIndex];
 
-  // إرسال بيانات القضية الأساسية للفرونت إند (بدون شجرة الحوارات لحمايتها من الغش)
+  console.log(`[Mafiosa Radar ⚡] Success! Sending Case "${caseData.title}" to room ${roomCode}`);
+
   io.to(roomCode).emit('mafiosa_case_data', {
     title: caseData.title,
     description: caseData.description,
