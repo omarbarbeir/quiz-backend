@@ -3140,17 +3140,20 @@ socket.on('end_spy_voting', (roomCode) => {
 
 
   // ===================== MAFIOSA GAME =====================
-const mafiosaState = {}; // roomCode: { caseIndex, inventory, searchedLocations, ap, gameOver, votes, accusationPhase, playerPoints, investigatedSuspects }
+// الحالات العامة للغرف والأصوات
+const mafiosaState = {}; // roomCode: { caseIndex, inventory, searchedLocations, ap, gameOver, accusationPhase, playerPoints, investigatedSuspects, dialogueStates }
+const roomVotes = {};    // حفظ الأصوات لمنع الـ ReferenceError
+
 const MAX_AP = 10;
 const STARTING_POINTS = 100;
-const INVESTIGATION_COST = 10; // flat cost per suspect
+const INVESTIGATION_COST = 10; // تكلفة ثابتة للمشتبه به
 const BONUS_POINTS = 20;
 
 function getDialogueNode(suspect, nodeId) {
   return suspect.dialogue.find(d => d.id === nodeId) || null;
 }
 
-// Start a new case
+// 1. بدء القضية وتوزيع البيانات
 socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
   const room = rooms[roomCode];
   if (!room) return;
@@ -3167,21 +3170,23 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
       searchedLocations: [],
       ap: MAX_AP,
       gameOver: false,
-      votes: {},
       accusationPhase: false,
       playerPoints: playerPoints,
-      investigatedSuspects: {}, // playerId: [suspectId, ...]
+      investigatedSuspects: {}, 
+      dialogueStates: {} // تهيئة كائن حفظ عقد الحوارات
     };
+    roomVotes[roomCode] = {}; 
   }
 
   const currentState = mafiosaState[roomCode];
   const caseData = mafiosaCases[currentState.caseIndex];
 
+  // إرسال بيانات القضية الأساسية للفرونت إند (بدون شجرة الحوارات لحمايتها من الغش)
   io.to(roomCode).emit('mafiosa_case_data', {
     title: caseData.title,
     description: caseData.description,
     autopsy: caseData.autopsy || null,
-    suspects: caseData.suspects,
+    suspects: caseData.suspects.map(s => ({ id: s.id, name: s.name, relationship: s.relationship, statement: s.statement })),
     evidence: caseData.evidence,
     locations: caseData.locations || {},
     solutionImage: caseData.solution?.winnerImage || null,
@@ -3198,34 +3203,32 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
   });
 });
 
-// Start investigation – deduct points ONLY if not already investigated this suspect
-socket.on('mafiosa_start_investigation', ({ roomCode, suspectId }) => {
+// 2. بدء التحقيق وخصم النقاط
+socket.on('mafiosa_start_investigation', ({ roomCode, suspectId, playerId }) => {
   const state = mafiosaState[roomCode];
   if (!state || state.gameOver) return;
-  const playerId = socket.data?.playerId;
-  if (!playerId) return;
+  
+  const targetPlayerId = playerId || socket.data?.playerId;
+  if (!targetPlayerId) return;
 
-  // Ensure investigatedSuspects for this player exists
-  if (!state.investigatedSuspects[playerId]) {
-    state.investigatedSuspects[playerId] = [];
+  if (!state.investigatedSuspects[targetPlayerId]) {
+    state.investigatedSuspects[targetPlayerId] = [];
   }
 
-  // Check if already investigated this suspect
-  if (state.investigatedSuspects[playerId].includes(suspectId)) {
-    // Already investigated – no cost, just allow chat
-    socket.emit('mafiosa_investigation_started', { suspectId, points: state.playerPoints[playerId], cost: 0 });
+  // إذا تم التحقيق مع المشتبه به سابقاً لا يتم الخصم ثانية
+  if (state.investigatedSuspects[targetPlayerId].includes(suspectId)) {
+    socket.emit('mafiosa_investigation_started', { suspectId, points: state.playerPoints[targetPlayerId], cost: 0 });
     return;
   }
 
-  // First time – deduct 10 points
   const cost = INVESTIGATION_COST;
-  if (state.playerPoints[playerId] < cost) {
+  if (state.playerPoints[targetPlayerId] < cost) {
     socket.emit('mafiosa_error', { message: `لا يوجد نقاط كافية! التكلفة: ${cost}` });
     return;
   }
 
-  state.playerPoints[playerId] -= cost;
-  state.investigatedSuspects[playerId].push(suspectId);
+  state.playerPoints[targetPlayerId] -= cost;
+  state.investigatedSuspects[targetPlayerId].push(suspectId);
 
   io.to(roomCode).emit('mafiosa_state', {
     inventory: state.inventory,
@@ -3235,19 +3238,23 @@ socket.on('mafiosa_start_investigation', ({ roomCode, suspectId }) => {
     searchedLocations: state.searchedLocations,
     playerPoints: state.playerPoints,
   });
-  socket.emit('mafiosa_investigation_started', { suspectId, points: state.playerPoints[playerId], cost });
+  
+  socket.emit('mafiosa_investigation_started', { suspectId, points: state.playerPoints[targetPlayerId], cost });
 });
 
-// Get dialogue for a suspect (no cost)
+// 3. جلب نص الحوار الحالي بناءً على حالة العقدة المخزنة في الباك إند
 socket.on('mafiosa_get_dialogue', ({ roomCode, suspectId }) => {
   const state = mafiosaState[roomCode];
   if (!state) return;
   const caseData = mafiosaCases[state.caseIndex];
   const suspect = caseData.suspects.find(s => s.id === suspectId);
   if (!suspect) return;
-  const currentNodeId = state.dialogueStates?.[suspectId] || 'start';
+  
+  if (!state.dialogueStates) state.dialogueStates = {};
+  const currentNodeId = state.dialogueStates[suspectId] || 'start';
   const node = getDialogueNode(suspect, currentNodeId);
   if (!node) return;
+
   socket.emit('mafiosa_dialogue', {
     suspectId,
     text: node.text,
@@ -3256,28 +3263,32 @@ socket.on('mafiosa_get_dialogue', ({ roomCode, suspectId }) => {
   });
 });
 
-// Player chooses an option in dialogue
+// 4. معالجة خيارات اللاعب وتطوير شجرة الحوار
 socket.on('mafiosa_choose_option', ({ roomCode, suspectId, optionIndex }) => {
   const state = mafiosaState[roomCode];
   if (!state || state.gameOver) return;
   const caseData = mafiosaCases[state.caseIndex];
   const suspect = caseData.suspects.find(s => s.id === suspectId);
   if (!suspect) return;
-  const currentNodeId = state.dialogueStates?.[suspectId] || 'start';
+
+  if (!state.dialogueStates) state.dialogueStates = {};
+  const currentNodeId = state.dialogueStates[suspectId] || 'start';
   const currentNode = getDialogueNode(suspect, currentNodeId);
   if (!currentNode || optionIndex >= currentNode.options.length) return;
+
   const selectedOption = currentNode.options[optionIndex];
-  if (!selectedOption.nextNodeId) return;
+  
   if (selectedOption.requiredEvidence && !state.inventory.includes(selectedOption.requiredEvidence)) {
-    socket.emit('mafiosa_error', { message: 'ليس لديك الدليل المطلوب!' });
+    socket.emit('mafiosa_error', { message: 'ليس لديك الدليل المطلوب لمواجهته!' });
     return;
   }
-  if (!state.dialogueStates) state.dialogueStates = {};
+
   state.dialogueStates[suspectId] = selectedOption.nextNodeId;
   const nextNode = getDialogueNode(suspect, selectedOption.nextNodeId);
+
   if (nextNode) {
     if (nextNode.unlockedBy) {
-      state.ap += 1;
+      state.ap += 1; // مكافأة مواجهة ناجحة
       io.to(roomCode).emit('mafiosa_notification', { message: `⚡ مواجهة ناجحة مع ${suspect.name}!`, type: 'success' });
     }
     if (nextNode.reward) {
@@ -3288,8 +3299,9 @@ socket.on('mafiosa_choose_option', ({ roomCode, suspectId, optionIndex }) => {
         io.to(roomCode).emit('mafiosa_notification', { message: `🔍 تم اكتشاف دليل جديد: ${nextNode.reward}`, type: 'clue' });
       }
     }
-    socket.emit('mafiosa_dialogue_update', { suspectId, nodeId: selectedOption.nextNodeId });
+    socket.emit('mafiosa_dialogue_update', { suspectId, nodeId: selectedOption.nextNodeId, nextNode });
   }
+
   io.to(roomCode).emit('mafiosa_state', {
     inventory: state.inventory,
     ap: state.ap,
@@ -3300,7 +3312,7 @@ socket.on('mafiosa_choose_option', ({ roomCode, suspectId, optionIndex }) => {
   });
 });
 
-// Search a location
+// 5. فحص الغرف والأماكن
 socket.on('mafiosa_search', ({ roomCode, location }) => {
   const state = mafiosaState[roomCode];
   if (!state || state.gameOver) return;
@@ -3312,10 +3324,12 @@ socket.on('mafiosa_search', ({ roomCode, location }) => {
     socket.emit('mafiosa_error', { message: 'تم البحث في هذا المكان بالفعل!' });
     return;
   }
+
   state.ap -= 1;
   state.searchedLocations.push(location);
   const caseData = mafiosaCases[state.caseIndex];
   const locationData = caseData.locations?.[location];
+
   if (!locationData || !locationData.evidence || locationData.evidence.length === 0) {
     io.to(roomCode).emit('mafiosa_notification', { message: 'لا يوجد أدلة في هذا المكان!', type: 'info' });
   } else {
@@ -3335,6 +3349,7 @@ socket.on('mafiosa_search', ({ roomCode, location }) => {
       io.to(roomCode).emit('mafiosa_notification', { message: 'لا توجد أدلة جديدة في هذا المكان.', type: 'info' });
     }
   }
+
   io.to(roomCode).emit('mafiosa_state', {
     inventory: state.inventory,
     ap: state.ap,
@@ -3345,46 +3360,12 @@ socket.on('mafiosa_search', ({ roomCode, location }) => {
   });
 });
 
-// Add evidence manually (from dialogue rewards)
-socket.on('mafiosa_add_evidence', ({ roomCode, evidenceId }) => {
-  const state = mafiosaState[roomCode];
-  if (!state) return;
-  if (!state.inventory.includes(evidenceId)) {
-    state.inventory.push(evidenceId);
-    io.to(roomCode).emit('mafiosa_inventory_update', { inventory: state.inventory });
-  }
-});
-
-// Confront with evidence (manual call)
-socket.on('mafiosa_confront', ({ roomCode, evidenceId }) => {
-  const state = mafiosaState[roomCode];
-  if (!state || state.gameOver) return;
-  if (!state.inventory.includes(evidenceId)) {
-    socket.emit('mafiosa_error', { message: 'ليس لديك هذا الدليل!' });
-    return;
-  }
-  if (state.ap < 1) {
-    socket.emit('mafiosa_error', { message: 'لا يوجد نقاط طاقة كافية!' });
-    return;
-  }
-  state.ap -= 1;
-  state.ap += 1; // success
-  io.to(roomCode).emit('mafiosa_notification', { message: `⚡ مواجهة ناجحة!`, type: 'success' });
-  io.to(roomCode).emit('mafiosa_state', {
-    inventory: state.inventory,
-    ap: state.ap,
-    maxAp: MAX_AP,
-    gameOver: state.gameOver,
-    searchedLocations: state.searchedLocations,
-    playerPoints: state.playerPoints,
-  });
-});
-
-// Request key autopsy report (costs AP)
+// 6. طلب التقرير الطبي المتقدم
 socket.on('mafiosa_get_autopsy', ({ roomCode }) => {
   const state = mafiosaState[roomCode];
   if (!state || state.gameOver) return;
   const caseData = mafiosaCases[state.caseIndex];
+  
   if (!caseData.autopsy || !caseData.autopsy.isKey) {
     socket.emit('mafiosa_error', { message: 'لا يوجد تقرير طبي متقدم في هذه القضية.' });
     return;
@@ -3393,18 +3374,21 @@ socket.on('mafiosa_get_autopsy', ({ roomCode }) => {
     socket.emit('mafiosa_error', { message: 'لا يوجد نقاط طاقة كافية!' });
     return;
   }
+  
   const autopsyEvidenceId = 'autopsy_report';
   if (state.inventory.includes(autopsyEvidenceId)) {
     socket.emit('mafiosa_error', { message: 'لقد حصلت على التقرير الطبي بالفعل!' });
     return;
   }
+
   state.ap -= 1;
   state.inventory.push(autopsyEvidenceId);
   io.to(roomCode).emit('mafiosa_inventory_update', { inventory: state.inventory });
   io.to(roomCode).emit('mafiosa_notification', {
-    message: `📋 تم الحصول على التقرير الطبي الكامل: ${caseData.autopsy.text}`,
+    message: `📋 تم الحصول على التقرير الطبي الكامل بنجاح.`,
     type: 'clue',
   });
+  
   io.to(roomCode).emit('mafiosa_state', {
     inventory: state.inventory,
     ap: state.ap,
@@ -3415,21 +3399,18 @@ socket.on('mafiosa_get_autopsy', ({ roomCode }) => {
   });
 });
 
-// Start accusation phase (local – only for the player who clicked)
+// 7. إدارة مرحلة التصويت وتوجيه الاتهام
 socket.on('mafiosa_accuse', ({ roomCode }) => {
   const state = mafiosaState[roomCode];
   if (!state) return;
-  // Reset votes for this room
   roomVotes[roomCode] = {};
   state.accusationPhase = true;
-  // Emit only to the specific socket (the player who clicked)
   socket.emit('mafiosa_accusation_phase');
 });
 
-// Submit vote
 socket.on('mafiosa_submit_vote', ({ roomCode, playerId, vote }) => {
   if (!roomVotes[roomCode]) roomVotes[roomCode] = {};
-  if (roomVotes[roomCode][playerId]) return; // already voted
+  if (roomVotes[roomCode][playerId]) return; 
   roomVotes[roomCode][playerId] = vote;
 
   const room = rooms[roomCode];
@@ -3439,20 +3420,17 @@ socket.on('mafiosa_submit_vote', ({ roomCode, playerId, vote }) => {
   const currentVotes = roomVotes[roomCode];
   const validVotesCount = Object.keys(currentVotes).length;
 
-  console.log(`[Mafiosa] votes: ${validVotesCount}/${totalPlayers}`);
-
   if (validVotesCount >= totalPlayers && totalPlayers > 0) {
     const state = mafiosaState[roomCode];
     if (!state) return;
 
     const caseData = mafiosaCases[state.caseIndex];
     const correctCulprit = caseData.solution.culprit;
-    const correctWeapon = caseData.solution.weapon;
-    const correctMotive = caseData.solution.motive;
     const winners = [];
 
     for (const [pid, v] of Object.entries(currentVotes)) {
-      if (v.suspect === correctCulprit && v.weapon === correctWeapon && v.motive === correctMotive) {
+      // التحقق المرن: إذا كان اسم المشتبه به المختار مشمولاً في الحل النهائي
+      if (correctCulprit.includes(v.suspect) || v.suspect === correctCulprit) {
         const player = room.players.find(p => p.id === pid);
         winners.push(player ? player.name : 'محقق سري');
         if (state.playerPoints[pid] !== undefined) {
@@ -3464,15 +3442,14 @@ socket.on('mafiosa_submit_vote', ({ roomCode, playerId, vote }) => {
     state.gameOver = true;
     io.to(roomCode).emit('mafiosa_solution', {
       culprit: correctCulprit,
-      weapon: correctWeapon,
-      motive: correctMotive,
+      weapon: caseData.solution.weapon,
+      motive: caseData.solution.motive,
       winners: winners,
       votes: currentVotes,
       finalPoints: state.playerPoints,
       image: caseData.solution?.winnerImage || null,
     });
 
-    // Clear votes after solution
     delete roomVotes[roomCode];
   }
 });
