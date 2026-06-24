@@ -3141,7 +3141,6 @@ socket.on('end_spy_voting', (roomCode) => {
 
 
   // ===================== MAFIOSA GAME =====================
-// const mafiosaState = {}; // roomCode: { caseIndex, inventory, searchedLocations, ap, gameOver, votes, accusationPhase, playerPoints, investigatedSuspects }
 const MAX_AP = 10;
 const STARTING_POINTS = 100;
 const INVESTIGATION_COST = 10; // flat cost per suspect
@@ -3152,85 +3151,64 @@ function getDialogueNode(suspect, nodeId) {
 }
 
 // Start a new case
-// socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
-//   const room = rooms[roomCode];
-//   if (!room) return;
+socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
+  const room = rooms[roomCode];
+  if (!room) {
+    console.log(`[Mafiosa Error] Room not found for code: ${roomCode}`);
+    // ه نبعت إيفينت للفرونت عشان نعرفه إن الغرفة مش موجودة بدل ما يعلق
+    socket.emit('mafiosa_error', { message: 'لم يتم العثور على الغرفة في السيرفر!' });
+    return;
+  }
 
-//   if (!mafiosaState[roomCode] || mafiosaState[roomCode].gameOver) {
-//     const index = caseIndex !== undefined ? caseIndex : Math.floor(Math.random() * mafiosaCases.length);
-//     const nonAdmins = room.players.filter(p => !p.isAdmin);
-//     const playerPoints = {};
-//     nonAdmins.forEach(p => { playerPoints[p.id] = STARTING_POINTS; });
+  // تأكد أن مصفوفة mafiosaCases معرفة ومملوءة قبل السطر ده
+  if (!mafiosaCases || mafiosaCases.length === 0) {
+    console.log(`[Mafiosa Error] mafiosaCases array is empty or undefined!`);
+    socket.emit('mafiosa_error', { message: 'لا توجد قضايا محملة في السيرفر!' });
+    return;
+  }
 
-//     mafiosaState[roomCode] = {
-//       caseIndex: index,
-//       inventory: [],
-//       searchedLocations: [],
-//       ap: MAX_AP,
-//       gameOver: false,
-//       votes: {},
-//       accusationPhase: false,
-//       playerPoints: playerPoints,
-//       investigatedSuspects: {}, // playerId: [suspectId, ...]
-//     };
-//   }
+  if (!mafiosaState[roomCode] || mafiosaState[roomCode].gameOver) {
+    const index = caseIndex !== undefined ? caseIndex : Math.floor(Math.random() * mafiosaCases.length);
+    const nonAdmins = room.players.filter(p => !p.isAdmin);
+    const playerPoints = {};
+    nonAdmins.forEach(p => { playerPoints[p.id] = STARTING_POINTS; });
 
-//   const currentState = mafiosaState[roomCode];
-//   const caseData = mafiosaCases[currentState.caseIndex];
-
-//   io.to(roomCode).emit('mafiosa_case_data', {
-//     title: caseData.title,
-//     description: caseData.description,
-//     autopsy: caseData.autopsy || null,
-//     suspects: caseData.suspects,
-//     evidence: caseData.evidence,
-//     locations: caseData.locations || {},
-//     solutionImage: caseData.solution?.winnerImage || null,
-//   });
-
-//   io.to(roomCode).emit('mafiosa_state', {
-//     inventory: currentState.inventory,
-//     ap: currentState.ap,
-//     maxAp: MAX_AP,
-//     gameOver: currentState.gameOver,
-//     searchedLocations: currentState.searchedLocations,
-//     playerPoints: currentState.playerPoints,
-//     accusationPhase: currentState.accusationPhase,
-//   });
-// });
-
-// --- كود اختبار النبض (امسح أو عطل كود mafiosa_start القديم وحط ده) ---
-  socket.on('mafiosa_start', ({ roomCode }) => {
-    console.log(`🚨🚨🚨 [PULSE TEST] Server heard mafiosa_start for room: ${roomCode}`);
-
-    // 1. نبعت إشعار أخضر للمتصفح ينطق
-    socket.emit('mafiosa_notification', { 
-      message: "⚡ السيرفر شغال وسمعك بنجاح!", 
-      type: "success" 
-    });
-
-    // 2. نبعت بيانات قضية مزيفة تجبر الفرونت إند يفك شاشة التحميل ويفتح!
-    socket.emit('mafiosa_case_data', {
-      title: "🕵️‍♂️ قضية اختبار النبض",
-      description: "إذا ظهرت لك هذه الشاشة، فهذا يعني أن الاتصال بين المتصفح والسيرفر سليم 100%، والمشكلة كانت في استدعاء الغرفة القديمة.",
-      autopsy: null,
-      suspects: [
-        { id: "s1", name: "المتصفح البريء", relationship: "صديق", statement: "أنا بعت الكود والله" }
-      ],
-      evidence: [],
-      locations: {}
-    });
-
-    socket.emit('mafiosa_state', {
+    mafiosaState[roomCode] = {
+      caseIndex: index,
       inventory: [],
-      ap: 10,
-      maxAp: 10,
-      gameOver: false,
       searchedLocations: [],
-      playerPoints: { [socket.id]: 100 },
-      accusationPhase: false
-    });
+      ap: MAX_AP,
+      gameOver: false,
+      votes: {},
+      accusationPhase: false,
+      playerPoints: playerPoints,
+      investigatedSuspects: {}, 
+    };
+  }
+
+  const currentState = mafiosaState[roomCode];
+  const caseData = mafiosaCases[currentState.caseIndex];
+
+  io.to(roomCode).emit('mafiosa_case_data', {
+    title: caseData.title,
+    description: caseData.description,
+    autopsy: caseData.autopsy || null,
+    suspects: caseData.suspects,
+    evidence: caseData.evidence,
+    locations: caseData.locations || {},
+    solutionImage: caseData.solution?.winnerImage || null,
   });
+
+  io.to(roomCode).emit('mafiosa_state', {
+    inventory: currentState.inventory,
+    ap: currentState.ap,
+    maxAp: MAX_AP,
+    gameOver: currentState.gameOver,
+    searchedLocations: currentState.searchedLocations,
+    playerPoints: currentState.playerPoints,
+    accusationPhase: currentState.accusationPhase,
+  });
+});
 
 // Start investigation – deduct points ONLY if not already investigated this suspect
 socket.on('mafiosa_start_investigation', ({ roomCode, suspectId }) => {
