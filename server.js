@@ -38,7 +38,7 @@ const io = new Server(server, {
 // Import data files (adjust paths as needed)
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
-const swordOfKnowledgeQuestions = require('../main/project/src/data/swordOfKnowledgeQuestions');
+const swordOfKnowledgeQuestions = require('./data/swordOfKnowledgeQuestions');
 const hangmanWordsData = require('./data/hangmanWords');
 
 
