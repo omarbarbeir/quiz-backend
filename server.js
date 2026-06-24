@@ -3151,31 +3151,23 @@ function getDialogueNode(suspect, nodeId) {
 }
 
 // Start a new case
-// Start a new case
 socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
-  console.log(`[Mafiosa System] Received mafiosa_start for room: ${roomCode}`);
-
-  // 1. فحص هل الغرفة موجودة في ذاكرة السيرفر ولا اتمسحت بسبب خمول السيرفر
   const room = rooms[roomCode];
   if (!room) {
-    console.log(`[Mafiosa Error] Room ${roomCode} not found in servers memory!`);
-    socket.emit('mafiosa_error', { 
-      message: 'السيرفر فقد بيانات الغرفة (بسبب خمول الاستضافة). ارجع للرئيسية واعمل غرفة جديدة.' 
-    });
+    console.log(`[Mafiosa Error] Room not found for code: ${roomCode}`);
+    // ه نبعت إيفينت للفرونت عشان نعرفه إن الغرفة مش موجودة بدل ما يعلق
+    socket.emit('mafiosa_error', { message: 'لم يتم العثور على الغرفة في السيرفر!' });
     return;
   }
 
-  // 2. فحص أمان للتأكد من أن ملف القضايا محمل ومش فاضي
+  // تأكد أن مصفوفة mafiosaCases معرفة ومملوءة قبل السطر ده
   if (!mafiosaCases || mafiosaCases.length === 0) {
-    console.log(`[Mafiosa Error] mafiosaCases array is empty or not defined!`);
-    socket.emit('mafiosa_error', { message: 'خطأ في السيرفر: لم يتم العثور على قضايا مافيوسو!' });
+    console.log(`[Mafiosa Error] mafiosaCases array is empty or undefined!`);
+    socket.emit('mafiosa_error', { message: 'لا توجد قضايا محملة في السيرفر!' });
     return;
   }
 
-  // 3. تهيئة حالة اللعبة لو مش متهيئة أو لو اللعبة القديمة خلصت
   if (!mafiosaState[roomCode] || mafiosaState[roomCode].gameOver) {
-    console.log(`[Mafiosa System] Initializing new game state for room: ${roomCode}`);
-    
     const index = caseIndex !== undefined ? caseIndex : Math.floor(Math.random() * mafiosaCases.length);
     const nonAdmins = room.players.filter(p => !p.isAdmin);
     const playerPoints = {};
@@ -3190,15 +3182,12 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
       votes: {},
       accusationPhase: false,
       playerPoints: playerPoints,
-      investigatedSuspects: {}, // playerId: [suspectId, ...]
+      investigatedSuspects: {}, 
     };
   }
 
-  // 4. إرسال البيانات والـ State الحالي للفرونت إند لفتح اللعبة
   const currentState = mafiosaState[roomCode];
   const caseData = mafiosaCases[currentState.caseIndex];
-
-  console.log(`[Mafiosa System] Sending case data ("${caseData.title}") to room: ${roomCode}`);
 
   io.to(roomCode).emit('mafiosa_case_data', {
     title: caseData.title,
