@@ -3140,7 +3140,7 @@ socket.on('end_spy_voting', (roomCode) => {
 
 
 
-  // MAFIOSA GAME ====
+  // MAFIOSA GAME ==
 const MAX_AP = 10;
 const STARTING_POINTS = 100;
 const INVESTIGATION_COST = 10; // flat cost per suspect
