@@ -38,7 +38,7 @@ const io = new Server(server, {
 // Import data files (adjust paths as needed)
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
-const swordOfKnowledgeQuestions = require('../main/project/src/swordOfKnowledgeQuestions');
+const swordOfKnowledgeQuestions = require('./data/swordOfKnowledgeQuestions');
 const hangmanWordsData = require('./data/hangmanWords');
 const mafiosaCases = require('./data/mafiosaCases')
 
@@ -338,10 +338,12 @@ function removeCardFromPlayer(game, playerId, cardId) {
   return null;
 }
 
+// ===================== SWORD OF KNOWLEDGE – SERVER MODULE =====================
 
-// ===================== SWORD OF KNOWLEDGE – FIXED MODULE =====================
+// استيراد الأسئلة من ملف البيانات (يتم مرة واحدة هنا فقط)
+// const swordOfKnowledgeQuestions = require('../../server/data/swordOfKnowledgeQuestions');
 
-// Define continents data INSIDE the module (no external dependency)
+// تعريف القارات داخلياً (نفس الموجود في العميل حتى لا نعتمد عليه)
 const SOK_CONTINENTS = [
   { id: 'africa', name: 'أفريقيا', regions: [
       { id: 'africa1', name: 'مصر' }, { id: 'africa2', name: 'نيجيريا' }, { id: 'africa3', name: 'جنوب أفريقيا' },
@@ -387,6 +389,13 @@ const SOK_CONTINENTS = [
 
 const MAX_CLAIM_ROUNDS = 4;
 
+// Helper: اختيار سؤال عشوائي من القائمة
+function getRandomQuestion() {
+  const qs = swordOfKnowledgeQuestions;
+  if (!qs || qs.length === 0) return null;
+  return qs[Math.floor(Math.random() * qs.length)];
+}
+
 // Helper: sanitize game state for client (removes temporary data)
 function sanitizeSOK(game) {
   if (!game) return null;
@@ -400,7 +409,6 @@ function sanitizeSOK(game) {
     delete copy.duel.question;
     delete copy.duel.answers;
   }
-  // Ensure ownership and players exist
   if (!copy.ownership) copy.ownership = {};
   if (!copy.players) copy.players = [];
   return copy;
@@ -439,18 +447,15 @@ function getPlayerSocketSOK(roomCode, playerId) {
 
 // Initialize a new game
 function initSOKGame(room) {
-  // Only non‑admin players can play
   const nonAdmins = room.players.filter(p => !p.isAdmin);
   if (nonAdmins.length === 0) {
     console.log('[SOK] No non-admin players – game cannot start');
     return null;
   }
 
-  // Shuffle players and continents
   const shuffledPlayers = [...nonAdmins].sort(() => Math.random() - 0.5);
   const shuffledContinents = [...SOK_CONTINENTS].sort(() => Math.random() - 0.5);
 
-  // Initialize ownership
   const ownership = {};
   for (const cont of SOK_CONTINENTS) {
     ownership[cont.id] = {};
@@ -459,7 +464,6 @@ function initSOKGame(room) {
     }
   }
 
-  // Assign bases to players
   for (let i = 0; i < shuffledPlayers.length; i++) {
     if (i >= shuffledContinents.length) break;
     const player = shuffledPlayers[i];
@@ -467,7 +471,6 @@ function initSOKGame(room) {
     ownership[cont.id][cont.regions[0].id] = player.id;
   }
 
-  // Build players list (only non‑admins)
   const gamePlayers = nonAdmins.map(p => ({
     id: p.id,
     name: p.name,
@@ -492,9 +495,7 @@ function initSOKGame(room) {
   };
 }
 
-// This function attaches all socket event handlers for Sword of Knowledge
 function setupSwordOfKnowledge(socket) {
-  // These will be defined as we go (for mutual recursion)
   let resolveClaim, askDuelQuestion, resolveDuelRound;
 
   // ========== SOCKET EVENT HANDLERS ==========
@@ -507,25 +508,21 @@ function setupSwordOfKnowledge(socket) {
     }
 
     if (room.sok) {
-      // Update existing game's player list (in case of rejoins)
       room.sok.players = room.players.filter(p => !p.isAdmin).map(p => ({
         id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
       }));
       const state = sanitizeSOK(room.sok);
-      console.log('[SOK] Sending existing state', state);
       socket.emit('sok_state', state);
       return;
     }
 
     const game = initSOKGame(room);
     if (!game) {
-      console.log('[SOK] Failed to initialize game');
       socket.emit('sok_error', { message: 'Could not initialize game' });
       return;
     }
     room.sok = game;
     const state = sanitizeSOK(room.sok);
-    console.log('[SOK] Sending new state', state);
     socket.emit('sok_state', state);
   });
 
@@ -540,14 +537,17 @@ function setupSwordOfKnowledge(socket) {
     }
   });
 
-  socket.on('sok_claim', ({ roomCode, continentId, regionName, playerId, question }) => {
+  socket.on('sok_claim', ({ roomCode, continentId, regionName, playerId }) => {
     const game = rooms[roomCode]?.sok;
     if (!game) return;
-    if ((game.phase === 'claiming' || game.phase === 'attacking') && game.turn !== playerId) return;
+    if ((game.phase !== 'claiming' && game.phase !== 'attacking') || game.turn !== playerId) return;
     const cont = SOK_CONTINENTS.find(c => c.id === continentId);
     if (!cont) return;
     const region = cont.regions.find(r => r.id === regionName);
     if (!region || game.ownership[continentId][regionName] !== null) return;
+
+    // نختار سؤالاً عشوائياً من السيرفر
+    const question = getRandomQuestion();
     if (!question) return;
 
     game.currentQuestion = question;
@@ -576,7 +576,7 @@ function setupSwordOfKnowledge(socket) {
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   });
 
-  socket.on('sok_attack_hub', ({ roomCode, continentId, regionName, attackerId, question }) => {
+  socket.on('sok_attack_hub', ({ roomCode, continentId, regionName, attackerId }) => {
     const game = rooms[roomCode]?.sok;
     if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
     const cont = SOK_CONTINENTS.find(c => c.id === continentId);
@@ -585,6 +585,8 @@ function setupSwordOfKnowledge(socket) {
     if (!region) return;
     const currentOwner = game.ownership[continentId][regionName];
     if (!currentOwner || currentOwner === attackerId) return;
+
+    const question = getRandomQuestion();
     if (!question) return;
 
     game.phase = 'duel';
@@ -609,11 +611,12 @@ function setupSwordOfKnowledge(socket) {
       ownerName: defenderName,
     });
 
+    // نبدأ الجولة الأولى بعد تأخير (كما في النسخة الأصلية)
     askDuelQuestion(roomCode, question, 5000);
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   });
 
-  socket.on('sok_attack_base', ({ roomCode, continentId, attackerId, question }) => {
+  socket.on('sok_attack_base', ({ roomCode, continentId, attackerId }) => {
     const game = rooms[roomCode]?.sok;
     if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
     const cont = SOK_CONTINENTS.find(c => c.id === continentId);
@@ -636,6 +639,7 @@ function setupSwordOfKnowledge(socket) {
     const attackerHubCount = defenderHubs.filter(r => game.ownership[continentId][r.id] === attackerId).length;
     if (attackerHubCount < 3) return;
 
+    const question = getRandomQuestion();
     if (!question) return;
 
     game.phase = 'duel';
@@ -681,9 +685,13 @@ function setupSwordOfKnowledge(socket) {
     }
   });
 
-  socket.on('sok_provide_duel_question', ({ roomCode, question }) => {
+  // مقبض جديد: عندما يطلب السيرفر من المهاجم سؤالاً، المهاجم يرد فقط بالإشارة (بدون سؤال)
+  socket.on('sok_provide_duel_question', ({ roomCode }) => {
     const game = rooms[roomCode]?.sok;
     if (!game || game.phase !== 'duel' || !game.duel) return;
+    // نختار سؤالاً جديداً ونرسله فوراً
+    const question = getRandomQuestion();
+    if (!question) return;
     askDuelQuestion(roomCode, question, 0);
   });
 
@@ -831,7 +839,7 @@ function setupSwordOfKnowledge(socket) {
       winner: roundWinner,
       scores: game.duel.scores,
       correctAnswer: question.type === 'numeric' ? question.answer : question.options[question.answer],
-      answers: answers,  // <-- add this line
+      answers: answers,
     });
 
     if (game.duel.scores[attackerId] >= 2 || game.duel.scores[defenderId] >= 2) {
@@ -878,14 +886,16 @@ function setupSwordOfKnowledge(socket) {
       game.duel.round++;
       game.duel.question = null;
       game.duel.answers = {};
-      setTimeout(() => {
-        const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
-        if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
-      }, 500);
+      // إرسال طلب للمهاجم ليُشعِرنا بأنه مستعد للجولة التالية (دون إرسال سؤال)
+      const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
+      if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
     }
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   };
 }
+
+// تصدير الدالة (تأكد من استدعائها عند اتصال socket)
+module.exports = { setupSwordOfKnowledge };
 
 
 // =====================================================
