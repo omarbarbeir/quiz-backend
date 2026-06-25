@@ -38,7 +38,7 @@ const io = new Server(server, {
 // Import data files (adjust paths as needed)
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
-const swordOfKnowledgeQuestions = require('./data/swordOfKnowledgeQuestions');
+const swordOfKnowledgeQuestions = require('../main/project/src/data/swordOfKnowledgeQuestions');
 const hangmanWordsData = require('./data/hangmanWords');
 const mafiosaCases = require('./data/mafiosaCases')
 
@@ -2968,55 +2968,42 @@ io.on('connection', (socket) => {
   });
 
   socket.on('end_spy_voting', (roomCode) => {
-      const room = rooms[roomCode];
-      if (!room || !room.spyId) return;
+    const room = rooms[roomCode];
+    if (!room || !room.spyId) return;
 
-      const votes = room.spyVotes || {};
-      const spyId = room.spyId;
-      let voteCounts = {}; 
+    const votes = room.spyVotes || {};
+    const spyId = room.spyId;
 
-      Object.values(votes).forEach(votedForId => {
-        voteCounts[votedForId] = (voteCounts[votedForId] || 0) + 1;
-      });
+    // ✅ هل أي لاعب صوت للجاسوس؟
+    const spyCaught = Object.values(votes).includes(spyId);
 
-      let maxVotes = 0;
-      let accusedId = null;
-      Object.keys(voteCounts).forEach(id => {
-        if (voteCounts[id] > maxVotes) {
-          maxVotes = voteCounts[id];
-          accusedId = id;
-        }
-    });
-
-    const spyCaught = (accusedId === spyId);
     let correctVoters = [];
-    let roundScores = []; // مصفوفة جديدة لتخزين نقاط الجولة الحالية لكل لاعب
+    let roundScores = [];
 
     room.players.forEach(player => {
       let pointsEarned = 0;
-      
+
       if (spyCaught) {
-        // لو الجاسوس اتكشف، اللي صوتوا عليه صح ياخدوا نقطة
+        // الجاسوس انكشف – المصوتون الصحيحون فقط يحصلون على نقطة
         if (votes[player.id] === spyId) {
-           pointsEarned = 1;
-           correctVoters.push(player.name);
+          pointsEarned = 1;
+          correctVoters.push(player.name);
         }
       } else {
-        // لو الجاسوس هرب، هو بس اللي ياخد نقطة
+        // الجاسوس هرب – الجاسوس فقط يحصل على نقطة
         if (player.id === spyId) {
-           pointsEarned = 1;
+          pointsEarned = 1;
         }
       }
 
       if (pointsEarned > 0) {
-         player.score = (player.score || 0) + pointsEarned;
+        player.score = (player.score || 0) + pointsEarned;
       }
 
-      // إضافة اللاعب لملخص الجولة
-      roundScores.push({ 
-        name: player.name, 
-        pointsEarned: pointsEarned, 
-        isSpy: player.id === spyId 
+      roundScores.push({
+        name: player.name,
+        pointsEarned: pointsEarned,
+        isSpy: player.id === spyId
       });
     });
 
@@ -3024,13 +3011,11 @@ io.on('connection', (socket) => {
       spyCaught,
       spyId,
       correctVoters,
-      players: room.players, // دي عشان شاشة النتائج
+      players: room.players,
       roundScores
     });
 
-    io.to(roomCode).emit('update_players', room.players); 
-
-
+    io.to(roomCode).emit('update_players', room.players); // 🔄 تحديث لوحة النتائج
   });
 
 
