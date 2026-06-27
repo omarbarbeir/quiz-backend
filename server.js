@@ -3157,7 +3157,6 @@ io.on('connection', (socket) => {
 socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
     console.log(`[Mafiosa System] Received mafiosa_start for room: ${roomCode}`);
 
-    // 1. فحص هل الغرفة موجودة في ذاكرة السيرفر
     const room = rooms[roomCode];
     if (!room) {
       console.log(`[Mafiosa Error] Room ${roomCode} not found in servers memory!`);
@@ -3167,15 +3166,15 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
       return;
     }
 
-    // 2. فحص أمان للتأكد من وجود مصفوفة القضايا (تأكد من مطابقة الاسم mafiosaCases)
     if (!mafiosaCases || mafiosaCases.length === 0) {
       console.log(`[Mafiosa Error] mafiosaCases array is empty or not defined!`);
       socket.emit('mafiosa_error', { message: 'خطأ في السيرفر: لم يتم العثور على قضايا مافيوسو!' });
       return;
     }
 
-    // 3. تهيئة حالة اللعبة لو مش متهيئة أو لو اللعبة القديمة خلصت
-    if (!mafiosaState[roomCode] || mafiosaState[roomCode].gameOver) {
+    // ✅ CHANGE 1: was "if (!mafiosaState[roomCode] || mafiosaState[roomCode].gameOver)"
+    // Now always reset so any player can start a fresh game
+    if (true) {
       console.log(`[Mafiosa System] Initializing new game state for room: ${roomCode}`);
       
       const index = caseIndex !== undefined ? caseIndex : Math.floor(Math.random() * mafiosaCases.length);
@@ -3192,15 +3191,18 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
         votes: {},
         accusationPhase: false,
         playerPoints: playerPoints,
-        investigatedSuspects: {}, // playerId: [suspectId, ...]
+        investigatedSuspects: {},
+        dialogueStates: {},
       };
     }
 
-    // 4. إرسال البيانات والـ State الحالي للفرونت إند لفتح اللعبة
     const currentState = mafiosaState[roomCode];
     const caseData = mafiosaCases[currentState.caseIndex];
 
     console.log(`[Mafiosa System] Sending case data ("${caseData.title}") to room: ${roomCode}`);
+
+    // ✅ CHANGE 2: tell ALL players a new game is starting (triggers overlay on every client)
+    io.to(roomCode).emit('mafiosa_new_game_starting');
 
     io.to(roomCode).emit('mafiosa_case_data', {
       title: caseData.title,
