@@ -5,10 +5,10 @@
 // كل نوع لعبة وفئة ليهم ملف داتا منفصل
 // كل مجموعة لازم يكون فيها id فريد — بيستخدمه السيرفر فقط
 // عشان يتجنب تكرار نفس المجموعة في نفس الجلسة
-const cinemaTTT   = require('../main/project/src/data/cinemaTTT');
-const cinemaC4    = require('../main/project/src/data/cinemaC4');
-const footballTTT = require('../main/project/src/data/footballTTT');
-const footballC4  = require('../main/project/src/data/footballC4');
+const cinemaTTT   = require('./data/cinemaTTT');
+const cinemaC4    = require('./data/cinemaC4');
+const footballTTT = require('./data/footballTTT');
+const footballC4  = require('./data/footballC4');
 
 const gameGroups = {
   cinema:   { ttt: cinemaTTT,   c4: cinemaC4   },
