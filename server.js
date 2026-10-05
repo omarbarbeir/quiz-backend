@@ -46,9 +46,9 @@ const randomPhotosData = require('./data_random');
 // const swordOfKnowledgeQuestions = require('./data/swordOfKnowledgeQuestions');
 const hangmanWordsData = require('./data/hangmanWords');
 const mafiosaCases = require('./data/mafiosaCases')
-const { casesDatabase } = require('../main/project/src/data/casesData');
+// const { casesDatabase } = require('../main/project/src/data/casesData');
 const { createMovieTacToeModule } = require('./movieTacToe');
-const setupCivilRegistry = require('./civilRegistryNamespace');
+// const setupCivilRegistry = require('./civilRegistryNamespace');
 const setupMusicServer = require('./musicServer');
 // setupCivilRegistry(io);
 require('./horrorServer')(io);
