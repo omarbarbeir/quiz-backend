@@ -3,6 +3,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const EventEmitter = require('events');
+
+
+EventEmitter.defaultMaxListeners = 100;
+
 
 const app = express();
 const server = http.createServer(app);
@@ -38,9 +43,51 @@ const io = new Server(server, {
 // Import data files (adjust paths as needed)
 const cardData = require('./data/cardData');
 const randomPhotosData = require('./data_random');
-const swordOfKnowledgeQuestions = require('./data/swordOfKnowledgeQuestions');
-const hangmanWordsData = require('./data/hangmanWords');
+// const swordOfKnowledgeQuestions = require('./data/swordOfKnowledgeQuestions');
+const hangmanWordsData = require('../main/project/src/data/hangmanWords');
 const mafiosaCases = require('./data/mafiosaCases')
+const { casesDatabase } = require('../main/project/src/data/casesData');
+const { createMovieTacToeModule } = require('./movieTacToe');
+const setupCivilRegistry = require('./civilRegistryNamespace');
+const setupMusicServer = require('./musicServer');
+// setupCivilRegistry(io);
+require('./horrorServer')(io);
+require('./urbexServer')(io);
+require('./courtServer')(io);
+require('./ bankElHazServer')(io);
+require('./trapOpponentServer')(io);
+require('./guessOpponentServer')(io);
+require('./headsUpServer')(io);
+require('./movieQuizServer')(io);
+require('./investigationServer')(io);
+require('./codenamesServer')(io);
+require('./tabooServer')(io);
+require('./basraServer')(io);
+require('./bankServer')(io);
+require('./shayebServer')(io);
+require('./crazy8Server')(io);
+require('./solitaireServer')(io);
+require('./spiderServer')(io);
+require('./memoryServer')(io);
+require('./chessServer')(io);
+require('./backgammonServer')(io);
+require('./snakesServer')(io);
+require('./escapeRoomServer')(io);
+const setupSpyServer = require('./spyServer');
+const setupReverseServer = require('./reverseServer');
+const setupWhoamiServer = require('./whoamiServer');
+const setupWhoSaidServer = require('./whoSaidServer');
+const setupPutWordServer = require('./putWordServer');
+const setupSongForServer = require('./songForServer');
+const setupCinemaServer = require('./cinemaServer');
+const setupFlagsServer = require('./flagsServer');
+const setupAutobisServer = require('./autobisServer');
+const setupBattleshipServer = require('./battleshipServer');
+const setupSwordServer = require('./swordServer');
+const setupHangmanServer = require('./hangmanServer');
+const setupBracketServer = require('./bracketServer');
+const setupTicTacToeServer = require('./ticTacToeServer');
+const setupBingoServer = require('./bingoServer');
 
 // Game categories (your full list – unchanged)
 const gameCategories = [
@@ -94,37 +141,18 @@ const playerActivity = {};
 const hangmanState = {};
 const MAX_ATTEMPTS = 6;
 
+const movieTTT = createMovieTacToeModule(io,rooms);
+
+
 const roomVotes = {};
 const mafiosaState = {};
+const detectiveGames = {};
 
-
-
-
-const hangmanWords = Array.isArray(hangmanWordsData) ? hangmanWordsData : (hangmanWordsData.words || []);
-
-
-// دالة ذكية لسحب الكلمة والتلميح بدون ما السيرفر يضرب
-function getRandomWordData() {
-  const randomItem = hangmanWords[Math.floor(Math.random() * hangmanWords.length)];
-  
-  // لو الداتا بالشكل الجديد (كائن فيه word و hint)
-  if (typeof randomItem === 'object' && randomItem !== null) {
-    return { 
-      word: randomItem.word || 'خطأ_في_الكلمة', 
-      hint: randomItem.hint || '' 
-    };
-  } 
-  // لو الداتا لسه فيها كلمات بالطريقة القديمة (نص عادي)
-  else if (typeof randomItem === 'string') {
-    return { 
-      word: randomItem, 
-      hint: 'بدون تلميح' 
-    };
-  }
-  
-  // لو حصل أي تهنيج في الداتا
-  return { word: 'داتا_غير_صالحة', hint: '' };
+if (!global.detectiveGames) {
+  global.detectiveGames = {};
 }
+
+
 
 
 function getMafiosaState(roomCode) {
@@ -168,22 +196,22 @@ function shuffleDeck(deck) {
 function getNextPlayer(roomCode, currentPlayerId) {
   const room = rooms[roomCode];
   if (!room || !room.players.length) return null;
-  
-  const nonAdminPlayers = room.players.filter(p => !p.isAdmin);
-  if (nonAdminPlayers.length === 0) return null;
-  
-  const currentIndex = nonAdminPlayers.findIndex(p => p.id === currentPlayerId);
-  const nextIndex = (currentIndex + 1) % nonAdminPlayers.length;
-  return nonAdminPlayers[nextIndex].id;
+
+  const allPlayers = room.players;
+  if (allPlayers.length === 0) return null;
+
+  const currentIndex = allPlayers.findIndex(p => p.id === currentPlayerId);
+  const nextIndex = (currentIndex + 1) % allPlayers.length;
+  return allPlayers[nextIndex].id;
 }
 
 function getNextNonSkippedPlayer(roomCode, currentPlayerId, skippedPlayers) {
   let nextPlayerId = getNextPlayer(roomCode, currentPlayerId);
   let skippedCount = 0;
   const room = rooms[roomCode];
-  const nonAdminPlayers = room.players.filter(p => !p.isAdmin);
-  const totalPlayers = nonAdminPlayers.length;
-  
+  const allPlayers = room.players;
+  const totalPlayers = allPlayers.length;
+
   while (skippedPlayers[nextPlayerId] && skippedCount < totalPlayers) {
     console.log(`⏭️ Skipping ${nextPlayerId} because they are marked as skipped`);
     delete skippedPlayers[nextPlayerId];
@@ -225,7 +253,7 @@ function updatePlayerActivity(socketId) {
 
 // setInterval(checkInactivePlayers, 60000);
 
-function initializeCardGame(players) {
+function initializeCardGame(players, deal = false) {
   console.log('🃏 Initializing card game for players:', players.map(p => p.name));
   
   const filteredDeck = cardData.deck.filter(card => 
@@ -237,34 +265,22 @@ function initializeCardGame(players) {
     card.subtype === 'collective_exchange'
   );
   
-  console.log(`🃏 Total cards in filtered deck: ${filteredDeck.length}`);
-  
   const shuffledDeck = shuffleDeck(filteredDeck);
   const playerHands = {};
   
-  const nonAdminPlayers = players.filter(p => !p.isAdmin);
-  
-  nonAdminPlayers.forEach(player => {
-    const handCards = shuffledDeck.splice(0, 5);
-    handCards.forEach((card, index) => {
-      card.originalHandIndex = index;
-    });
-    playerHands[player.id] = handCards;
-    console.log(`   Dealt 5 cards to ${player.name}:`, playerHands[player.id].map(card => ({ 
-      name: card.name, 
-      type: card.type, 
-      subtype: card.subtype,
-      originalHandIndex: card.originalHandIndex
-    })));
+  players.forEach(player => {
+    if (deal) {
+      const handCards = shuffledDeck.splice(0, 5);
+      handCards.forEach((card, index) => {
+        card.originalHandIndex = index;
+      });
+      playerHands[player.id] = handCards;
+    } else {
+      playerHands[player.id] = [];
+    }
   });
 
-  players.filter(p => p.isAdmin).forEach(admin => {
-    playerHands[admin.id] = [];
-  });
-
-  console.log(`🃏 Remaining cards in draw pile: ${shuffledDeck.length}`);
-
-  const firstPlayer = nonAdminPlayers[0]?.id || null;
+  const firstPlayer = players[0]?.id || null;
 
   return {
     deck: shuffledDeck,
@@ -273,6 +289,7 @@ function initializeCardGame(players) {
     playerHands,
     currentTurn: firstPlayer,
     gameStarted: true,
+    dealt: deal,          // ✅ جديد
     declaredCategory: null,
     challengeInProgress: false,
     playerCircles: Object.fromEntries(players.map(p => [p.id, [null, null, null, null]])),
@@ -495,480 +512,136 @@ function initSOKGame(room) {
   };
 }
 
-function setupSwordOfKnowledge(socket) {
-  let resolveClaim, askDuelQuestion, resolveDuelRound;
-
-  // ========== SOCKET EVENT HANDLERS ==========
-  socket.on('sok_init', ({ roomCode }) => {
-    console.log(`[SOK] sok_init for room ${roomCode}`);
-    const room = rooms[roomCode];
-    if (!room) {
-      console.log(`[SOK] Room ${roomCode} not found`);
-      return;
-    }
-
-    if (room.sok) {
-      room.sok.players = room.players.filter(p => !p.isAdmin).map(p => ({
-        id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
-      }));
-      const state = sanitizeSOK(room.sok);
-      socket.emit('sok_state', state);
-      return;
-    }
-
-    const game = initSOKGame(room);
-    if (!game) {
-      socket.emit('sok_error', { message: 'Could not initialize game' });
-      return;
-    }
-    room.sok = game;
-    const state = sanitizeSOK(room.sok);
-    socket.emit('sok_state', state);
-  });
-
-  socket.on('sok_reset', ({ roomCode }) => {
-    const room = rooms[roomCode];
-    if (!room) return;
-    room.players.forEach(p => { p.eliminated = false; });
-    const game = initSOKGame(room);
-    if (game) {
-      room.sok = game;
-      io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-    }
-  });
-
-  socket.on('sok_claim', ({ roomCode, continentId, regionName, playerId }) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game) return;
-    if ((game.phase !== 'claiming' && game.phase !== 'attacking') || game.turn !== playerId) return;
-    const cont = SOK_CONTINENTS.find(c => c.id === continentId);
-    if (!cont) return;
-    const region = cont.regions.find(r => r.id === regionName);
-    if (!region || game.ownership[continentId][regionName] !== null) return;
-
-    // نختار سؤالاً عشوائياً من السيرفر
-    const question = getRandomQuestion();
-    if (!question) return;
-
-    game.currentQuestion = question;
-    game.answersArray = [];
-    game.pendingAction = { type: 'claim', continentId, regionName, playerId };
-
-    const playerName = rooms[roomCode].players.find(p => p.id === playerId)?.name || '???';
-    io.to(roomCode).emit('sok_claim_start', {
-      playerName,
-      regionName: region.name,
-      continentName: cont.name,
-      isEmpty: true,
-    });
-
-    clearTimeout(game.timer);
-    game.timer = setTimeout(() => {
-      if (rooms[roomCode]?.sok?.currentQuestion === question) {
-        io.to(roomCode).emit('sok_question', question);
-        clearTimeout(rooms[roomCode].sok.timer);
-        rooms[roomCode].sok.timer = setTimeout(() => {
-          resolveClaim(roomCode, continentId, regionName);
-        }, 20000);
-      }
-    }, 5000);
-
-    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-  });
-
-  socket.on('sok_attack_hub', ({ roomCode, continentId, regionName, attackerId }) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
-    const cont = SOK_CONTINENTS.find(c => c.id === continentId);
-    if (!cont) return;
-    const region = cont.regions.find(r => r.id === regionName);
-    if (!region) return;
-    const currentOwner = game.ownership[continentId][regionName];
-    if (!currentOwner || currentOwner === attackerId) return;
-
-    const question = getRandomQuestion();
-    if (!question) return;
-
-    game.phase = 'duel';
-    game.duel = {
-      attackerId,
-      defenderId: currentOwner,
-      scores: { [attackerId]: 0, [currentOwner]: 0 },
-      round: 1,
-      question: null,
-      answers: {},
-      useDelay: true,
-    };
-    game.pendingAction = { type: 'attack_hub', continentId, regionName, attackerId, defenderId: currentOwner };
-
-    const attackerName = rooms[roomCode].players.find(p => p.id === attackerId)?.name || '???';
-    const defenderName = rooms[roomCode].players.find(p => p.id === currentOwner)?.name || '???';
-    io.to(roomCode).emit('sok_duel_start', {
-      attackerName,
-      defenderName,
-      regionName: region.name,
-      continentName: cont.name,
-      ownerName: defenderName,
-    });
-
-    // نبدأ الجولة الأولى بعد تأخير (كما في النسخة الأصلية)
-    askDuelQuestion(roomCode, question, 5000);
-    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-  });
-
-  socket.on('sok_attack_base', ({ roomCode, continentId, attackerId }) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || game.phase !== 'attacking' || game.turn !== attackerId) return;
-    const cont = SOK_CONTINENTS.find(c => c.id === continentId);
-    if (!cont) return;
-    const baseRegionId = cont.regions[0].id;
-    const defenderId = game.ownership[continentId][baseRegionId];
-    if (!defenderId || defenderId === attackerId) return;
-
-    const defenderHomeContinent = Object.keys(game.ownership).find(cid =>
-      game.ownership[cid][SOK_CONTINENTS.find(c => c.id === cid).regions[0].id] === defenderId
-    );
-    if (!defenderHomeContinent) return;
-    const foreignOwned = Object.keys(game.ownership).some(cid => {
-      if (cid === defenderHomeContinent) return false;
-      return Object.values(game.ownership[cid]).some(owner => owner === defenderId);
-    });
-    if (foreignOwned) return;
-
-    const defenderHubs = cont.regions.filter((_, idx) => idx > 0 && idx <= 4);
-    const attackerHubCount = defenderHubs.filter(r => game.ownership[continentId][r.id] === attackerId).length;
-    if (attackerHubCount < 3) return;
-
-    const question = getRandomQuestion();
-    if (!question) return;
-
-    game.phase = 'duel';
-    game.duel = {
-      attackerId,
-      defenderId,
-      scores: { [attackerId]: 0, [defenderId]: 0 },
-      round: 1,
-      question: null,
-      answers: {},
-      useDelay: false,
-    };
-    game.pendingAction = { type: 'attack_base', continentId, attackerId, defenderId };
-
-    askDuelQuestion(roomCode, question, 0);
-    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-  });
-
-  socket.on('sok_claim_answer', ({ roomCode, playerId, answer }) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || !game.currentQuestion || (game.phase !== 'claiming' && game.phase !== 'attacking')) return;
-    if (!game.pendingAction || game.pendingAction.type !== 'claim') return;
-    if (game.answersArray.some(a => a.playerId === playerId)) return;
-    game.answersArray.push({ playerId, answer });
-
-    const nonAdmins = rooms[roomCode].players.filter(p => !p.isAdmin && !p.eliminated);
-    const allAnswered = nonAdmins.every(p => game.answersArray.some(a => a.playerId === p.id));
-    if (allAnswered) {
-      clearTimeout(game.timer);
-      resolveClaim(roomCode, game.pendingAction.continentId, game.pendingAction.regionName);
-    }
-  });
-
-  socket.on('sok_duel_answer', ({ roomCode, playerId, answer }) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || game.phase !== 'duel' || !game.duel) return;
-    if (playerId !== game.duel.attackerId && playerId !== game.duel.defenderId) return;
-    if (game.duel.answers[playerId] !== undefined) return;
-    game.duel.answers[playerId] = answer;
-    if (Object.keys(game.duel.answers).length === 2) {
-      clearTimeout(game.timer);
-      resolveDuelRound(roomCode);
-    }
-  });
-
-  // مقبض جديد: عندما يطلب السيرفر من المهاجم سؤالاً، المهاجم يرد فقط بالإشارة (بدون سؤال)
-  socket.on('sok_provide_duel_question', ({ roomCode }) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || game.phase !== 'duel' || !game.duel) return;
-    // نختار سؤالاً جديداً ونرسله فوراً
-    const question = getRandomQuestion();
-    if (!question) return;
-    askDuelQuestion(roomCode, question, 0);
-  });
-
-  // ========== INTERNAL RESOLVERS ==========
-  resolveClaim = (roomCode, continentId, regionName) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || !game.currentQuestion) return;
-
-    const q = game.currentQuestion;
-    let winner = null;
-
-    if (q.type === 'numeric') {
-      let bestDiff = Infinity;
-      for (const entry of game.answersArray) {
-        const num = parseFloat(entry.answer);
-        if (isNaN(num)) continue;
-        const diff = Math.abs(num - q.answer);
-        if (diff < bestDiff) { bestDiff = diff; winner = entry.playerId; }
-      }
-    } else if (q.type === 'mcq') {
-      const correctIdx = q.answer;
-      for (const entry of game.answersArray) {
-        if (parseInt(entry.answer.trim(), 10) === correctIdx) { winner = entry.playerId; break; }
-      }
-    }
-
-    if (winner) {
-      game.ownership[continentId][regionName] = winner;
-      game.scores[winner] = (game.scores[winner] || 0) + 1;
-    } else {
-      const initiatorId = game.pendingAction?.playerId;
-      if (game.phase === 'attacking' && initiatorId) {
-        game.skippedPlayers[initiatorId] = true;
-      }
-    }
-
-    const initiatorId = game.pendingAction?.playerId;
-    const results = {
-      answers: game.answersArray.map(entry => {
-        const p = rooms[roomCode].players.find(pl => pl.id === entry.playerId);
-        return { playerId: entry.playerId, playerName: p?.name || '???', answer: entry.answer, color: p?.color || '#fff' };
-      }),
-      winner,
-      correctAnswer: q.type === 'numeric' ? q.answer : q.options?.[q.answer],
-      correctIndex: q.type === 'mcq' ? q.answer : null,
-      initiatorCorrect: winner === initiatorId,
-    };
-    io.to(roomCode).emit('sok_results', results);
-
-    game.currentQuestion = null;
-    game.pendingAction = null;
-    game.answersArray = [];
-
-    if (game.phase === 'claiming') {
-      game.turn = getNextPlayerSOK(roomCode, game.turn);
-      const currentPlayer = initiatorId;
-      if (!game.playedInRound) game.playedInRound = [];
-      if (currentPlayer && !game.playedInRound.includes(currentPlayer)) {
-        game.playedInRound.push(currentPlayer);
-      }
-      const nonAdmins = rooms[roomCode].players.filter(p => !p.isAdmin && !p.eliminated).map(p => p.id);
-      const allPlayed = nonAdmins.every(pid => game.playedInRound.includes(pid));
-      if (allPlayed) {
-        game.roundCount = (game.roundCount || 0) + 1;
-        game.playedInRound = [];
-        let allClaimed = true;
-        for (const cont of SOK_CONTINENTS) {
-          for (const reg of cont.regions) {
-            if (game.ownership[cont.id][reg.id] === null) { allClaimed = false; break; }
-          }
-          if (!allClaimed) break;
-        }
-        if (game.roundCount >= MAX_CLAIM_ROUNDS || allClaimed) {
-          game.phase = 'attacking';
-          io.to(roomCode).emit('sok_stage_changed', { stage: 'attacking' });
-        }
-      }
-    } else if (game.phase === 'attacking') {
-      game.turn = getNextPlayerSOK(roomCode, game.turn);
-    }
-
-    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-    io.to(roomCode).emit('sok_clear_question');
-  };
-
-  askDuelQuestion = (roomCode, question, delay = 0) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || !game.duel) return;
-
-    const broadcast = () => {
-      const currentGame = rooms[roomCode]?.sok;
-      if (!currentGame || !currentGame.duel) return;
-      currentGame.duel.question = question;
-      currentGame.duel.answers = {};
-      const attackerSocket = getPlayerSocketSOK(roomCode, currentGame.duel.attackerId);
-      const defenderSocket = getPlayerSocketSOK(roomCode, currentGame.duel.defenderId);
-      if (attackerSocket) attackerSocket.emit('sok_duel_question', question);
-      if (defenderSocket) defenderSocket.emit('sok_duel_question', question);
-      io.to(roomCode).emit('sok_duel_status', {
-        attacker: currentGame.duel.attackerId,
-        defender: currentGame.duel.defenderId,
-        round: currentGame.duel.round
-      });
-      clearTimeout(currentGame.timer);
-      currentGame.timer = setTimeout(() => {
-        const g = rooms[roomCode]?.sok;
-        if (g && g.phase === 'duel' && g.duel) {
-          resolveDuelRound(roomCode);
-        }
-      }, 20000);
-    };
-
-    if (delay > 0) {
-      clearTimeout(game.timer);
-      game.timer = setTimeout(broadcast, delay);
-    } else {
-      broadcast();
-    }
-  };
-
-  resolveDuelRound = (roomCode) => {
-    const game = rooms[roomCode]?.sok;
-    if (!game || !game.duel) return;
-    const { attackerId, defenderId, question, answers } = game.duel;
-    let roundWinner = null;
-
-    if (question.type === 'numeric') {
-      let bestDiff = Infinity;
-      for (const [pid, ans] of Object.entries(answers)) {
-        const num = parseFloat(ans);
-        if (isNaN(num)) continue;
-        const diff = Math.abs(num - question.answer);
-        if (diff < bestDiff) { bestDiff = diff; roundWinner = pid; }
-      }
-    } else if (question.type === 'mcq') {
-      const correctIdx = question.answer;
-      if (answers[attackerId] !== undefined && parseInt(answers[attackerId].trim(), 10) === correctIdx) roundWinner = attackerId;
-      else if (answers[defenderId] !== undefined && parseInt(answers[defenderId].trim(), 10) === correctIdx) roundWinner = defenderId;
-    }
-
-    if (roundWinner) game.duel.scores[roundWinner]++;
-
-    io.to(roomCode).emit('sok_duel_round_result', {
-      round: game.duel.round,
-      winner: roundWinner,
-      scores: game.duel.scores,
-      correctAnswer: question.type === 'numeric' ? question.answer : question.options[question.answer],
-      answers: answers,
-    });
-
-    if (game.duel.scores[attackerId] >= 2 || game.duel.scores[defenderId] >= 2) {
-      const duelWinner = game.duel.scores[attackerId] >= 2 ? attackerId : defenderId;
-      const duelLoser = duelWinner === attackerId ? defenderId : attackerId;
-
-      if (game.pendingAction.type === 'attack_hub') {
-        if (duelWinner === attackerId) {
-          game.ownership[game.pendingAction.continentId][game.pendingAction.regionName] = attackerId;
-          game.scores[attackerId] = (game.scores[attackerId] || 0) + 1;
-          game.scores[defenderId] = Math.max(0, (game.scores[defenderId] || 1) - 1);
-        }
-      } else if (game.pendingAction.type === 'attack_base') {
-        if (duelWinner === attackerId) {
-          for (const cont of SOK_CONTINENTS) {
-            for (const reg of cont.regions) {
-              if (game.ownership[cont.id][reg.id] === duelLoser) {
-                game.ownership[cont.id][reg.id] = duelWinner;
-                game.scores[duelWinner] = (game.scores[duelWinner] || 0) + 1;
-                game.scores[duelLoser] = Math.max(0, (game.scores[duelLoser] || 1) - 1);
-              }
-            }
-          }
-          const room = rooms[roomCode];
-          const loserPlayer = room.players.find(p => p.id === duelLoser);
-          if (loserPlayer) loserPlayer.eliminated = true;
-          game.players = room.players.filter(p => !p.isAdmin).map(p => ({
-            id: p.id, name: p.name, color: p.color, eliminated: p.eliminated || false
-          }));
-        }
-      }
-
-      game.duel = null;
-      game.pendingAction = null;
-      game.phase = 'attacking';
-      game.turn = getNextPlayerSOK(roomCode, attackerId);
-
-      const activePlayers = game.players.filter(p => !p.eliminated);
-      if (activePlayers.length === 1) {
-        game.phase = 'ended';
-        io.to(roomCode).emit('sok_game_over', { winner: activePlayers[0].id, name: activePlayers[0].name });
-      }
-    } else {
-      game.duel.round++;
-      game.duel.question = null;
-      game.duel.answers = {};
-      // إرسال طلب للمهاجم ليُشعِرنا بأنه مستعد للجولة التالية (دون إرسال سؤال)
-      const attackerSocket = getPlayerSocketSOK(roomCode, attackerId);
-      if (attackerSocket) attackerSocket.emit('sok_request_duel_question');
-    }
-    io.to(roomCode).emit('sok_state', sanitizeSOK(game));
-  };
-}
-
-// تصدير الدالة (تأكد من استدعائها عند اتصال socket)
-module.exports = { setupSwordOfKnowledge };
-
-
 // =====================================================
 // Socket.io connection handling
 // =====================================================
 io.on('connection', (socket) => {
+  socket.setMaxListeners(100);
   console.log('🔌 New client connected:', socket.id);
   updatePlayerActivity(socket.id);
-  setupSwordOfKnowledge(socket);
+  setupSpyServer(socket, io, rooms);
+  setupMusicServer(socket, io, rooms);
+  setupReverseServer(socket, io, rooms);
+  setupWhoamiServer(socket, io, rooms);
+  setupWhoSaidServer(socket, io, rooms);
+  setupPutWordServer(socket, io, rooms);
+  setupSongForServer(socket, io, rooms);
+  setupCinemaServer(socket, io, rooms);
+  setupFlagsServer(socket, io, rooms);
+  setupAutobisServer(socket, io, rooms);
+  setupBattleshipServer(socket, io, rooms);
+  setupSwordServer(socket, io, rooms);
+  setupHangmanServer(socket, io, rooms);
+  setupBracketServer(socket, io, rooms);
+  setupTicTacToeServer(socket, io, rooms);
+  setupBingoServer(socket, io, rooms);
+  movieTTT.registerSocket(socket);
+
+  socket.on('launch_game', ({ roomCode, gameId }) => {
+    if (!rooms[roomCode]) return;
+    io.to(roomCode).emit('game_launched', { gameId });
+  });
+
+  socket.on('close_room', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    
+    // ابعت للكل إن الغرفة اتقفلت
+    io.to(roomCode).emit('room_closed');
+    
+    // شيل الغرفة من الذاكرة
+    delete rooms[roomCode];
+  });
+
+  socket.on('close_game', ({ roomCode }) => {
+    if (!rooms[roomCode]) return;
+    if (rooms[roomCode].sok?.timer) clearTimeout(rooms[roomCode].sok.timer);
+    io.to(roomCode).emit('game_closed');
+  });
 
   // Create room
-  socket.on('create_room', () => {
+  socket.on('create_room', ({ playerName } = {}) => {
     updatePlayerActivity(socket.id);
     const roomCode = generateRoomCode();
+
+    // ✅ الأدمن بقى لاعب في players array بـ id حقيقي
+    const adminId = `admin_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const adminPlayer = {
+      id: adminId,
+      name: (playerName && playerName.trim()) || 'Quiz Master',
+      score: 0,
+      isAdmin: true,
+      socketId: socket.id,
+      color: playerColorPalette[0],
+    };
+
     rooms[roomCode] = {
-      players: [],
+      players: [adminPlayer],       // ✅ الأدمن أول لاعب في الغرفة
       admin: socket.id,
+      adminId: adminId,             // ✅ مرجع سريع لـ id الأدمن
       activePlayer: null,
       buzzerLocked: false,
       currentQuestion: null,
       cardGame: null,
-      whiteboard: {
-        strokes: [],
-        currentStroke: null
-      },
+      whiteboard: { strokes: [], currentStroke: null },
       timer: {
         duration: 120,
         intervalId: null,
         currentTime: null,
-        isRunning: false
+        isRunning: false,
       }
     };
-    
-    socket.emit('room_created', roomCode);
+
+    socket.emit('room_created', { roomCode, adminPlayer });
     socket.join(roomCode);
-    console.log(`🏠 Room created: ${roomCode} by admin ${socket.id}`);
+    io.to(roomCode).emit('update_players', rooms[roomCode].players);
+    console.log(`🏠 Room created: ${roomCode} by admin ${adminPlayer.name} (${adminId})`);
   });
 
   // Join room
   socket.on('join_room', ({ roomCode, player }) => {
     updatePlayerActivity(socket.id);
     console.log(`👤 Player ${player.name} joining room: ${roomCode}`);
-    
-    if (rooms[roomCode]) {
-      // 🎨 Assign a unique colour
-      const nonAdminPlayers = rooms[roomCode].players.filter(p => !p.isAdmin);
-      const colorIndex = nonAdminPlayers.length % playerColorPalette.length;
-      const assignedColor = player.color || playerColorPalette[colorIndex];
 
-      const playerWithSocket = { 
-        ...player, 
-        socketId: socket.id,
-        isAdmin: socket.id === rooms[roomCode].admin,
-        color: assignedColor,
-      };
-      rooms[roomCode].players.push(playerWithSocket);
-      socket.join(roomCode);
-      
-      socket.emit('player_joined', playerWithSocket);
-      io.to(roomCode).emit('player_joined', playerWithSocket);
-      
-      socket.emit('whiteboard_state', rooms[roomCode].whiteboard);
-      
-      if (rooms[roomCode].cardGame) {
-        socket.emit('card_game_state_update', rooms[roomCode].cardGame);
-      }
-      
-      socket.data = { roomCode, playerId: player.id };
-      console.log(`✅ ${player.name} joined room ${roomCode} (color: ${assignedColor}). Total players: ${rooms[roomCode].players.length}`);
-    } else {
+    if (!rooms[roomCode]) {
       socket.emit('room_not_found');
       console.log(`❌ Room ${roomCode} not found`);
+      return;
     }
+
+    // 🛡️ منع نفس السوكيت إنه يدخل مرتين
+    if (rooms[roomCode].players.some(p => p.socketId === socket.id)) {
+      console.log(`⚠️ Socket ${socket.id} already in room ${roomCode}`);
+      socket.emit('update_players', rooms[roomCode].players);
+      return;
+    }
+
+    // 🎨 لون فريد للاعب
+    const nonAdminPlayers = rooms[roomCode].players.filter(p => !p.isAdmin);
+    const colorIndex = nonAdminPlayers.length % playerColorPalette.length;
+    const assignedColor = player.color || playerColorPalette[colorIndex];
+
+    const playerWithSocket = {
+      ...player,
+      socketId: socket.id,
+      isAdmin: socket.id === rooms[roomCode].admin,  // فقط لو نفس السوكيت
+      color: assignedColor,
+    };
+
+    rooms[roomCode].players.push(playerWithSocket);
+    socket.join(roomCode);
+    socket.data = { roomCode, playerId: player.id };
+
+    // ✅ مزامنة كاملة لكل اللاعبين (بما فيهم الأدمن)
+    io.to(roomCode).emit('update_players', rooms[roomCode].players);
+
+    socket.emit('whiteboard_state', rooms[roomCode].whiteboard);
+
+    if (rooms[roomCode].cardGame) {
+      socket.emit('card_game_state_update', rooms[roomCode].cardGame);
+    }
+
+    console.log(`✅ ${player.name} joined room ${roomCode} (color: ${assignedColor}). Total: ${rooms[roomCode].players.length}`);
   });
 
   // ===== WHITEBOARD EVENTS (existing) =====
@@ -1060,63 +733,24 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ===== TIC TAC TOE EVENTS =====
-  socket.on('tic_tac_toe_start', ({ roomCode, playerX, playerO }) => {
-    updatePlayerActivity(socket.id);
-    const room = rooms[roomCode];
-    if (!room) return;
-    room.ticTacToe = {
-      board: Array(9).fill(null),
-      turn: 'X',
-      winner: null,
-      playerX,
-      playerO
-    };
-    io.to(roomCode).emit('tic_tac_toe_state', room.ticTacToe);
+
+  // ✅ تبديل الطور في كوتشينة (بصرة ↔ بنك) — يمسح الغرفة القديمة
+  socket.on('kotshina_switch_mode', ({ roomCode, mode, fromMode }) => {
+    if (!roomCode) return;
+    const VALID = ['basra', 'bank', 'shayeb', 'crazy8', 'solitaire', 'spider'];
+    if (!VALID.includes(mode) || !VALID.includes(fromMode)) return;
+
+    if (fromMode === 'basra' && global.basraRooms?.[roomCode]) delete global.basraRooms[roomCode];
+    else if (fromMode === 'bank' && global.bankRooms?.[roomCode]) delete global.bankRooms[roomCode];
+    else if (fromMode === 'shayeb' && global.shayebRooms?.[roomCode]) delete global.shayebRooms[roomCode];
+    else if (fromMode === 'crazy8' && global.crazy8Rooms?.[roomCode]) delete global.crazy8Rooms[roomCode];
+    else if (fromMode === 'solitaire' && global.solitaireRooms?.[roomCode]) delete global.solitaireRooms[roomCode];
+    else if (fromMode === 'spider' && global.spiderRooms?.[roomCode]) delete global.spiderRooms[roomCode];
+
+    io.to(roomCode).emit('kotshina_mode_changed', { mode });
   });
 
-  socket.on('tic_tac_toe_move', ({ roomCode, index, playerId }) => {
-    updatePlayerActivity(socket.id);
-    const room = rooms[roomCode];
-    if (!room || !room.ticTacToe) return;
-    const game = room.ticTacToe;
-    if (game.board[index] || game.winner) return;
 
-    const currentPlayer = game.turn === 'X' ? game.playerX : game.playerO;
-    if (currentPlayer.id !== playerId) return; // not this player's turn
-
-    game.board[index] = game.turn;
-
-    // Check winner
-    const lines = [
-      [0,1,2],[3,4,5],[6,7,8], // rows
-      [0,3,6],[1,4,7],[2,5,8], // cols
-      [0,4,8],[2,4,6]          // diags
-    ];
-    for (let line of lines) {
-      const [a,b,c] = line;
-      if (game.board[a] && game.board[a] === game.board[b] && game.board[a] === game.board[c]) {
-        game.winner = game.turn;
-        break;
-      }
-    }
-    if (!game.winner && game.board.every(cell => cell !== null)) {
-      game.winner = 'draw';
-    }
-
-    game.turn = game.turn === 'X' ? 'O' : 'X';
-    io.to(roomCode).emit('tic_tac_toe_state', game);
-  });
-
-  socket.on('tic_tac_toe_reset', ({ roomCode }) => {
-    updatePlayerActivity(socket.id);
-    const room = rooms[roomCode];
-    if (!room || !room.ticTacToe) return;
-    room.ticTacToe.board = Array(9).fill(null);
-    room.ticTacToe.turn = 'X';
-    room.ticTacToe.winner = null;
-    io.to(roomCode).emit('tic_tac_toe_state', room.ticTacToe);
-  });
 
   // ===== CARD GAME EVENTS (all original handlers – unchanged) =====
   socket.on('card_game_initialize', ({ roomCode }) => {
@@ -1140,7 +774,7 @@ io.on('connection', (socket) => {
 
       console.log(`👥 Players in room:`, room.players.map(p => p.name));
 
-      room.cardGame = initializeCardGame(room.players);
+      room.cardGame = initializeCardGame(room.players, false);
       
       console.log(`✅ Card game initialized successfully in ${roomCode}`);
       console.log(`   Players: ${room.players.length}`);
@@ -1156,6 +790,42 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ✅ توزيع الورق — يدويًا لما الأدمن يدوس
+  socket.on('card_game_deal', ({ roomCode }) => {
+    updatePlayerActivity(socket.id);
+    console.log(`🎴 DEAL CARDS in room ${roomCode}`);
+    
+    const room = rooms[roomCode];
+    if (!room || !room.cardGame) {
+      socket.emit('card_game_error', { message: 'Game not found' });
+      return;
+    }
+    
+    const game = room.cardGame;
+    if (game.dealt) {
+      console.log('⚠️ Already dealt');
+      return;
+    }
+    
+    // وزّع 5 كروت لكل لاعب
+    room.players.forEach(player => {
+      if (game.playerHands[player.id].length === 0) {
+        for (let i = 0; i < 5; i++) {
+          if (game.drawPile.length > 0) {
+            const card = game.drawPile.pop();
+            card.originalHandIndex = game.playerHands[player.id].length;
+            game.playerHands[player.id].push(card);
+          }
+        }
+      }
+    });
+    
+    game.dealt = true;
+    
+    console.log(`✅ Cards dealt. Draw pile: ${game.drawPile.length}`);
+    io.to(roomCode).emit('card_game_state_update', game);
+  });
+
   // Draw card from pile
   socket.on('card_game_draw', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
@@ -1165,11 +835,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.skippedPlayers[playerId]) {
         console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -1223,11 +888,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.skippedPlayers[playerId]) {
         console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -1279,11 +939,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.skippedPlayers[playerId]) {
         console.log(`❌ Player ${playerId} is skipped this turn`);
@@ -1337,11 +992,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -1402,11 +1052,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -1471,11 +1116,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -1553,11 +1193,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -2077,11 +1712,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -2121,11 +1751,6 @@ io.on('connection', (socket) => {
       const game = rooms[roomCode].cardGame;
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -2166,11 +1791,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (!game.activeShake) {
         console.log(`❌ No active shake`);
@@ -2231,11 +1851,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (!game.activeShake) {
         console.log(`❌ No active shake`);
@@ -2333,11 +1948,6 @@ io.on('connection', (socket) => {
       const room = rooms[roomCode];
       const player = rooms[roomCode].players.find(p => p.id === playerId);
       
-      if (player && player.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot play`);
-        socket.emit('card_game_error', { message: 'Admin cannot play the game' });
-        return;
-      }
       
       if (game.currentTurn !== playerId) {
         console.log(`❌ Not player ${playerId}'s turn`);
@@ -2397,12 +2007,6 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const respondingPlayer = room.players.find(p => p.id === playerId);
-      if (respondingPlayer && respondingPlayer.isAdmin) {
-        console.log(`❌ Admin ${playerId} cannot vote in challenges`);
-        socket.emit('card_game_error', { message: 'Admin cannot vote in challenges' });
-        return;
-      }
 
       if (playerId === declaredPlayerId) {
         console.log(`❌ Declaring player cannot respond to their own challenge`);
@@ -2419,8 +2023,7 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('card_game_state_update', game);
       }
 
-      const nonAdminPlayers = room.players.filter(p => !p.isAdmin);
-      const otherPlayers = nonAdminPlayers.filter(p => p.id !== declaredPlayerId);
+      const otherPlayers = room.players.filter(p => p.id !== declaredPlayerId);
       
       const allResponded = otherPlayers.every(player => 
         game.challengeRespondedPlayers.includes(player.id)
@@ -2657,263 +2260,6 @@ io.on('connection', (socket) => {
       console.log(`✅ Sent random photos to players in room ${roomCode}`);
     }
   });
-
-  // Bingo – initialise per player
-  socket.on('bingo_init', ({ roomCode, playerId }) => {
-    if (!rooms[roomCode]) return;
-    if (!rooms[roomCode].bingoGames) {
-      rooms[roomCode].bingoGames = {};
-    }
-    if (!rooms[roomCode].bingoGames[playerId]) {
-      rooms[roomCode].bingoGames[playerId] = {
-        grid: Array.from({ length: 5 }, () => Array(5).fill('')),
-        marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
-      };
-    }
-    socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
-  });
-
-  // Bingo cell number update
-  socket.on('bingo_cell_update', ({ roomCode, playerId, row, col, value }) => {
-    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
-    if (!rooms[roomCode].bingoGames[playerId]) {
-      rooms[roomCode].bingoGames[playerId] = {
-        grid: Array.from({ length: 5 }, () => Array(5).fill('')),
-        marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
-      };
-    }
-    if (row >= 0 && row < 5 && col >= 0 && col < 5) {
-      rooms[roomCode].bingoGames[playerId].grid[row][col] = value;
-      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
-    }
-  });
-
-  // Bingo mark toggle
-  socket.on('bingo_mark_update', ({ roomCode, playerId, row, col, marked }) => {
-    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
-    if (!rooms[roomCode].bingoGames[playerId]) {
-      rooms[roomCode].bingoGames[playerId] = {
-        grid: Array.from({ length: 5 }, () => Array(5).fill('')),
-        marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
-      };
-    }
-    if (row >= 0 && row < 5 && col >= 0 && col < 5) {
-      rooms[roomCode].bingoGames[playerId].marks[row][col] = marked;
-      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
-    }
-  });
-
-  socket.on('bingo_reset', ({ roomCode, playerId }) => {
-    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
-    if (rooms[roomCode].bingoGames[playerId]) {
-      rooms[roomCode].bingoGames[playerId] = {
-        grid: Array.from({ length: 5 }, () => Array(5).fill('')),
-        marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
-      };
-
-      // ★ Clear shared called numbers
-      if (rooms[roomCode].bingoCalled) {
-        rooms[roomCode].bingoCalled = [];
-        io.to(roomCode).emit('bingo_called_numbers', []);
-      }
-      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
-    }
-  });
-
-  socket.on('bingo_call_number', ({ roomCode }) => {
-    if (!rooms[roomCode]) return;
-    if (!rooms[roomCode].bingoCalled) {
-      rooms[roomCode].bingoCalled = [];
-    }
-    const called = rooms[roomCode].bingoCalled;
-    // Generate random number 1-25 not already called
-    if (called.length >= 25) return; // all called
-    let num;
-    do {
-      num = Math.floor(Math.random() * 25) + 1;
-    } while (called.includes(num));
-    called.push(num);
-    io.to(roomCode).emit('bingo_called_numbers', called);
-  });
-
-
-  // Battleship – init per player
-  socket.on('battleship_init', ({ roomCode, playerId }) => {
-    if (!rooms[roomCode]) return;
-    if (!rooms[roomCode].battleship) {
-      rooms[roomCode].battleship = {};
-    }
-    if (!rooms[roomCode].battleship[playerId]) {
-      rooms[roomCode].battleship[playerId] = {
-        grid: Array.from({ length: 11 }, () => Array(11).fill(null)),
-        placedShips: [],
-      };
-    }
-    socket.emit('battleship_state', rooms[roomCode].battleship[playerId]);
-  });
-
-  // Place a ship
-  socket.on('battleship_place', ({ roomCode, playerId, shipId, positions }) => {
-    if (!rooms[roomCode]?.battleship?.[playerId]) return;
-    const board = rooms[roomCode].battleship[playerId];
-    // Mark grid
-    positions.forEach(({ r, c }) => {
-      if (r >= 0 && r < 11 && c >= 0 && c < 11) {
-        board.grid[r][c] = shipId;
-      }
-    });
-    board.placedShips.push({ shipId, positions });
-    socket.emit('battleship_state', board);
-  });
-
-  // Remove a ship
-  socket.on('battleship_remove', ({ roomCode, playerId, shipId }) => {
-    if (!rooms[roomCode]?.battleship?.[playerId]) return;
-    const board = rooms[roomCode].battleship[playerId];
-    const ship = board.placedShips.find(s => s.shipId === shipId);
-    if (ship) {
-      ship.positions.forEach(({ r, c }) => {
-        if (r >= 0 && r < 11 && c >= 0 && c < 11) {
-          board.grid[r][c] = null;
-        }
-      });
-      board.placedShips = board.placedShips.filter(s => s.shipId !== shipId);
-      socket.emit('battleship_state', board);
-    }
-  });
-
-  socket.on('battleship_miss', ({ roomCode, playerId, row, col }) => {
-    if (!rooms[roomCode]?.battleship?.[playerId]) return;
-    const board = rooms[roomCode].battleship[playerId];
-    if (row >= 1 && row <= 10 && col >= 1 && col <= 10 && board.grid[row][col] === null) {
-      board.grid[row][col] = 'miss';
-      socket.emit('battleship_state', board);
-    }
-  });
-
-  // Reset board
-  socket.on('battleship_reset', ({ roomCode, playerId }) => {
-    if (!rooms[roomCode]?.battleship) return;
-    rooms[roomCode].battleship[playerId] = {
-      grid: Array.from({ length: 11 }, () => Array(11).fill(null)),
-      placedShips: [],
-    };
-    socket.emit('battleship_state', rooms[roomCode].battleship[playerId]);
-  });
-
-  // Destroy a single cell of a ship
-  socket.on('battleship_destroy', ({ roomCode, playerId, row, col, shipId }) => {
-    if (!rooms[roomCode]?.battleship?.[playerId]) return;
-    const board = rooms[roomCode].battleship[playerId];
-    if (row >= 0 && row < 11 && col >= 0 && col < 11 && board.grid[row][col] && !board.grid[row][col].startsWith('hit-')) {
-      board.grid[row][col] = `hit-${shipId}`;
-      socket.emit('battleship_state', board);
-    }
-  });
-
-
-  // ===================== BRACKET (دور الـ١٦) =====================
-  socket.on('bracket_init', ({ roomCode }) => {
-    if (!rooms[roomCode]) return;
-    if (rooms[roomCode].bracket) {
-      socket.emit('bracket_state', rooms[roomCode].bracket);
-      return;
-    }
-    rooms[roomCode].bracket = {
-      rounds: [
-        { matches: [] },  // round of 16
-        { matches: [] },  // quarter
-        { matches: [] },  // semi
-        { matches: [] },  // final
-      ],
-      currentRoundIndex: 0,
-    };
-    socket.emit('bracket_state', rooms[roomCode].bracket);
-  });
-
-  socket.on('bracket_randomize', ({ roomCode, names }) => {
-    if (!rooms[roomCode]) return;
-    const shuffled = [...names].sort(() => Math.random() - 0.5);
-    const matches = [];
-    for (let i = 0; i < 8; i++) {
-      matches.push({
-        team1: shuffled[i * 2] || `فريق ${i * 2 + 1}`,
-        team2: shuffled[i * 2 + 1] || `فريق ${i * 2 + 2}`,
-        votes: {},
-        voters: [],
-        winner: null,
-      });
-    }
-    rooms[roomCode].bracket.rounds[0].matches = matches;
-    rooms[roomCode].bracket.currentRoundIndex = 0;
-    for (let i = 1; i < 4; i++) {
-      rooms[roomCode].bracket.rounds[i].matches = [];
-    }
-    io.to(roomCode).emit('bracket_state', rooms[roomCode].bracket);
-  });
-
-  socket.on('bracket_vote', ({ roomCode, roundIndex, matchIndex, choice, playerId }) => {
-    if (!rooms[roomCode]?.bracket) return;
-    const round = rooms[roomCode].bracket.rounds[roundIndex];
-    if (!round || !round.matches[matchIndex]) return;
-    const match = round.matches[matchIndex];
-    if (match.winner) return;
-    if (!match.votes) match.votes = {};
-    if (!match.voters) match.voters = [];
-    if (match.voters.includes(playerId)) return;
-    match.votes[choice] = (match.votes[choice] || 0) + 1;
-    match.voters.push(playerId);
-    io.to(roomCode).emit('bracket_state', rooms[roomCode].bracket);
-  });
-
-  socket.on('bracket_next_round', ({ roomCode }) => {
-    if (!rooms[roomCode]?.bracket) return;
-    const bracket = rooms[roomCode].bracket;
-    const currentRound = bracket.rounds[bracket.currentRoundIndex];
-
-    // Determine winners by vote count
-    currentRound.matches.forEach(match => {
-      if (!match.winner) {
-        const votes = match.votes || {};
-        const team1Votes = votes[match.team1] || 0;
-        const team2Votes = votes[match.team2] || 0;
-        match.winner = team1Votes >= team2Votes ? match.team1 : match.team2;
-      }
-    });
-
-    // Collect winners in order
-    const winners = currentRound.matches.map(m => m.winner);
-    const nextRoundIndex = bracket.currentRoundIndex + 1;
-    if (nextRoundIndex > 3) return;
-    const nextRound = bracket.rounds[nextRoundIndex];
-    nextRound.matches = [];
-    for (let i = 0; i < winners.length; i += 2) {
-      nextRound.matches.push({
-        team1: winners[i],
-        team2: winners[i + 1],
-        votes: {},
-        voters: [],
-        winner: null,
-      });
-    }
-    bracket.currentRoundIndex = nextRoundIndex;
-    io.to(roomCode).emit('bracket_state', bracket);
-  });
-
-  socket.on('bracket_reset', ({ roomCode }) => {
-    if (!rooms[roomCode]) return;
-    rooms[roomCode].bracket = {
-      rounds: [
-        { matches: [] },
-        { matches: [] },
-        { matches: [] },
-        { matches: [] },
-      ],
-      currentRoundIndex: 0,
-    };
-    io.to(roomCode).emit('bracket_state', rooms[roomCode].bracket);
-  });
-
   
 
   // ===== NEW: WHOAMI (unique photo per player) =====
@@ -2937,207 +2283,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // ===== NEW: SPY (personalised word) =====
-  // 1. تحديث حدث spy_start عشان نحفظ الجاسوس
-  socket.on('spy_start', ({ roomCode, assignments }) => {
-    updatePlayerActivity(socket.id);
-    console.log(`🕵️ SPY START in room ${roomCode} with ${assignments.length} assignments`);
-    
-    if (!rooms[roomCode]) return;
-    
-    const room = rooms[roomCode];
-    room.spyVotes = {}; // تصفير التصويتات القديمة
-
-    io.to(roomCode).emit('update_players', room.players);
-    
-    assignments.forEach(({ playerId, question }) => {
-      // تحديد الجاسوس (بافتراض أن كلمة الجاسوس تحتوي على كلمة Spy أو جاسوس)
-      if (question.text.toLowerCase().includes('spy') || question.text.includes('جاسوس')) {
-        room.spyId = playerId;
-      }
-      
-      const player = room.players.find(p => p.id === playerId);
-      if (player) {
-        io.to(player.socketId).emit('player_photo_question', {
-          playerId,
-          question
-        });
-      }
-    });
-  });
-
-  // 2. أحداث التصويت الجديدة
-  socket.on('start_spy_voting', (roomCode) => {
-    io.to(roomCode).emit('open_spy_voting');
-  });
-
-  socket.on('submit_spy_vote', ({ roomCode, voterId, votedForId }) => {
-    if (rooms[roomCode]) {
-      rooms[roomCode].spyVotes[voterId] = votedForId; // حفظ تصويت اللاعب
-    }
-  });
-
-  socket.on('end_spy_voting', (roomCode) => {
-    const room = rooms[roomCode];
-    if (!room || !room.spyId) return;
-
-    const votes = room.spyVotes || {};
-    const spyId = room.spyId;
-
-    // ✅ هل أي لاعب صوت للجاسوس؟
-    const spyCaught = Object.values(votes).includes(spyId);
-
-    let correctVoters = [];
-    let roundScores = [];
-
-    room.players.forEach(player => {
-      let pointsEarned = 0;
-
-      if (spyCaught) {
-        // الجاسوس انكشف – المصوتون الصحيحون فقط يحصلون على نقطة
-        if (votes[player.id] === spyId) {
-          pointsEarned = 1;
-          correctVoters.push(player.name);
-        }
-      } else {
-        // الجاسوس هرب – الجاسوس فقط يحصل على نقطة
-        if (player.id === spyId) {
-          pointsEarned = 1;
-        }
-      }
-
-      if (pointsEarned > 0) {
-        player.score = (player.score || 0) + pointsEarned;
-      }
-
-      roundScores.push({
-        name: player.name,
-        pointsEarned: pointsEarned,
-        isSpy: player.id === spyId
-      });
-    });
-
-    io.to(roomCode).emit('spy_voting_results', {
-      spyCaught,
-      spyId,
-      correctVoters,
-      players: room.players,
-      roundScores
-    });
-
-    io.to(roomCode).emit('update_players', room.players); // 🔄 تحديث لوحة النتائج
-  });
-
-
-
   
-  // ===================== HANGMAN GAME =====================
-
-  function getHangmanState(roomCode) {
-    const state = hangmanState[roomCode];
-    
-    // ضفنا هنا !state.word عشان لو مفيش كلمة ميضربش السيرفر
-    if (!state || !state.word) return null; 
-    
-    const word = state.word;
-    const guessedLetters = state.guessedLetters;
-    
-    const display = word.split('').map(c => {
-      if (c === ' ') return ' ';
-      return guessedLetters.includes(c) ? c : '_';
-    }).join(' ');
-
-    const uniqueRemainingLetters = new Set(
-      word.split('').filter(c => c !== ' ')
-    );
-    guessedLetters.forEach(g => uniqueRemainingLetters.delete(g));
-
-    return {
-      display,
-      guessedLetters,
-      attempts: state.attempts,
-      maxAttempts: state.maxAttempts,
-      gameOver: state.gameOver,
-      won: state.won,
-      word: state.gameOver ? word : '', 
-      hint: state.hint, 
-      remaining: uniqueRemainingLetters.size,
-    };
-  }
-
-    socket.on('hangman_get_state', ({ roomCode }) => {
-      if (!roomCode) return;
-      socket.join(roomCode); 
-
-      if (hangmanState[roomCode]) {
-        socket.emit('hangman_state', getHangmanState(roomCode));
-        return;
-      }
-
-      // الاستخدام هنا 👇
-      const randomData = getRandomWordData();
-      
-      hangmanState[roomCode] = {
-        word: randomData.word,
-        hint: randomData.hint,
-        guessedLetters: [],
-        attempts: 0,
-        maxAttempts: MAX_ATTEMPTS,
-        gameOver: false,
-        won: false,
-      };
-      socket.emit('hangman_state', getHangmanState(roomCode));
-    });
-
-  socket.on('hangman_guess', ({ roomCode, letter }) => {
-    if (!roomCode) return;
-    const state = hangmanState[roomCode];
-    if (!state || state.gameOver) return;
-
-    const guessed = letter.trim(); 
-    if (guessed.length !== 1) return;
-
-    if (state.guessedLetters.includes(guessed)) return;
-    
-    state.guessedLetters.push(guessed);
-
-    const wordLetters = state.word.split('').filter(c => c !== ' ');
-
-    if (wordLetters.includes(guessed)) {
-      const guessedSet = new Set(state.guessedLetters);
-      const allGuessed = wordLetters.every(c => guessedSet.has(c));
-      if (allGuessed) {
-        state.won = true;
-        state.gameOver = true;
-      }
-    } else {
-      state.attempts += 1;
-      if (state.attempts >= state.maxAttempts) {
-        state.gameOver = true;
-        state.won = false;
-      }
-    }
-    io.to(roomCode).emit('hangman_state', getHangmanState(roomCode));
-  });
-
-  socket.on('hangman_reset', ({ roomCode }) => {
-    if (!roomCode) return;
-    
-    // الاستخدام هنا 👇
-    const randomData = getRandomWordData();
-    
-    hangmanState[roomCode] = {
-      word: randomData.word,
-      hint: randomData.hint,
-      guessedLetters: [],
-      attempts: 0,
-      maxAttempts: MAX_ATTEMPTS,
-      gameOver: false,
-      won: false,
-    };
-    io.to(roomCode).emit('hangman_state', getHangmanState(roomCode));
-  });
-
 
   // =====MafiosoGame=====
 
@@ -3510,9 +2656,470 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
   socket.emit('mafiosa_cases_list', { cases: casesList });
   }); 
 
+  socket.on('mafiosa_spend_ap', ({ roomCode, amount }) => {
+    const state = mafiosaState[roomCode];
+    if (!state || state.ap < amount) return;
+    state.ap -= amount;
+    socket.emit('mafiosa_ap_update', { ap: state.ap });
+    io.to(roomCode).emit('mafiosa_state', {
+      inventory: state.inventory, ap: state.ap, maxAp: MAX_AP,
+      gameOver: state.gameOver, searchedLocations: state.searchedLocations,
+      playerPoints: state.playerPoints,
+    });
+  });
+
+
+// ============================================================
+// معالجات لعبة المحقق الرقمي
+// ============================================================
+    socket.on('detective_join', ({ roomCode, playerId }) => {
+      console.log(`🕵️ Player ${playerId} joined detective game in room ${roomCode}`);
+
+      if (!rooms[roomCode]) {
+        rooms[roomCode] = { players: [] };
+      }
+
+      if (!rooms[roomCode].players.find(p => p.id === playerId)) {
+        rooms[roomCode].players.push({
+          id: playerId,
+          name: `محقق ${rooms[roomCode].players.length + 1}`
+        });
+      }
+
+      if (!detectiveGames[roomCode]) {
+        detectiveGames[roomCode] = {
+          caseId: 'case_murad_01',
+          started: false,
+          completed: false,
+          players: rooms[roomCode].players,
+          decryptedImages: [],
+          decryptedVideos: [],
+          decryptedDocs: [],
+          decryptedMessages: [],
+          encryptedFolderUnlocked: false,
+          extractedEncryptedFolder: false,
+          discoveredPhones: false,
+          discoveredAtms: false,
+          discoveredCameras: false,
+          playerAnswers: {},
+          correctCulprits: [],
+          correctMotive: '',
+          solutionSummary: '',
+          allPlayersSubmitted: false,
+          foundSocialProfiles: {},
+        };
+      } else {
+        detectiveGames[roomCode].players = rooms[roomCode].players;
+      }
+
+      socket.join(roomCode);
+
+      if (detectiveGames[roomCode].started) {
+        socket.emit('detective_started', detectiveGames[roomCode]);
+      } else {
+        socket.emit('detective_game_updated', { gameState: detectiveGames[roomCode] });
+      }
+
+      socket.to(roomCode).emit('detective_game_updated', {
+        gameState: detectiveGames[roomCode]
+      });
+    });
+
+    // =============================================
+    // 2. بدء اللعبة عن طريق الأدمن (رئيس الشرطة)
+    // =============================================
+    socket.on('start_digital_detective', ({ roomCode, caseId }) => {
+      console.log(`👮 Admin started digital detective game in room ${roomCode}`);
+      
+      if (rooms[roomCode]) {
+        rooms[roomCode].currentQuestion = { category: 'digital_detective' };
+      }
+
+      const currentPlayers = rooms[roomCode]?.players || [];
+      const caseData = casesDatabase[caseId || 'case_murad_01'];
+      console.log('caseData correctCulprits:', caseData?.correctCulprits);
+
+      detectiveGames[roomCode] = {
+        caseId: 'case_murad_01',
+        started: true,
+        completed: false,
+        players: currentPlayers,
+        decryptedImages: [],
+        decryptedVideos: [],
+        decryptedDocs: [],
+        decryptedMessages: [],
+        encryptedFolderUnlocked: false,
+        extractedEncryptedFolder: false,
+        discoveredPhones: false,
+        discoveredAtms: false,
+        discoveredCameras: false,
+        playerAnswers: {},
+        correctCulprits: caseData?.correctCulprits || [],
+        correctMotive: caseData?.correctMotive || '',
+        solutionSummary: caseData?.solutionSummary || '',
+        allPlayersSubmitted: false,
+        foundSocialProfiles: {},
+        closureQuestions: caseData?.closureQuestions || {}
+        
+      };
+
+      io.to(roomCode).emit('room_update', rooms[roomCode]);
+      io.to(roomCode).emit('room_data', rooms[roomCode]);
+      io.to(roomCode).emit('detective_started', detectiveGames[roomCode]);
+      io.to(roomCode).emit('detective_game_updated', {
+        gameState: detectiveGames[roomCode],
+        logMessage: '🚀 تم بدء التحقيق بأمر من رئيس الشرطة!',
+        logType: 'success'
+      });
+    });
+
+    // =============================================
+    // 3. بدء اللعبة من لاعب آخر
+    // =============================================
+    socket.on('detective_start', ({ roomCode, caseId }) => {
+      console.log(`🚀 Starting detective game in room ${roomCode}`);
+      const currentPlayers = rooms[roomCode]?.players || [];
+      const caseData = casesDatabase[caseId || 'case_murad_01'];
+
+      detectiveGames[roomCode] = {
+        caseId: caseId || 'case_murad_01',
+        started: true,
+        completed: false,
+        players: currentPlayers,
+        decryptedImages: [],
+        decryptedVideos: [],
+        decryptedDocs: [],
+        decryptedMessages: [],
+        encryptedFolderUnlocked: false,
+        extractedEncryptedFolder: false,
+        discoveredPhones: false,
+        discoveredAtms: false,
+        discoveredCameras: false,
+        playerAnswers: {},
+        correctCulprits: caseData?.correctCulprits || [],
+        correctMotive: caseData?.correctMotive || '',
+        solutionSummary: caseData?.solutionSummary || '',
+        allPlayersSubmitted: false,
+        foundSocialProfiles: {},
+      };
+
+      io.to(roomCode).emit('detective_started', detectiveGames[roomCode]);
+      io.to(roomCode).emit('detective_game_updated', {
+        gameState: detectiveGames[roomCode],
+        logMessage: '🚀 تم بدء التحقيق!',
+        logType: 'success'
+      });
+    });
+
+    // =============================================
+    // 4. المحرك الرئيسي
+    // =============================================
+    socket.on('detective_action_submit', ({ roomCode, playerId, actionType, payload }) => {
+      const game = detectiveGames[roomCode];
+      if (!game) return;
+
+      const player = game.players.find(p => p.id === playerId) || { name: 'محقق' };
+      let logMessage = '';
+      let logType = 'info';
+
+      switch (actionType) {
+        case 'SEARCH':
+          if (payload.resultData) {
+            game.lastSearchResults = payload.resultData;
+            logMessage = `🔍 [${player.name}] بحث عن مصطلح!`;
+            logType = 'info';
+          } else {
+            game.lastSearchResults = { results: null };
+          }
+          break;
+
+        case 'UPDATE_STATE_VALUE':
+          if (payload.targetKey) {
+            game[payload.targetKey] = payload.value;
+          }
+          break;
+
+        case 'UPDATE_STATE_ARRAY':
+          if (payload.targetKey && payload.value) {
+            if (!game[payload.targetKey]) game[payload.targetKey] = [];
+            if (!game[payload.targetKey].includes(payload.value)) {
+              game[payload.targetKey].push(payload.value);
+            }
+          }
+          break;
+
+        case 'EMAIL_CRACK_SUCCESS':
+          game.emailCracked = true;
+          logMessage = `🔓 [${player.name}] كسر حماية البريد!`;
+          logType = 'success';
+          break;
+
+        case 'RESOLVE_CASE':
+          game.completed = true;
+          logMessage = `🎯 [${player.name}] حل القضية!`;
+          logType = 'resolved';
+          break;
+
+        case 'RESET_EXTRACTED_DATA':
+          game.extractedDocs = [];
+          game.decryptedImages = [];
+          game.decryptedVideos = [];
+          game.decryptedDocs = [];
+          game.decryptedMessages = [];
+          game.encryptedFolderUnlocked = false;
+          game.extractedEncryptedFolder = false;
+          logMessage = `🔌 [${player.name}] قطع الاتصال.`;
+          logType = 'info';
+          break;
+
+        default:
+          break;
+      }
+
+      io.to(roomCode).emit('detective_game_updated', {
+        gameState: game,
+        logMessage,
+        logType
+      });
+    });
+
+    // =============================================
+    // 5. المزامنة العامة
+    // =============================================
+    socket.on('custom_sync', ({ roomCode, type, data }) => {
+      const game = detectiveGames[roomCode];
+      if (!game) return;
+
+      switch (type) {
+        case 'sync_report_opened':
+          game.hasOpenedReport = true;
+          break;
+        case 'unlock_location':
+          if (!game.unlockedLocations) game.unlockedLocations = [];
+          if (data?.locKey && !game.unlockedLocations.includes(data.locKey)) {
+            game.unlockedLocations.push(data.locKey);
+          }
+          break;
+        case 'sync_location_select':
+          game.selectedLocation = data?.locKey || '';
+          break;
+        case 'sync_social_profile':
+          if (data?.name) {
+            game.foundSocialProfiles[data.name] = data;
+          }
+          break;
+        case 'sync_comms':
+          if (!game.commsHistory) game.commsHistory = [];
+          game.commsHistory.push(data);
+          break;
+        case 'sync_system_hacked':
+          if (!game.hackedSystems) game.hackedSystems = [];
+          if (data?.sysKey && !game.hackedSystems.includes(data.sysKey)) {
+            game.hackedSystems.push(data.sysKey);
+          }
+          break;
+        default:
+          break;
+      }
+
+      io.to(roomCode).emit('custom_sync', { type, data });
+      io.to(roomCode).emit('detective_game_updated', {
+        gameState: game,
+        logMessage: getSyncLogMessage(type, data),
+        logType: 'discovery'
+      });
+    });
+
+    // =============================================
+    // 6. مزامنة الملفات المفككة
+    // =============================================
+    socket.on('sync_decrypted_data', ({ roomCode, data }) => {
+      const game = detectiveGames[roomCode];
+      if (!game) return;
+
+      game.decryptedImages = data.decryptedImages || [];
+      game.decryptedVideos = data.decryptedVideos || [];
+      game.decryptedDocs = data.decryptedDocs || [];
+      game.decryptedMessages = data.decryptedMessages || [];
+      game.encryptedFolderUnlocked = data.encryptedFolderUnlocked || false;
+      game.extractedEncryptedFolder = data.extractedEncryptedFolder || false;
+      game.discoveredPhones = data.discoveredPhones || false;
+      game.discoveredAtms = data.discoveredAtms || false;
+      game.discoveredCameras = data.discoveredCameras || false;
+
+      io.to(roomCode).emit('sync_decrypted_data', {
+        decryptedImages: game.decryptedImages,
+        decryptedVideos: game.decryptedVideos,
+        decryptedDocs: game.decryptedDocs,
+        decryptedMessages: game.decryptedMessages,
+        encryptedFolderUnlocked: game.encryptedFolderUnlocked,
+        extractedEncryptedFolder: game.extractedEncryptedFolder,
+        discoveredPhones: game.discoveredPhones,
+        discoveredAtms: game.discoveredAtms,
+        discoveredCameras: game.discoveredCameras
+      });
+
+      io.to(roomCode).emit('detective_game_updated', {
+        gameState: game,
+        logMessage: `🔓 تم تحديث الملفات المفككة.`,
+        logType: 'info'
+      });
+    });
+
+    // =============================================
+    // 7. استقبال إجابة اللاعب
+    // =============================================
+    socket.on('submit_case_answer', ({ roomCode, playerId, answer }) => {
+      const game = detectiveGames[roomCode];
+      if (!game) return;
+
+      if (!game.playerAnswers) game.playerAnswers = {};
+      game.playerAnswers[playerId] = answer;
+
+      const correctCulprits = game.correctCulprits || [];
+      const questions = game.closureQuestions || {};
+
+      // ── normalize ──
+      const normalize = str => str.toLowerCase().trim()
+        .replace(/\s+/g, '')
+        .replace(/،/g, '')
+        .replace(/,/g, '');
+
+      // ── تحقق من المتهمين دايماً بنفس المنطق ──
+      const culpritsAnswer = answer['culprits'] || '';
+      const culpritsList = typeof culpritsAnswer === 'string'
+        ? culpritsAnswer.split(/[,،]/).map(s => s.trim()).filter(Boolean)
+        : culpritsAnswer;
+
+      const culpritsCorrect =
+        culpritsList.length === correctCulprits.length &&
+        culpritsList.every(c =>
+          correctCulprits.some(cc =>
+            normalize(cc).includes(normalize(c)) ||
+            normalize(c).includes(normalize(cc))
+          )
+        );
+
+      // ── تحقق من باقي الأسئلة ديناميكياً ──
+      let score = culpritsCorrect ? 1 : 0;
+      const breakdown = [];
+
+      // المتهمون أول حاجة في الـ breakdown
+      breakdown.push({
+        label: 'المتهمون',
+        correct: culpritsCorrect,
+        playerAnswer: culpritsList.join('، ') || '—',
+        correctAnswer: correctCulprits.join('، ')
+      });
+
+      // باقي الأسئلة من closureQuestions — بس مش culprits لأنه اتعمل فوق
+      Object.entries(questions).forEach(([key, q]) => {
+        if (key === 'culprits') return; // اتعمل فوق
+
+        const playerAnswer = (answer[key] || '').toLowerCase();
+        const matched = q.keywords.some(k => playerAnswer.includes(k.toLowerCase()));
+        if (matched) score++;
+
+        breakdown.push({
+          label: q.label,
+          correct: matched,
+          playerAnswer: answer[key] || '—',
+          correctAnswer: q.keywords.slice(0, 3).join(' / ')
+        });
+      });
+
+      const totalQuestions = Object.keys(questions).length;
+      const isCorrect = score === totalQuestions;
+
+      const totalPlayers = game.players.length;
+      const submittedCount = Object.keys(game.playerAnswers).length;
+      const allSubmitted = totalPlayers > 0 && submittedCount === totalPlayers;
+      game.allPlayersSubmitted = allSubmitted;
+
+      socket.emit('case_answer_result', {
+        isCorrect,
+        score,
+        correctAnswer: {
+          culprits: correctCulprits,
+          motive: game.correctMotive || '',
+          summary: game.solutionSummary || '',
+          breakdown
+        },
+        allSubmitted
+      });
+
+      io.to(roomCode).emit('detective_game_updated', {
+        gameState: game,
+        logMessage: `📋 [${game.players.find(p => p.id === playerId)?.name || 'محقق'}] قدم إجابته — النقاط: ${score}/${totalQuestions}`,
+        logType: isCorrect ? 'success' : 'error'
+      });
+    });
+
+    // =============================================
+    // 8. طلب قضية جديدة
+    // =============================================
+    socket.on('request_new_case', ({ roomCode }) => {
+      if (detectiveGames[roomCode]) {
+        const allCases = ['case_murad_01', 'case_palace_02', 'case_ship_03', 'case_writer_04', 'case_museum_05', 'case_artist_06', 'case_interpreter_07', 'case_coldcase_08', 'case_plane_9', 'case_witness_10', 'case_judge_11', 'case_hotel_12', 'case_memoirs_13'];
+        const currentCase = detectiveGames[roomCode].caseId;
+        const availableCases = allCases.filter(c => c !== currentCase);
+        const nextCase = availableCases.length > 0
+          ? availableCases[Math.floor(Math.random() * availableCases.length)]
+          : allCases[Math.floor(Math.random() * allCases.length)];
+
+        const caseData = casesDatabase[nextCase];
+
+        detectiveGames[roomCode] = {
+          ...detectiveGames[roomCode],
+          caseId: nextCase,
+          completed: false,
+          decryptedImages: [],
+          decryptedVideos: [],
+          decryptedDocs: [],
+          decryptedMessages: [],
+          encryptedFolderUnlocked: false,
+          extractedEncryptedFolder: false,
+          discoveredPhones: false,
+          discoveredAtms: false,
+          discoveredCameras: false,
+          playerAnswers: {},
+          allPlayersSubmitted: false,
+          correctCulprits: caseData?.correctCulprits || [],
+          correctMotive: caseData?.correctMotive || '',
+          solutionSummary: caseData?.solutionSummary || '',
+          closureQuestions: caseData?.closureQuestions || {},
+        };
+
+        io.to(roomCode).emit('trigger_case_loading');
+        io.to(roomCode).emit('detective_game_updated', {
+          gameState: detectiveGames[roomCode],
+          logMessage: `📡 تم تهيئة القضية الجديدة: ${nextCase}`,
+          logType: 'system'
+        });
+      }
+    });
+
+    // =============================================
+    // 9. دالة مساعدة
+    // =============================================
+    function getSyncLogMessage(type, data) {
+      switch (type) {
+        case 'sync_report_opened': return '📑 تم فتح المحضر.';
+        case 'unlock_location': return `🗺️ تم فتح موقع: ${data?.locName || ''}`;
+        case 'sync_location_select': return `🔬 فحص موقع: ${data?.locName || ''}`;
+        case 'sync_social_profile': return `👤 رصد حساب: ${data?.name || ''}`;
+        case 'sync_comms': return `📡 بث اتصال جديد.`;
+        case 'sync_system_hacked': return `⚡ اختراق خادم: ${data?.sysName || ''}`;
+        default: return '🔄 تحديث في النظام.';
+      }
+    }
 
 
 
+
+
+
+// فحص الفوز بالشبكة
 
 
   // ===== EXISTING QUIZ EVENTS =====
@@ -3562,24 +3169,27 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
 
   socket.on('leave_room', ({ roomCode, playerId }) => {
     updatePlayerActivity(socket.id);
-    if (rooms[roomCode]) {
-      rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
-      io.to(roomCode).emit('player_left', playerId);
-      
-      if (rooms[roomCode].players.length === 0) {
-        // stop the timer before deleting the room
-        if (rooms[roomCode].timerInterval) clearInterval(rooms[roomCode].timerInterval);
-        delete rooms[roomCode];
-      }
+    if (!rooms[roomCode]) return;
+
+    rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
+    io.to(roomCode).emit('player_left', playerId);
+    io.to(roomCode).emit('update_players', rooms[roomCode].players);
+
+    if (rooms[roomCode].players.length === 0) {
+      if (rooms[roomCode].timerInterval) clearInterval(rooms[roomCode].timerInterval);
+      movieTTT.stopTimer(roomCode);
+      delete rooms[roomCode];
     }
   });
 
   socket.on('play_audio', (roomCode) => {
+    console.log('🖥️ [SERVER] received play_audio for room:', roomCode);
     updatePlayerActivity(socket.id);
     io.to(roomCode).emit('play_audio');
   });
 
   socket.on('pause_audio', (roomCode) => {
+    console.log('🖥️ [SERVER] received pause_audio for room:', roomCode);
     updatePlayerActivity(socket.id);
     io.to(roomCode).emit('pause_audio');
   });
@@ -3622,31 +3232,43 @@ socket.on('mafiosa_start', ({ roomCode, caseIndex }) => {
   // Disconnect
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected:', socket.id);
-    
+
     delete playerActivity[socket.id];
-    
+
     const roomCode = socket.data?.roomCode;
     const playerId = socket.data?.playerId;
-    
-    if (roomCode && rooms[roomCode] && playerId) {
+
+    if (!roomCode || !rooms[roomCode]) return;
+
+    // لو السوكيت ده كان الأدمن، نشيله من players
+    const adminPlayer = rooms[roomCode].players.find(p => p.socketId === socket.id);
+    if (adminPlayer) {
+      rooms[roomCode].players = rooms[roomCode].players.filter(p => p.socketId !== socket.id);
+      console.log(`❌ Admin ${adminPlayer.name} disconnected from room ${roomCode}`);
+    } else if (playerId) {
       const player = rooms[roomCode].players.find(p => p.id === playerId);
-      
       if (player) {
         rooms[roomCode].players = rooms[roomCode].players.filter(p => p.id !== playerId);
         console.log(`❌ ${player.name} disconnected from room ${roomCode}`);
-        
-        if (rooms[roomCode].admin === socket.id && rooms[roomCode].players.length > 0) {
-          rooms[roomCode].admin = rooms[roomCode].players[0].socketId;
-          console.log(`👑 New admin assigned: ${rooms[roomCode].players[0].name}`);
-        }
-        
-        if (rooms[roomCode].players.length === 0) {
-          // 👇 stop the timer before deleting the room
-          if (rooms[roomCode].timerInterval) clearInterval(rooms[roomCode].timerInterval);
-          delete rooms[roomCode];
-          console.log(`🏠 Room ${roomCode} closed (no players)`);
-        }
       }
+    }
+
+    // تعيين أدمن جديد لو الأدمن القديم خرج وباقي لاعبين
+    const oldAdminSocketId = rooms[roomCode].admin;
+    if (!rooms[roomCode].players.some(p => p.socketId === oldAdminSocketId) && rooms[roomCode].players.length > 0) {
+      const newAdmin = rooms[roomCode].players[0];
+      rooms[roomCode].admin = newAdmin.socketId;
+      newAdmin.isAdmin = true;
+      console.log(`👑 New admin assigned: ${newAdmin.name}`);
+    }
+
+    if (rooms[roomCode].players.length === 0) {
+      if (rooms[roomCode].timerInterval) clearInterval(rooms[roomCode].timerInterval);
+      movieTTT.stopTimer(roomCode);
+      delete rooms[roomCode];
+      console.log(`🏠 Room ${roomCode} closed (no players)`);
+    } else {
+      io.to(roomCode).emit('update_players', rooms[roomCode].players);
     }
   });
 });
