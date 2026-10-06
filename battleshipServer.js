@@ -7,14 +7,9 @@ const createEmptyGrid = () => Array.from({ length: ROWS }, () => Array(COLS).fil
 
 function setupBattleshipServer(socket, io, rooms) {
 
-  // ═══════════════════════════════════════════
-  //  Admin: يبدأ اللعبة مع لاعبين
-  // ═══════════════════════════════════════════
   socket.on('battleship_start', ({ roomCode, playerX, playerO }) => {
     const room = rooms[roomCode];
     if (!room) return;
-
-    // ✅ التحقق من الأدمن بنفس النمط
     if (room.admin !== socket.id) return;
 
     const players = {};
@@ -40,9 +35,6 @@ function setupBattleshipServer(socket, io, rooms) {
     emitStateToRoom(io, room, room.battleship);
   });
 
-  // ═══════════════════════════════════════════
-  //  Player: يضع سفينة
-  // ═══════════════════════════════════════════
   socket.on('battleship_place', ({ roomCode, playerId, shipId, positions }) => {
     const room = rooms[roomCode];
     if (!room || !room.battleship) return;
@@ -78,9 +70,6 @@ function setupBattleshipServer(socket, io, rooms) {
     emitStateToRoom(io, room, game);
   });
 
-  // ═══════════════════════════════════════════
-  //  Player: يخلص التوزيع
-  // ═══════════════════════════════════════════
   socket.on('battleship_ready', ({ roomCode, playerId }) => {
     const room = rooms[roomCode];
     if (!room || !room.battleship) return;
@@ -104,9 +93,6 @@ function setupBattleshipServer(socket, io, rooms) {
     emitStateToRoom(io, room, game);
   });
 
-  // ═══════════════════════════════════════════
-  //  Player: يضرب
-  // ═══════════════════════════════════════════
   socket.on('battleship_attack', ({ roomCode, playerId, row, col }) => {
     const room = rooms[roomCode];
     if (!room || !room.battleship) return;
@@ -160,19 +146,15 @@ function setupBattleshipServer(socket, io, rooms) {
     if (!game.winner) game.turn = defenderId;
     game.lastMove = { by: playerId, row, col, hit: cellValue !== null, soundType };
 
-    socket.to(roomCode).emit('battleship_sound', { type: soundType });
+    // ✅ التصحيح: io.to بدل socket.to حتى يسمع الطرفان
+    io.to(roomCode).emit('battleship_sound', { type: soundType });
 
     emitStateToRoom(io, room, game);
   });
 
-  // ═══════════════════════════════════════════
-  //  Reset
-  // ═══════════════════════════════════════════
   socket.on('battleship_reset', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room || !room.battleship) return;
-
-    // ✅ التحقق من الأدمن بنفس النمط
     if (room.admin !== socket.id) return;
 
     const game = room.battleship;
@@ -189,18 +171,12 @@ function setupBattleshipServer(socket, io, rooms) {
     emitStateToRoom(io, room, game);
   });
 
-  // ═══════════════════════════════════════════
-  //  Init / request state
-  // ═══════════════════════════════════════════
   socket.on('battleship_init', ({ roomCode, playerId }) => {
     const room = rooms[roomCode];
     if (!room || !room.battleship) return;
     emitStateToPlayer(io, room, room.battleship, playerId);
   });
 
-  // ═══════════════════════════════════════════
-  //  Close game
-  // ═══════════════════════════════════════════
   socket.on('close_game', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room) return;
@@ -208,9 +184,6 @@ function setupBattleshipServer(socket, io, rooms) {
   });
 }
 
-/* ═══════════════════════════════════════════
-   Helpers
-═══════════════════════════════════════════ */
 function emitStateToRoom(io, room, game) {
   room.players.forEach(p => {
     const data = buildStateFor(game, p.id);

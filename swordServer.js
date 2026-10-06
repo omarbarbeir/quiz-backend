@@ -1,12 +1,11 @@
 // swordServer.js
 // ⚔️ Sword of Knowledge – منطق السيرفر الكامل
-// signature: (socket, io, rooms)
 
 const {
   SOK_REALMS, SOK_CONFIG, SOK_PLAYER_COLORS,
-  getClaimRoundsForPlayers,   // ✅ جديد
+  getClaimRoundsForPlayers,
 } = require('./data/swordData');
-// ============ تحميل الأسئلة بشكل دفاعي ============
+
 let swordOfKnowledgeQuestions = [];
 try {
   const mod = require('./data/swordOfKnowledgeQuestions');
@@ -23,19 +22,15 @@ else console.log(`✅ SOK: تم تحميل ${swordOfKnowledgeQuestions.length} �
 
 const REALMS = SOK_REALMS;
 
-// ==================== Helpers ====================
 function getRandomQuestion() {
   if (!swordOfKnowledgeQuestions?.length) return null;
   return swordOfKnowledgeQuestions[Math.floor(Math.random() * swordOfKnowledgeQuestions.length)];
 }
 
-// ✅ تقييم موحد (MCQ + رقمي بالتقريب)
 function evaluateAnswers(question, answersArray) {
   if (!question || !answersArray?.length) {
     return (answersArray || []).map(a => ({ ...a, isCorrect: false }));
   }
-
-  // MCQ
   if (question.type === 'mcq') {
     const correct = question.answer;
     return answersArray.map(a => ({
@@ -43,23 +38,17 @@ function evaluateAnswers(question, answersArray) {
       isCorrect: parseInt(String(a.answer).trim(), 10) === correct,
     }));
   }
-
-  // رقمي
   if (question.type === 'numeric') {
     const correctValue = parseFloat(question.answer);
     if (isNaN(correctValue)) {
       return answersArray.map(a => ({ ...a, isCorrect: false }));
     }
-
     const parsed = answersArray
       .map(a => ({ ...a, num: parseFloat(a.answer) }))
       .filter(a => !isNaN(a.num));
-
     if (parsed.length === 0) {
       return answersArray.map(a => ({ ...a, isCorrect: false }));
     }
-
-    // 1) إجابة مطابقة تمامًا
     const exact = parsed.filter(a => a.num === correctValue);
     if (exact.length > 0) {
       return answersArray.map(a => ({
@@ -67,8 +56,6 @@ function evaluateAnswers(question, answersArray) {
         isCorrect: exact.some(x => x.playerId === a.playerId),
       }));
     }
-
-    // 2) الأقرب
     const diffs = parsed.map(a => Math.abs(a.num - correctValue));
     const minDiff = Math.min(...diffs);
     return answersArray.map(a => {
@@ -77,11 +64,9 @@ function evaluateAnswers(question, answersArray) {
       return { ...a, isCorrect: Math.abs(p.num - correctValue) === minDiff };
     });
   }
-
   return answersArray.map(a => ({ ...a, isCorrect: false }));
 }
 
-// ✅ اختيار الأسرع من "الصح"
 function pickFastest(answersEvaluated) {
   const correct = answersEvaluated
     .filter(a => a.isCorrect)
@@ -136,7 +121,6 @@ function getPlayerSocketSOK(roomCode, playerId, rooms, io) {
   return io.sockets.sockets.get(player.socketId);
 }
 
-// ==================== Init ====================
 function initSOKGame(room) {
   const allPlayers = room.players;
   if (allPlayers.length === 0) return null;
@@ -183,7 +167,6 @@ function initSOKGame(room) {
   };
 }
 
-// ==================== Module ====================
 module.exports = function setupSwordServer(socket, io, rooms) {
   let resolveClaim, askDuelQuestion, resolveDuelRound;
 
@@ -191,6 +174,14 @@ module.exports = function setupSwordServer(socket, io, rooms) {
   socket.on('sok_init', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room) return;
+
+    // ✅ لو فيه لعبة قديمة منتهية — امسحها وابدأ من الأول خالص
+    if (room.sok && room.sok.phase === 'ended') {
+      if (room.sok.timer) clearTimeout(room.sok.timer);
+      delete room.sok;
+      // صفّر حالة الاستبعاد للاعبين عشان اللعبة تبدأ نظيفة
+      room.players.forEach(p => { p.eliminated = false; });
+    }
 
     if (room.sok) {
       room.sok.players = room.players.map((p, i) => ({
@@ -221,6 +212,15 @@ module.exports = function setupSwordServer(socket, io, rooms) {
       room.sok = game;
       io.to(roomCode).emit('sok_state', sanitizeSOK(game));
     }
+  });
+
+  // ✅ تنظيف الغرفة عند إغلاق اللعبة نهائيًا
+  socket.on('close_game', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    if (room.sok?.timer) clearTimeout(room.sok.timer);
+    delete room.sok;
+    room.players.forEach(p => { p.eliminated = false; });
   });
 
   // ---------- CLAIM ----------
@@ -303,7 +303,6 @@ module.exports = function setupSwordServer(socket, io, rooms) {
     const defenderId = game.ownership[continentId][baseRegionId];
     if (!defenderId || defenderId === attackerId) return;
 
-    // ✅ شرط: المدافع عنده أقل من 3 أقاليم في مملكته
     const defenderHubsOwned = cont.regions
       .slice(1, 7)
       .filter(r => game.ownership[continentId][r.id] === defenderId).length;
@@ -379,22 +378,17 @@ module.exports = function setupSwordServer(socket, io, rooms) {
 
     const q = game.currentQuestion;
     const initiatorId = game.pendingAction?.playerId;
-
-    // ✅ تقييم كل الإجابات
     const evaluated = evaluateAnswers(q, game.answersArray);
 
     const initiatorEval = evaluated.find(e => e.playerId === initiatorId);
     const initiatorCorrect = !!initiatorEval?.isCorrect;
 
-    // ✅ الإقليم يُمنح فقط لو صاحب الدور جاوب صح
-    //    لو غلط → الإقليم يفضل فاضي (متاح لأي حد في أي دور)
     let winner = null;
     if (initiatorCorrect) {
       winner = initiatorId;
       game.ownership[continentId][regionName] = winner;
       game.scores[winner] = (game.scores[winner] || 0) + 1;
     } else if (game.phase === 'attacking' && initiatorId) {
-      // في مرحلة الهجوم بس: صاحب الدور اللي بيغلط يُتخطى
       game.skippedPlayers[initiatorId] = true;
     }
 
@@ -498,7 +492,6 @@ module.exports = function setupSwordServer(socket, io, rooms) {
 
     const { attackerId, defenderId, question, answers, answerTimestamps = {}, round } = game.duel;
 
-    // ✅ استخدم evaluateAnswers بدل isAnswerCorrect
     const arr = [];
     if (answers[attackerId] !== undefined) {
       arr.push({
@@ -521,7 +514,6 @@ module.exports = function setupSwordServer(socket, io, rooms) {
     const attackerCorrect = !!attackerEval?.isCorrect;
     const defenderCorrect = !!defenderEval?.isCorrect;
 
-    // ✅ فائز الجولة: الأسرع من "الصح"
     let roundWinner = null;
     const corrects = evaluated
       .filter(e => e.isCorrect)
@@ -546,10 +538,6 @@ module.exports = function setupSwordServer(socket, io, rooms) {
     const attackerScore = game.duel.scores[attackerId];
     const defenderScore = game.duel.scores[defenderId];
 
-    // ✅ قواعد الفوز:
-    // 1) حد وصل 2 → يخلص فوراً وهو الفائز
-    // 2) محدش وصل 2 والجولة >= 3 → اللي عنده أكتر يكسب (تعادل → المدافع)
-    // 3) غير كده → جولة تالية
     let duelWinner = null;
     let endDuel = false;
 
@@ -619,26 +607,22 @@ module.exports = function setupSwordServer(socket, io, rooms) {
     io.to(roomCode).emit('sok_state', sanitizeSOK(game));
   };
 
-
-  // ---------- PLAYER LEAVE (graceful) ----------
+  // ---------- PLAYER LEAVE ----------
   socket.on('sok_cleanup', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room || !room.sok) return;
 
     const game = room.sok;
 
-    // لو اللعبة خلصت خلاص — بس نوقف التايمر
     if (game.phase === 'ended') {
       if (game.timer) clearTimeout(game.timer);
       return;
     }
 
-    // 1) دور على اللاعب اللي بيخرج
     const leavingPlayer = room.players.find(p => p.socketId === socket.id);
     if (!leavingPlayer) return;
     const playerId = leavingPlayer.id;
 
-    // 2) حرر كل الأقاليم بتاعته
     let releasedRegions = 0;
     Object.keys(game.ownership || {}).forEach(realmId => {
       const realmRegions = game.ownership[realmId] || {};
@@ -650,7 +634,6 @@ module.exports = function setupSwordServer(socket, io, rooms) {
       });
     });
 
-    // 3) لو كان في مبارزة — ألغها (اللي فضل ماكسبش حاجة)
     let duelCancelled = false;
     if (game.duel && (game.duel.attackerId === playerId || game.duel.defenderId === playerId)) {
       if (game.timer) { clearTimeout(game.timer); game.timer = null; }
@@ -660,7 +643,6 @@ module.exports = function setupSwordServer(socket, io, rooms) {
       duelCancelled = true;
     }
 
-    // 4) لو كان في نص سؤال (claim) — اقفل السؤال
     if (game.currentQuestion) {
       if (game.timer) { clearTimeout(game.timer); game.timer = null; }
       game.currentQuestion = null;
@@ -668,21 +650,17 @@ module.exports = function setupSwordServer(socket, io, rooms) {
       game.answersArray = [];
     }
 
-    // 5) علّم عليه إنه خارج (في المكانين عشان الاتساق)
     const gp = game.players.find(p => p.id === playerId);
     if (gp) gp.eliminated = true;
     leavingPlayer.eliminated = true;
 
-    // 6) شيل نقاطه
     delete game.scores[playerId];
 
-    // 7) لو كان دوره — انقله للي بعده
     if (game.turn === playerId) {
       const next = getNextPlayerSOK(roomCode, playerId, rooms);
       game.turn = next;
     }
 
-    // 8) افحص شرط النهاية — لو فاضل لاعب واحد بس
     const alive = game.players.filter(p => !p.eliminated);
     if (alive.length <= 1) {
       game.phase = 'ended';
@@ -694,7 +672,6 @@ module.exports = function setupSwordServer(socket, io, rooms) {
       }
     }
 
-    // 9) بلّغ الكل + ابعت الحالة الجديدة
     io.to(roomCode).emit('sok_player_left', {
       playerId,
       playerName: leavingPlayer.name,

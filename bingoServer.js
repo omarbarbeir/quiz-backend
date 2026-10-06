@@ -1,81 +1,81 @@
 // bingoServer.js
-// 🎯 بينجو – منطق السيرفر
-// signature: (socket, io, rooms)
-
 module.exports = function setupBingoServer(socket, io, rooms) {
 
-  // ---------- INIT ----------
   socket.on('bingo_init', ({ roomCode, playerId }) => {
-    if (!rooms[roomCode]) return;
-    if (!rooms[roomCode].bingoGames) {
-      rooms[roomCode].bingoGames = {};
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    // ✅ لو الأدمن داخل → ابدأ من الأول خالص
+    const isAdmin = room.admin === socket.id;
+    if (isAdmin) {
+      room.bingoGames = {};
+      room.bingoCalled = [];
+      io.to(roomCode).emit('bingo_reset_all');
+      io.to(roomCode).emit('bingo_called_numbers', []);
     }
-    if (!rooms[roomCode].bingoGames[playerId]) {
-      rooms[roomCode].bingoGames[playerId] = {
+
+    if (!room.bingoGames) room.bingoGames = {};
+    if (!room.bingoGames[playerId]) {
+      room.bingoGames[playerId] = {
         grid: Array.from({ length: 5 }, () => Array(5).fill('')),
         marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
       };
     }
-    socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
+    socket.emit('bingo_state', room.bingoGames[playerId]);
   });
 
-  // ---------- CELL UPDATE ----------
   socket.on('bingo_cell_update', ({ roomCode, playerId, row, col, value }) => {
-    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
-    if (!rooms[roomCode].bingoGames[playerId]) {
-      rooms[roomCode].bingoGames[playerId] = {
+    const room = rooms[roomCode];
+    if (!room || !room.bingoGames) return;
+    if (!room.bingoGames[playerId]) {
+      room.bingoGames[playerId] = {
         grid: Array.from({ length: 5 }, () => Array(5).fill('')),
         marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
       };
     }
     if (row >= 0 && row < 5 && col >= 0 && col < 5) {
-      rooms[roomCode].bingoGames[playerId].grid[row][col] = value;
-      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
+      room.bingoGames[playerId].grid[row][col] = value;
+      socket.emit('bingo_state', room.bingoGames[playerId]);
     }
   });
 
-  // ---------- MARK UPDATE ----------
   socket.on('bingo_mark_update', ({ roomCode, playerId, row, col, marked }) => {
-    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
-    if (!rooms[roomCode].bingoGames[playerId]) {
-      rooms[roomCode].bingoGames[playerId] = {
+    const room = rooms[roomCode];
+    if (!room || !room.bingoGames) return;
+    if (!room.bingoGames[playerId]) {
+      room.bingoGames[playerId] = {
         grid: Array.from({ length: 5 }, () => Array(5).fill('')),
         marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
       };
     }
     if (row >= 0 && row < 5 && col >= 0 && col < 5) {
-      rooms[roomCode].bingoGames[playerId].marks[row][col] = marked;
-      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
+      room.bingoGames[playerId].marks[row][col] = marked;
+      socket.emit('bingo_state', room.bingoGames[playerId]);
     }
   });
 
-  // ---------- RESET (player) ----------
   socket.on('bingo_reset', ({ roomCode, playerId }) => {
-    if (!rooms[roomCode] || !rooms[roomCode].bingoGames) return;
-    if (rooms[roomCode].bingoGames[playerId]) {
-      rooms[roomCode].bingoGames[playerId] = {
+    const room = rooms[roomCode];
+    if (!room || !room.bingoGames) return;
+    if (room.bingoGames[playerId]) {
+      room.bingoGames[playerId] = {
         grid: Array.from({ length: 5 }, () => Array(5).fill('')),
         marks: Array.from({ length: 5 }, () => Array(5).fill(false)),
       };
-
-      // ★ Clear shared called numbers
-      if (rooms[roomCode].bingoCalled) {
-        rooms[roomCode].bingoCalled = [];
+      if (room.bingoCalled) {
+        room.bingoCalled = [];
         io.to(roomCode).emit('bingo_called_numbers', []);
       }
-      socket.emit('bingo_state', rooms[roomCode].bingoGames[playerId]);
+      socket.emit('bingo_state', room.bingoGames[playerId]);
     }
   });
 
-  // ---------- CALL NUMBER ----------
   socket.on('bingo_call_number', ({ roomCode }) => {
-    if (!rooms[roomCode]) return;
-    if (!rooms[roomCode].bingoCalled) {
-      rooms[roomCode].bingoCalled = [];
-    }
-    const called = rooms[roomCode].bingoCalled;
-    // Generate random number 1-25 not already called
-    if (called.length >= 25) return; // all called
+    const room = rooms[roomCode];
+    if (!room) return;
+    if (!room.bingoCalled) room.bingoCalled = [];
+    const called = room.bingoCalled;
+    if (called.length >= 25) return;
     let num;
     do {
       num = Math.floor(Math.random() * 25) + 1;
@@ -84,7 +84,7 @@ module.exports = function setupBingoServer(socket, io, rooms) {
     io.to(roomCode).emit('bingo_called_numbers', called);
   });
 
-  // ---------- CLEANUP ----------
+  // ✅ عند خروج الأدمن: صفّر اللعبة، وأرجع الجميع للوبي، بدون طرد أحد
   socket.on('bingo_cleanup', ({ roomCode, playerId }) => {
     const room = rooms[roomCode];
     if (!room) return;
@@ -92,15 +92,20 @@ module.exports = function setupBingoServer(socket, io, rooms) {
     const isAdmin = room.admin === socket.id;
 
     if (isAdmin) {
-      // ✅ الأدمن خرج — صفّر كل شيء، ثم أخرج الباقين
-      if (room.bingoGames) room.bingoGames = {};
+      room.bingoGames = {};
       room.bingoCalled = [];
-
       io.to(roomCode).emit('bingo_called_numbers', []);
-      io.to(roomCode).emit('bingo_admin_left');
+      io.to(roomCode).emit('bingo_back_to_lobby');
     } else {
-      // ✅ لاعب عادي خرج — امسح لوحته فقط
       if (room.bingoGames) delete room.bingoGames[playerId];
     }
+  });
+
+  // ✅ عند إغلاق اللعبة: صفّر البينجو فقط، ولا تمسح الغرفة
+  socket.on('close_game', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    room.bingoGames = {};
+    room.bingoCalled = [];
   });
 };

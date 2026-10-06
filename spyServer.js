@@ -131,6 +131,33 @@ function setupSpyServer(socket, io, rooms) {
     io.to(roomCode).emit('update_players', room.players);
   });
 
+  // ✅ عندما يضغط الأدمن زر الرجوع: صفّر اللعبة وأرجع الجميع لشاشة الأزرار
+  socket.on('spy_cleanup', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player?.isAdmin) return;
+
+    room.spyId = null;
+    room.spyWord = null;
+    room.spyVotes = {};
+
+    io.to(roomCode).emit('spy_back_to_lobby');
+  });
+
+  // ✅ تنظيف الغرفة عند إغلاق اللعبة نهائيًا
+  socket.on('close_game', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    room.spyId = null;
+    room.spyWord = null;
+    room.spyVotes = {};
+
+    io.to(roomCode).emit('spy_back_to_lobby');
+  });
+
 }
 
 module.exports = setupSpyServer;
