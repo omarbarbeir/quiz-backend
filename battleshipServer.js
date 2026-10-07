@@ -177,10 +177,24 @@ function setupBattleshipServer(socket, io, rooms) {
     emitStateToPlayer(io, room, room.battleship, playerId);
   });
 
+  // ✅ عندما يضغط الأدمن زر الرجوع: صفّر اللعبة وأرجع الجميع لشاشة الأزرار
+  socket.on('battleship_cleanup', ({ roomCode }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player?.isAdmin) return;
+
+    room.battleship = null;
+    io.to(roomCode).emit('battleship_back_to_lobby');
+  });
+
+  // ✅ تنظيف الغرفة نهائيًا
   socket.on('close_game', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room) return;
     room.battleship = null;
+    io.to(roomCode).emit('battleship_back_to_lobby');
   });
 }
 
