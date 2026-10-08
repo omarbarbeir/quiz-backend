@@ -816,7 +816,7 @@ module.exports = (io) => {
               } catch (err) {
                 console.error('❌ bank_roll phase 3 error:', err);
               }
-            }, 1000);
+            }, 2500);
 
           } catch (err) {
             console.error('❌ bank_roll phase 2 error:', err);
