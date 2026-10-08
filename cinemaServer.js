@@ -22,7 +22,8 @@ function pickRandomItem(room, subcategory) {
   return { text: pick.text, answer: pick.answer, bounc: pick.bounc };
 }
 
-function buildQuestion(item, subcategory) {
+// ✅ نُعدّ قائمة كل الإجابات المحتملة لاستخدامها في autocomplete
+function buildQuestion(item, subcategory, allItems) {
   return {
     id: `cinema_${Date.now()}`,
     category: 'cinema-game',
@@ -30,10 +31,19 @@ function buildQuestion(item, subcategory) {
     text: item.text,
     answer: item.answer,
     bounc: item.bounc,
+    allAnswers: allItems.map(i => i.answer),
     actorsRevealed: false,
     hintRevealed: false,
     answerRevealed: false,
+    answeredCorrectly: false,
   };
+}
+
+// ✅ تطبيع للإجابة — يتجاهل المسافات والتشكيل وحالة الأحرف
+function normalizeAnswer(s) {
+  if (!s) return '';
+  let str = s.toString().replace(/[\u064B-\u065F\u0670\u0640]/g, '');
+  return str.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function setupCinemaServer(socket, io, rooms) {
@@ -45,7 +55,6 @@ function setupCinemaServer(socket, io, rooms) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // ✅ لو نفس الفئة شغالة → رجّع الحالة
     if (room.currentQuestion?.category === 'cinema-game' &&
         room.currentQuestion.subcategory === subcategory) {
       io.to(roomCode).emit('question_changed', room.currentQuestion);
@@ -61,7 +70,8 @@ function setupCinemaServer(socket, io, rooms) {
     const item = pickRandomItem(room, subcategory);
     if (!item) return;
 
-    room.currentQuestion = buildQuestion(item, subcategory);
+    const allItems = cinemaData[subcategory] || [];
+    room.currentQuestion = buildQuestion(item, subcategory, allItems);
     io.to(roomCode).emit('question_changed', room.currentQuestion);
     io.to(roomCode).emit('reset_buzzer');
   });
@@ -80,13 +90,14 @@ function setupCinemaServer(socket, io, rooms) {
     const item = pickRandomItem(room, subcategory);
     if (!item) return;
 
-    room.currentQuestion = buildQuestion(item, subcategory);
+    const allItems = cinemaData[subcategory] || [];
+    room.currentQuestion = buildQuestion(item, subcategory, allItems);
     io.to(roomCode).emit('question_changed', room.currentQuestion);
     io.to(roomCode).emit('reset_buzzer');
   });
 
   // ═══════════════════════════════════════════
-  //  ✅ كشف الممثلين
+  //  كشف الممثلين
   // ═══════════════════════════════════════════
   socket.on('cinema_reveal_actors', ({ roomCode }) => {
     const room = rooms[roomCode];
@@ -96,7 +107,7 @@ function setupCinemaServer(socket, io, rooms) {
   });
 
   // ═══════════════════════════════════════════
-  //  ✅ كشف التلميح
+  //  كشف التلميح
   // ═══════════════════════════════════════════
   socket.on('cinema_reveal_hint', ({ roomCode }) => {
     const room = rooms[roomCode];
@@ -106,7 +117,7 @@ function setupCinemaServer(socket, io, rooms) {
   });
 
   // ═══════════════════════════════════════════
-  //  ✅ كشف الإجابة
+  //  كشف الإجابة
   // ═══════════════════════════════════════════
   socket.on('cinema_reveal_answer', ({ roomCode }) => {
     const room = rooms[roomCode];
@@ -118,7 +129,61 @@ function setupCinemaServer(socket, io, rooms) {
     io.to(roomCode).emit('reset_buzzer');
   });
 
-    socket.on('close_game', ({ roomCode }) => {
+  // ═══════════════════════════════════════════
+  //  ✅ إرسال إجابة اللاعب الذي ضغط البازر
+  // ═══════════════════════════════════════════
+  socket.on('cinema_submit', ({ roomCode, playerId, answer }) => {
+    const room = rooms[roomCode];
+    if (!room || !room.currentQuestion) return;
+    if (room.activePlayer !== playerId) return;
+    if (room.currentQuestion.answeredCorrectly) return;
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const correct = normalizeAnswer(room.currentQuestion.answer);
+    const submitted = normalizeAnswer(answer);
+    const isCorrect = submitted === correct;
+
+    if (isCorrect) {
+      player.score = (player.score || 0) + 1;
+
+      room.currentQuestion = {
+        ...room.currentQuestion,
+        answeredCorrectly: true,
+      };
+
+      io.to(roomCode).emit('cinema_correct', {
+        playerId,
+        playerName: player.name,
+        answer,
+      });
+
+      room.activePlayer = null;
+      room.buzzerLocked = false;
+      io.to(roomCode).emit('question_changed', room.currentQuestion);
+      io.to(roomCode).emit('reset_buzzer');
+      io.to(roomCode).emit('update_players', room.players);
+    } else {
+      player.score = Math.max(0, (player.score || 0) - 1);
+
+      io.to(roomCode).emit('cinema_wrong', {
+        playerId,
+        playerName: player.name,
+        answer,
+      });
+
+      room.activePlayer = null;
+      room.buzzerLocked = false;
+      io.to(roomCode).emit('reset_buzzer');
+      io.to(roomCode).emit('update_players', room.players);
+    }
+  });
+
+  // ═══════════════════════════════════════════
+  //  تنظيف
+  // ═══════════════════════════════════════════
+  socket.on('close_game', ({ roomCode }) => {
     const room = rooms[roomCode];
     if (!room) return;
     room.currentQuestion = null;

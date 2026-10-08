@@ -1,5 +1,5 @@
 // ================================================================
-// bankElHazServer.js — النسخة النهائية
+// bankElHazServer.js — بعد إصلاح مشكلة تسلسل الدور
 // ================================================================
 
 const PLAYER_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
@@ -77,6 +77,8 @@ const COMMUNITY_CARDS = [
   { id:'com15', text:'يدفع لك البنك ٢٥ جنيه عن كل سوق أو استراحة أو جراج', type:'collect_per_building', rate:25 },
 ];
 
+const INTERACTIVE_CARD_TYPES = ['choose_city_or_money', 'choose_city_and_collect'];
+
 function shuffleDeck(deck) {
   const d = [...deck];
   for (let i = d.length-1; i > 0; i--) {
@@ -111,6 +113,8 @@ function initGame(roomId, playersList) {
     gameOver: false,
     winner: null,
     pendingPayments: [],
+    awaitingResponseFrom: null,
+    awaitingResponseKind: null,
   };
 }
 
@@ -145,6 +149,8 @@ function broadcastGameState(io, roomId) {
     turnOrder:        game.turnOrder,
     chanceDeckCount:    game.chanceDeck.length,
     communityDeckCount: game.communityDeck.length,
+    awaitingResponseFrom: game.awaitingResponseFrom || null,
+    awaitingResponseKind: game.awaitingResponseKind || null,
   });
 }
 
@@ -188,6 +194,18 @@ function advanceTurnAndBroadcast(game, io, roomId) {
   broadcastGameState(io, roomId);
 }
 
+// ✅ دالة موحدة: إذا كان اللاعب مسؤول عن العرض المعلق، أنجز الدور
+function completeResponseAndAdvance(game, io, roomId, playerId) {
+  if (game.awaitingResponseFrom === playerId) {
+    game.awaitingResponseFrom = null;
+    game.awaitingResponseKind = null;
+    advanceTurnAndBroadcast(game, io, roomId);
+    return true;
+  }
+  broadcastGameState(io, roomId);
+  return false;
+}
+
 function applyCardEffect(player, card, game, io, roomId) {
   const TOTAL_TILES = 34;
   switch (card.type) {
@@ -195,7 +213,6 @@ function applyCardEffect(player, card, game, io, roomId) {
       player.money += card.amount;
       break;
     case 'go_to_jail':
-      // ✅ كارت "اذهب للسجن" → يقدر يدفع ٥٠ أو يستخدم بطاقة
       player.inJail = true;
       player.position = 24;
       player.jailRollNeeded = null;
@@ -343,7 +360,6 @@ module.exports = (io) => {
         }
         const room = bankGames[roomId];
 
-        // ✅ سجّل الأدمن
         if (isAdmin) {
           room.adminSocketId = socket.id;
           room.adminPlayerId = playerId;
@@ -359,7 +375,7 @@ module.exports = (io) => {
           player = {
             id:playerId, name:playerName||'لاعب',
             socketId:socket.id, color:PLAYER_COLORS[colorIdx],
-            isAdmin: !!isAdmin,   // ✅ خزّن الفلاج
+            isAdmin: !!isAdmin,
           };
           room.players.push(player);
         } else {
@@ -496,6 +512,13 @@ module.exports = (io) => {
           return;
         }
         const game = room.game;
+
+        // ✅ لو في عرض معلق من نفس اللاعب، امنعه من الرمي مرة أخرى
+        if (game.awaitingResponseFrom === playerId) {
+          socket.emit('bank_error', { message: 'لازم تخلص العرض الحالي أولاً' });
+          return;
+        }
+
         const currentPlayerId = game.turnOrder[game.currentTurnIndex];
         if (currentPlayerId !== playerId) {
           socket.emit('bank_error', { message:'ليس دورك الآن' });
@@ -533,7 +556,6 @@ module.exports = (io) => {
                 io.to(`bank_${roomId}`).emit('bank_notification', {
                   text: `⛓️ ${p.name} جاب ${dice1} — ${needed}`, type:'warning',
                 });
-                // ✅ نبعث bank_player_moved عشان الفرونت يخفي popup النرد
                 io.to(`bank_${roomId}`).emit('bank_player_moved', {
                   playerId, newPosition: p.position, totalSteps: 0, passedStart: false,
                 });
@@ -581,6 +603,10 @@ module.exports = (io) => {
                   return;
                 }
 
+                // ✅ متغيرات تتبع هل نحتاج ننتظر رد اللاعب أم لا
+                let awaiting = false;
+                let awaitingKind = null;
+
                 switch (tile.type) {
                   case 'go_to_jail':
                     p3.inJail = true;
@@ -593,7 +619,6 @@ module.exports = (io) => {
                     });
                     break;
 
-                  // ✅ جديد: الوقوف على خانة السجن بالنرد → يدخل السجن
                   case 'jail':
                     p3.inJail = true;
                     p3.jailRollNeeded = dice1;
@@ -609,6 +634,9 @@ module.exports = (io) => {
                     const card = g3.chanceDeck.pop();
                     applyCardEffect(p3, card, g3, io, roomId);
                     io.to(`bank_${roomId}`).emit('bank_card_drawn', { playerId, card, type:'chance' });
+                    // ✅ ننتظر رد اللاعب قبل ما ننقل الدور
+                    awaiting = true;
+                    awaitingKind = INTERACTIVE_CARD_TYPES.includes(card.type) ? 'card_interactive' : 'card';
                     break;
                   }
 
@@ -628,6 +656,11 @@ module.exports = (io) => {
                         { card: communityCard, pileType: 'community' },
                       ],
                     });
+                    awaiting = true;
+                    const anyInteractive =
+                      INTERACTIVE_CARD_TYPES.includes(chanceCard.type) ||
+                      INTERACTIVE_CARD_TYPES.includes(communityCard.type);
+                    awaitingKind = anyInteractive ? 'card_interactive' : 'card';
                     break;
                   }
 
@@ -636,6 +669,8 @@ module.exports = (io) => {
                     const card = g3.communityDeck.pop();
                     applyCardEffect(p3, card, g3, io, roomId);
                     io.to(`bank_${roomId}`).emit('bank_card_drawn', { playerId, card, type:'community' });
+                    awaiting = true;
+                    awaitingKind = INTERACTIVE_CARD_TYPES.includes(card.type) ? 'card_interactive' : 'card';
                     break;
                   }
 
@@ -652,6 +687,8 @@ module.exports = (io) => {
                         tileId: tile.id, price: tile.price,
                         canAfford: p3.money >= tile.price,
                       });
+                      awaiting = true;
+                      awaitingKind = 'buy';
                     } else if (tile.owner !== playerId) {
                       const owner = g3.players.find(pl=>pl.id===tile.owner);
                       if (owner && !owner.eliminated) {
@@ -668,6 +705,8 @@ module.exports = (io) => {
                           rent: finalRent, canAfford: p3.money >= finalRent,
                           isHalf, bankPays: p3.bankPaysNext || false,
                         });
+                        awaiting = true;
+                        awaitingKind = 'rent';
                       }
                     }
                     break;
@@ -691,6 +730,8 @@ module.exports = (io) => {
                         currentOwners: [],
                         rent: Math.floor(tile.price * 0.1),
                       });
+                      awaiting = true;
+                      awaitingKind = 'club';
                     } else if (clubOwners.length === 1) {
                       const halfPrice = Math.floor(tile.price / 2);
                       const rent = Math.floor(tile.price * 0.1);
@@ -702,6 +743,8 @@ module.exports = (io) => {
                         currentOwners: clubOwners, ownerName, rent,
                         canAffordRent: p3.money >= rent,
                       });
+                      awaiting = true;
+                      awaitingKind = 'club';
                     } else {
                       const rent = Math.floor(tile.price * 0.1);
                       const ownerNames = clubOwners.map(id => g3.players.find(pl=>pl.id===id)?.name).filter(Boolean).join(' و ');
@@ -717,6 +760,8 @@ module.exports = (io) => {
                         rent: finalRent, canAfford: p3.money >= finalRent,
                         isHalf, bankPays: p3.bankPaysNext || false, isClub: true,
                       });
+                      awaiting = true;
+                      awaitingKind = 'rent';
                     }
                     break;
                   }
@@ -727,6 +772,8 @@ module.exports = (io) => {
                         tileId: tile.id, price: tile.price,
                         canAfford: p3.money >= tile.price,
                       });
+                      awaiting = true;
+                      awaitingKind = 'buy';
                     } else if (tile.owner !== playerId) {
                       const owner = g3.players.find(pl=>pl.id===tile.owner);
                       if (owner && !owner.eliminated && !tile.isMortgaged) {
@@ -743,6 +790,8 @@ module.exports = (io) => {
                           rent: finalRent, canAfford: p3.money >= finalRent,
                           isHalf, bankPays: p3.bankPaysNext || false,
                         });
+                        awaiting = true;
+                        awaitingKind = 'rent';
                       }
                     }
                     break;
@@ -757,7 +806,13 @@ module.exports = (io) => {
                   default: break;
                 }
 
-                advanceTurnAndBroadcast(g3, io, roomId);
+                if (awaiting) {
+                  g3.awaitingResponseFrom = playerId;
+                  g3.awaitingResponseKind = awaitingKind;
+                  broadcastGameState(io, roomId);
+                } else {
+                  advanceTurnAndBroadcast(g3, io, roomId);
+                }
               } catch (err) {
                 console.error('❌ bank_roll phase 3 error:', err);
               }
@@ -802,7 +857,7 @@ module.exports = (io) => {
             text:`🎰 ${player.name} ${isBuyFull && tile.owners.length===1 ? 'اشترى النادي بالكامل' : 'انضم شريكاً في النادي'}! الشركاء: ${partnerNames}`,
             type:'success',
           });
-          broadcastGameState(io, roomId);
+          completeResponseAndAdvance(game, io, roomId, playerId);
           return;
         }
 
@@ -816,7 +871,7 @@ module.exports = (io) => {
           io.to(`bank_${roomId}`).emit('bank_notification', {
             text: `🏦 البنك دفع ${tile.price} جنيه عن ${player.name} لشراء ${tile.name}`, type:'success',
           });
-          broadcastGameState(io, roomId);
+          completeResponseAndAdvance(game, io, roomId, playerId);
           return;
         }
 
@@ -827,9 +882,30 @@ module.exports = (io) => {
         io.to(`bank_${roomId}`).emit('bank_notification', {
           text: `🏙️ ${player.name} اشترى ${tile.name} بـ ${tile.price} جنيه`, type:'success',
         });
-        broadcastGameState(io, roomId);
+        completeResponseAndAdvance(game, io, roomId, playerId);
       } catch (err) {
         socket.emit('bank_error', { message:'حدث خطأ أثناء الشراء' });
+      }
+    });
+
+    // ✅ جديد: عندما يرفض اللاعب شراء بلد أو يغلق نافذة العرض
+    socket.on('bank_dismiss_offer', ({ roomId, playerId }) => {
+      try {
+        const room = bankGames[roomId];
+        if (!room?.game) return;
+        const game = room.game;
+
+        // لا ننقل الدور إلا لو كان هذا اللاعب هو المسؤول عن العرض المعلق، والعرض ليس بطاقة
+        if (game.awaitingResponseFrom === playerId &&
+            (game.awaitingResponseKind === 'buy' ||
+             game.awaitingResponseKind === 'rent' ||
+             game.awaitingResponseKind === 'club')) {
+          game.awaitingResponseFrom = null;
+          game.awaitingResponseKind = null;
+          advanceTurnAndBroadcast(game, io, roomId);
+        }
+      } catch (err) {
+        console.error('❌ bank_dismiss_offer error:', err);
       }
     });
 
@@ -1042,7 +1118,18 @@ module.exports = (io) => {
 
     socket.on('bank_dismiss_card', ({ roomId, playerId }) => {
       io.to(`bank_${roomId}`).emit('bank_card_dismissed', { drawerId: playerId });
-      broadcastGameState(io, roomId);
+      const game = bankGames[roomId]?.game;
+      if (!game) return;
+
+      // ✅ إذا كانت البطاقة غير تفاعلية وكان هذا اللاعب هو المسؤول عن العرض المعلق → أنجز الدور
+      if (game.awaitingResponseFrom === playerId && game.awaitingResponseKind === 'card') {
+        game.awaitingResponseFrom = null;
+        game.awaitingResponseKind = null;
+        advanceTurnAndBroadcast(game, io, roomId);
+      } else {
+        // بطاقة تفاعلية → لا ننقل الدور، ننتظر bank_card_action
+        broadcastGameState(io, roomId);
+      }
     });
 
     socket.on('bank_card_action', ({ roomId, playerId, action, data }) => {
@@ -1109,7 +1196,15 @@ module.exports = (io) => {
         }
 
         io.to(`bank_${roomId}`).emit('bank_card_dismissed', { drawerId: playerId });
-        broadcastGameState(io, roomId);
+
+        // ✅ بعد تنفيذ التفاعل → أنجز الدور إن كان هذا اللاعب مسؤول عن العرض المعلق
+        if (game.awaitingResponseFrom === playerId) {
+          game.awaitingResponseFrom = null;
+          game.awaitingResponseKind = null;
+          advanceTurnAndBroadcast(game, io, roomId);
+        } else {
+          broadcastGameState(io, roomId);
+        }
       } catch(err) {
         console.error('❌ bank_card_action error:', err);
         socket.emit('bank_error', { message:'حدث خطأ' });
@@ -1167,7 +1262,7 @@ module.exports = (io) => {
             });
           }
 
-          broadcastGameState(io, roomId);
+          completeResponseAndAdvance(game, io, roomId, playerId);
           return;
         }
 
@@ -1198,7 +1293,7 @@ module.exports = (io) => {
 
         delete player.halfRentNextLand;
 
-        broadcastGameState(io, roomId);
+        completeResponseAndAdvance(game, io, roomId, playerId);
       } catch(err) { socket.emit('bank_error', { message:'حدث خطأ أثناء دفع الإيجار' }); }
     });
 
@@ -1217,6 +1312,12 @@ module.exports = (io) => {
         player.properties = [];
         player.money = 0;
         player.eliminated = true;
+
+        // لو كان هو المسؤول عن عرض معلق → امسحه
+        if (game.awaitingResponseFrom === playerId) {
+          game.awaitingResponseFrom = null;
+          game.awaitingResponseKind = null;
+        }
 
         io.to(`bank_${roomId}`).emit('bank_notification', {
           text:`💔 ${player.name} أعلن إفلاسه وخرج من اللعبة!`,
@@ -1368,7 +1469,6 @@ module.exports = (io) => {
     });
 
     function handleLeave(socket) {
-      // دور على الغرفة اللي فيها اللاعب ده
       let foundRoomId = null;
       let leavingPlayer = null;
 
@@ -1384,7 +1484,6 @@ module.exports = (io) => {
       if (!foundRoomId || !leavingPlayer) return;
       const room = bankGames[foundRoomId];
 
-      // ✅ لو الأدمن خرج، شيله من الـ tracking
       if (room.adminSocketId === socket.id) {
         room.adminSocketId = null;
       }
@@ -1394,15 +1493,18 @@ module.exports = (io) => {
 
       const playerId = leavingPlayer.id;
 
-      // شيله من room.players
       room.players = room.players.filter(p => p.id !== playerId);
 
-      // شيله من game.players (لو اللعبة بدأت)
       if (room.game) {
         const gp = room.game.players.find(p => p.id === playerId);
         if (gp) gp.eliminated = true;
 
-        // لو كان دوره، انقل الدور
+        // لو كان مسؤول عن عرض معلق → امسحه
+        if (room.game.awaitingResponseFrom === playerId) {
+          room.game.awaitingResponseFrom = null;
+          room.game.awaitingResponseKind = null;
+        }
+
         if (room.game.turnOrder && room.game.turnOrder[room.game.currentTurnIndex] === playerId) {
           advanceTurnAndBroadcast(room.game, io, foundRoomId);
         } else {
@@ -1415,7 +1517,6 @@ module.exports = (io) => {
         });
       }
 
-      // لو الغرفة فضيت → امسحها
       if (room.players.length === 0) {
         delete bankGames[foundRoomId];
         return;
@@ -1432,7 +1533,6 @@ module.exports = (io) => {
     socket.on('close_game', ({ roomCode }) => {
       const room = bankGames[roomCode];
       if (!room) return;
-      // أوقف أي مزاد شغال
       if (room.auctions) {
         Object.values(room.auctions).forEach(() => {});
         room.auctions = {};
